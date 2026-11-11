@@ -56,7 +56,12 @@ function OBJMesh({ url, onLoad, onError }) {
 
   return (
     <Center>
-      <primitive object={obj} />
+      {/* Rotate 180° around X to correct up-axis mismatch (OBJ exported with
+          Z-up / head-down orientation) so the mesh stands upright facing
+          forward in Three.js's Y-up coordinate system. */}
+      <group rotation={[Math.PI, 0, 0]}>
+        <primitive object={obj} />
+      </group>
     </Center>
   )
 }

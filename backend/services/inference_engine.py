@@ -164,6 +164,67 @@ class InferenceEngine:
 
             torch.load = _patched_torch_load
 
+            # hmr2.models.check_smpl_exists() -> convert_pkl() writes the
+            # converted SMPL file to {CACHE_DIR_4DHUMANS}/data/smpl/SMPL_NEUTRAL.pkl
+            # but never creates that parent directory first, so open(new_pkl, "wb")
+            # raises FileNotFoundError on a fresh machine (verified by traceback
+            # during Phase A testing on this machine). This directory lives
+            # entirely under the user's HOME cache folder, outside the repo and
+            # outside vendor code, so creating it here (not editing vendor code)
+            # is the minimal, targeted fix.
+            from hmr2.configs import CACHE_DIR_4DHUMANS
+
+            os.makedirs(os.path.join(CACHE_DIR_4DHUMANS, "data", "smpl"), exist_ok=True)
+
+            # hmr2.configs.get_config(update_cachedir=True) rewrites
+            # cfg.SMPL.MEAN_PARAMS / JOINT_REGRESSOR_EXTRA (relative paths
+            # from model_config.yaml, e.g. "data/smpl_mean_params.npz") to be
+            # relative to CACHE_DIR_4DHUMANS, under the assumption that the
+            # official hmr2_data.tar.gz bundle was extracted there. In this
+            # project's setup, those auxiliary files instead live in the
+            # cloned repo at HMR2_REPO_PATH/data/. Mirror them into the cache
+            # dir (copy-if-missing, never overwrite) so the vendor code finds
+            # them where it expects, without having to edit vendor code or
+            # the model_config.yaml it reads. Verified missing via traceback
+            # during Phase A testing on this machine.
+            import shutil
+
+            _repo_data_dir = Path(_HMR2_REPO_PATH) / "data"
+            _cache_data_dir = Path(CACHE_DIR_4DHUMANS) / "data"
+            _cache_data_dir.mkdir(parents=True, exist_ok=True)
+            for _fname in ("smpl_mean_params.npz", "SMPL_to_J19.pkl"):
+                _src = _repo_data_dir / _fname
+                _dst = _cache_data_dir / _fname
+                if _src.is_file() and not _dst.exists():
+                    shutil.copy2(_src, _dst)
+                    logger.info("Copied %s into HMR2 cache dir (%s)", _fname, _dst)
+
+            # HMR2.__init__ (models/hmr2.py) unconditionally constructs a
+            # pyrender.OffscreenRenderer-backed MeshRenderer/SkeletonRenderer
+            # (init_renderer=True by default) even though this engine never
+            # calls into them — we export OBJ files manually in _export_obj.
+            # On this headless Windows machine, pyrender has no working
+            # offscreen backend (EGL unavailable, win32 unsupported by
+            # pyrender's offscreen.py), so model construction crashes with
+            # "Unsupported PyOpenGL platform: win32" before inference can
+            # ever run. Verified by traceback during Phase A testing.
+            #
+            # Fix: flip only the *default value* of the init_renderer
+            # parameter (True -> False), leaving the __init__ signature
+            # byte-identical. A signature-changing wrapper (e.g. adding
+            # **kwargs) was tried first and broke pytorch_lightning's
+            # HyperparametersMixin.save_hyperparameters(), which uses frame
+            # introspection (collect_init_args) that expects the exact
+            # original parameter names in the call frame — it raised
+            # KeyError('kwargs'). Mutating __defaults__ in place avoids
+            # that entirely and has zero effect on inference output since
+            # the renderer is never used on the inference path
+            # (forward_step() does not reference self.renderer /
+            # self.mesh_renderer).
+            import hmr2.models.hmr2 as _hmr2_module
+
+            _hmr2_module.HMR2.__init__.__defaults__ = (False,)
+
             from hmr2.models import load_hmr2
 
             logger.info("Loading HMR2 checkpoint: %s", _CHECKPOINT_PATH)

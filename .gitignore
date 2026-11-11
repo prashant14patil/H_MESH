@@ -12,6 +12,11 @@ venv/
 models/
 outputs/
 
+# Licensed SMPL body model assets (must never be committed — see
+# https://smplify.is.tue.mpg.de/ license terms). HMR2's check_smpl_exists()
+# looks for this file at the project root under data/.
+data/
+
 # Node
 node_modules/
 frontend/dist/

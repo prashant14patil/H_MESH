@@ -1,0 +1,22 @@
+INFO:     Started server process [21076]
+INFO:     Waiting for application startup.
+2026-11-11 16:56:07 | INFO     | backend.main | Backend starting up.
+2026-11-11 16:56:07 | INFO     | backend.main | Loading HMR2 model in background thread (this may take a while)...
+INFO:     Application startup complete.
+2026-11-11 16:56:07 | ERROR    | backend.main | HMR2 model failed to load: None. The /api/inference/submit endpoint will return 503 until this is fixed (check HMR2_REPO_PATH / HMR2_CHECKPOINT in .env).
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
+2026-11-11 16:56:11 | INFO     | backend.services.inference_engine | GPU detected: NVIDIA GeForce RTX 4070 Laptop GPU
+2026-11-11 16:56:14 | INFO     | OpenGL.acceleratesupport | No OpenGL_accelerate module loaded: No module named 'OpenGL_accelerate'
+C:\Users\icroc\Desktop\texti\POC-MESH\.venv\Lib\site-packages\timm\models\layers\__init__.py:49: FutureWarning: Importing from timm.models.layers is deprecated, please import via timm.layers
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.layers", FutureWarning)
+2026-11-11 16:56:15 | INFO     | backend.services.inference_engine | Loading HMR2 checkpoint: models/4D-Humans/logs/train/multiruns/hmr2/0/checkpoints/epoch=35-step=1000000.ckpt
+2026-11-11 16:56:16 | INFO     | pytorch_lightning.utilities.migration.utils | Lightning automatically upgraded your loaded checkpoint from v1.8.1 to v2.2.5. To apply the upgrade to your files permanently, run `python -m pytorch_lightning.utilities.upgrade_checkpoint C:\Users\icroc\Desktop\texti\POC-MESH\models\4D-Humans\logs\train\multiruns\hmr2\0\checkpoints\epoch=35-step=1000000.ckpt`
+2026-11-11 16:56:20 | INFO     | backend.services.inference_engine | HMR2 model loaded on cuda
+2026-11-11 16:56:20 | INFO     | backend.services.inference_engine | SMPL faces ready: 13776 triangles
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-11-11 16:57:16 | INFO     | backend.main | Backend shutting down.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [21076]
+
+Aborted!

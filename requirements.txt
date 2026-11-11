@@ -44,6 +44,14 @@ einops==0.8.0
 chumpy==0.70
 scikit-image==0.24.0
 
+# omegaconf: required at checkpoint-load time by pytorch_lightning's
+# hparams unpickler when loading the official HMR2 .ckpt (it was pickled
+# with an OmegaConf-based config object). Not declared by pytorch-lightning
+# as a hard dependency in this version, but required at runtime for this
+# checkpoint. Verified missing + added during Phase A end-to-end testing.
+omegaconf==2.3.0
+antlr4-python3-runtime==4.9.3
+
 # --- Optional person detector (full-image fallback is used if this is
 #     not installed — see README for Windows build notes) ---
 # detectron2 @ git+https://github.com/facebookresearch/detectron2.git

@@ -1,0 +1,2 @@
+WARNING: You are using a SMPL model, with only 10 shape coefficients.
+INFO:     127.0.0.1:51095 - "GET /health HTTP/1.1" 200 OK

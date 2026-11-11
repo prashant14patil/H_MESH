@@ -21,18 +21,27 @@ Google Colab, Flask tunnel, or ngrok involved anywhere in this stack.
 
 import logging
 import threading
+import time
 
 from dotenv import load_dotenv
+
+# ---------------------------------------------------------------------------
+# Environment
+# ---------------------------------------------------------------------------
+# NOTE: load_dotenv() MUST run before any backend module is imported.
+# backend/services/inference_engine.py reads HMR2_CHECKPOINT (and other
+# vars) into module-level constants at import time, so if load_dotenv()
+# runs after that import, the values read from .env are silently lost
+# (os.getenv returns "" / defaults). This was a verified bug: starting
+# uvicorn directly on this file previously resulted in model_load_error
+# "HMR2 checkpoint not found at ''" even though .env had the correct path.
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.routes.inference import router as inference_router
 from backend.services.inference_engine import get_engine
-
-# ---------------------------------------------------------------------------
-# Environment
-# ---------------------------------------------------------------------------
-load_dotenv()
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -109,7 +118,25 @@ async def on_startup() -> None:
     logger.info("Loading HMR2 model in background thread (this may take a while)...")
 
     def _load_in_background():
+        # get_engine() is intentionally non-blocking: constructing the
+        # InferenceEngine singleton kicks off the *actual* model load in
+        # its own separate background thread (see
+        # InferenceEngine.load_async()) and returns immediately. Checking
+        # engine.is_ready right after get_engine() therefore races against
+        # that other thread -- at this point loading has usually not even
+        # started yet, so is_ready is False and load_error is still None,
+        # which previously produced the misleading log line
+        # "HMR2 model failed to load: None" even though the model went on
+        # to load successfully a few seconds later (confirmed via
+        # "HMR2 model loaded on cuda" / "SMPL faces ready" log lines).
+        # Poll until the engine actually finishes loading (either ready or
+        # a real error is recorded) before logging the outcome. This only
+        # affects startup log accuracy -- /health has always reported the
+        # live engine state correctly regardless of this race.
         engine = get_engine()
+        while engine._loading:
+            time.sleep(0.2)
+
         if engine.is_ready:
             logger.info("HMR2 model loaded successfully on device: %s", engine.device)
         else:

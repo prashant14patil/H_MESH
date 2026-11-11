@@ -1,0 +1,391 @@
+{
+  "communities": {
+    "0": [
+      "frontend_app",
+      "frontend_app_build_mesh_figure",
+      "frontend_app_check_backend_health",
+      "frontend_app_fetch_mesh_bytes",
+      "frontend_app_main",
+      "frontend_app_parse_obj",
+      "frontend_app_poll_status",
+      "frontend_app_rationale_1",
+      "frontend_app_rationale_108",
+      "frontend_app_rationale_145",
+      "frontend_app_rationale_234",
+      "frontend_app_rationale_268",
+      "frontend_app_rationale_330",
+      "frontend_app_rationale_63",
+      "frontend_app_rationale_72",
+      "frontend_app_rationale_83",
+      "frontend_app_rationale_93",
+      "frontend_app_render_inference_section",
+      "frontend_app_render_result_section",
+      "frontend_app_render_sidebar",
+      "frontend_app_render_upload_section",
+      "frontend_app_submit_image"
+    ],
+    "1": [
+      "services_inference_engine",
+      "services_inference_engine_get_engine",
+      "services_inference_engine_inferenceengine",
+      "services_inference_engine_inferenceengine_detect_person_box",
+      "services_inference_engine_inferenceengine_export_obj",
+      "services_inference_engine_inferenceengine_get_job",
+      "services_inference_engine_inferenceengine_init",
+      "services_inference_engine_inferenceengine_is_ready",
+      "services_inference_engine_inferenceengine_load",
+      "services_inference_engine_inferenceengine_load_async",
+      "services_inference_engine_inferenceengine_load_detector",
+      "services_inference_engine_inferenceengine_load_error",
+      "services_inference_engine_inferenceengine_locate_smpl_faces",
+      "services_inference_engine_inferenceengine_run_inference",
+      "services_inference_engine_rationale_1",
+      "services_inference_engine_rationale_173",
+      "services_inference_engine_rationale_188",
+      "services_inference_engine_rationale_346",
+      "services_inference_engine_rationale_69",
+      "services_inference_engine_rationale_99"
+    ],
+    "2": [
+      "routes_inference",
+      "routes_inference_get_inference_status",
+      "routes_inference_get_mesh",
+      "routes_inference_rationale_1",
+      "routes_inference_rationale_103",
+      "routes_inference_rationale_153",
+      "routes_inference_rationale_54",
+      "routes_inference_submit_inference",
+      "runtimeerror",
+      "services_inference_engine_enginenotreadyerror",
+      "services_inference_engine_inferenceengine_submit_job",
+      "services_inference_engine_rationale_308",
+      "services_inference_engine_rationale_62",
+      "utils_validators_rationale_58",
+      "utils_validators_validationerror",
+      "valueerror"
+    ],
+    "3": [
+      "utils_validators",
+      "utils_validators_check_extension",
+      "utils_validators_check_magic_bytes",
+      "utils_validators_check_size",
+      "utils_validators_get_extension",
+      "utils_validators_rationale_1",
+      "utils_validators_rationale_110",
+      "utils_validators_rationale_144",
+      "utils_validators_rationale_158",
+      "utils_validators_rationale_65",
+      "utils_validators_rationale_96",
+      "utils_validators_validate_image"
+    ],
+    "4": [
+      "scripts_test_integration",
+      "scripts_test_integration_fail",
+      "scripts_test_integration_main",
+      "scripts_test_integration_ok",
+      "scripts_test_integration_rationale_1",
+      "scripts_test_integration_step",
+      "scripts_test_integration_test_backend_health",
+      "scripts_test_integration_test_download_mesh",
+      "scripts_test_integration_test_poll",
+      "scripts_test_integration_test_submit"
+    ],
+    "5": [
+      "components_meshviewer",
+      "components_meshviewer_loadingmesh",
+      "components_meshviewer_mesherrorboundary",
+      "components_meshviewer_mesherrorboundary_componentdidcatch",
+      "components_meshviewer_mesherrorboundary_constructor",
+      "components_meshviewer_mesherrorboundary_getderivedstatefromerror",
+      "components_meshviewer_mesherrorboundary_render",
+      "components_meshviewer_meshviewer",
+      "components_meshviewer_objmesh"
+    ],
+    "6": [
+      "services_api",
+      "services_api_base_url",
+      "services_api_checkhealth",
+      "services_api_getjobstatus",
+      "services_api_getmeshurl",
+      "services_api_submitimage",
+      "src_app",
+      "src_app_app"
+    ],
+    "7": [
+      "scripts_download_models",
+      "scripts_download_models_clone_repo",
+      "scripts_download_models_download_checkpoint",
+      "scripts_download_models_main",
+      "scripts_download_models_print_summary",
+      "scripts_download_models_rationale_1",
+      "scripts_download_models_run"
+    ],
+    "8": [
+      "backend_main",
+      "backend_main_health_check",
+      "backend_main_on_shutdown",
+      "backend_main_on_startup",
+      "backend_main_rationale_1",
+      "backend_main_rationale_89"
+    ],
+    "9": [
+      "components_processingstatus",
+      "components_processingstatus_phase_config",
+      "components_processingstatus_processingstatus",
+      "components_processingstatus_spinner",
+      "components_processingstatus_statusicon"
+    ],
+    "10": [
+      "components_imageuploader",
+      "components_imageuploader_allowed_types",
+      "components_imageuploader_imageuploader"
+    ],
+    "11": [
+      "backend_init",
+      "backend_init_rationale_1"
+    ],
+    "12": [
+      "components_header",
+      "components_header_header"
+    ],
+    "13": [
+      "components_resultpanel",
+      "components_resultpanel_resultpanel"
+    ],
+    "14": [
+      "routes_init",
+      "routes_init_rationale_1"
+    ],
+    "15": [
+      "services_init",
+      "services_init_rationale_1"
+    ],
+    "16": [
+      "utils_init",
+      "utils_init_rationale_1"
+    ],
+    "17": [
+      "frontend_init"
+    ],
+    "18": [
+      "frontend_postcss_config"
+    ],
+    "19": [
+      "frontend_tailwind_config"
+    ],
+    "20": [
+      "frontend_vite_config"
+    ],
+    "21": [
+      "src_main"
+    ]
+  },
+  "cohesion": {
+    "0": 0.1341991341991342,
+    "1": 0.13157894736842105,
+    "2": 0.175,
+    "3": 0.24242424242424243,
+    "4": 0.5555555555555556,
+    "5": 0.2222222222222222,
+    "6": 0.35714285714285715,
+    "7": 0.47619047619047616,
+    "8": 0.3333333333333333,
+    "9": 0.4,
+    "10": 0.6666666666666666,
+    "11": 1,
+    "12": 1,
+    "13": 1,
+    "14": 1,
+    "15": 1,
+    "16": 1,
+    "17": 1,
+    "18": 1,
+    "19": 1,
+    "20": 1,
+    "21": 1
+  },
+  "gods": [
+    {
+      "id": "services_inference_engine_inferenceengine",
+      "label": "InferenceEngine",
+      "edges": 15,
+      "degree": 15
+    },
+    {
+      "id": "utils_validators_validationerror",
+      "label": "ValidationError",
+      "edges": 10,
+      "degree": 10
+    },
+    {
+      "id": "services_inference_engine_enginenotreadyerror",
+      "label": "EngineNotReadyError",
+      "edges": 9,
+      "degree": 9
+    },
+    {
+      "id": "frontend_app_render_inference_section",
+      "label": "render_inference_section()",
+      "edges": 6,
+      "degree": 6
+    },
+    {
+      "id": "frontend_app_render_result_section",
+      "label": "render_result_section()",
+      "edges": 6,
+      "degree": 6
+    },
+    {
+      "id": "utils_validators_validate_image",
+      "label": "validate_image()",
+      "edges": 5,
+      "degree": 5
+    },
+    {
+      "id": "utils_validators_check_extension",
+      "label": "_check_extension()",
+      "edges": 5,
+      "degree": 5
+    },
+    {
+      "id": "utils_validators_check_magic_bytes",
+      "label": "_check_magic_bytes()",
+      "edges": 5,
+      "degree": 5
+    },
+    {
+      "id": "components_meshviewer_mesherrorboundary",
+      "label": "MeshErrorBoundary",
+      "edges": 5,
+      "degree": 5
+    },
+    {
+      "id": "scripts_test_integration_ok",
+      "label": "_ok()",
+      "edges": 5,
+      "degree": 5
+    }
+  ],
+  "surprises": [
+    {
+      "source": "backend/routes/inference.py\r ----------------------------\r API routes for HMR2 i",
+      "target": "EngineNotReadyError",
+      "source_files": [
+        "tanitas/backend/routes/inference.py",
+        "tanitas/backend/services/inference_engine.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source"
+    },
+    {
+      "source": "backend/routes/inference.py\r ----------------------------\r API routes for HMR2 i",
+      "target": "ValidationError",
+      "source_files": [
+        "tanitas/backend/routes/inference.py",
+        "tanitas/backend/utils/validators.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source"
+    },
+    {
+      "source": "Returns the current status of a job tracked by the local engine.\r \r     Returns",
+      "target": "EngineNotReadyError",
+      "source_files": [
+        "tanitas/backend/routes/inference.py",
+        "tanitas/backend/services/inference_engine.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source"
+    },
+    {
+      "source": "Returns the current status of a job tracked by the local engine.\r \r     Returns",
+      "target": "ValidationError",
+      "source_files": [
+        "tanitas/backend/routes/inference.py",
+        "tanitas/backend/utils/validators.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source"
+    },
+    {
+      "source": "Returns the reconstructed OBJ mesh file for a completed job.\r \r     The mesh was",
+      "target": "EngineNotReadyError",
+      "source_files": [
+        "tanitas/backend/routes/inference.py",
+        "tanitas/backend/services/inference_engine.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "uses",
+      "why": "inferred connection - not explicitly stated in source"
+    }
+  ],
+  "questions": [
+    {
+      "type": "bridge_node",
+      "question": "Why does `EngineNotReadyError` connect `Community 2` to `Community 1`?",
+      "why": "High betweenness centrality (0.068) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `ValidationError` connect `Community 2` to `Community 3`?",
+      "why": "High betweenness centrality (0.056) - this node is a cross-community bridge."
+    },
+    {
+      "type": "bridge_node",
+      "question": "Why does `InferenceEngine` connect `Community 1` to `Community 2`?",
+      "why": "High betweenness centrality (0.050) - this node is a cross-community bridge."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 4 inferred relationships involving `ValidationError` (e.g. with `backend/routes/inference.py\r ----------------------------\r API routes for HMR2 i` and `Returns the current status of a job tracked by the local engine.\r \r     Returns`) actually correct?",
+      "why": "`ValidationError` has 4 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "verify_inferred",
+      "question": "Are the 4 inferred relationships involving `EngineNotReadyError` (e.g. with `backend/routes/inference.py\r ----------------------------\r API routes for HMR2 i` and `Returns the current status of a job tracked by the local engine.\r \r     Returns`) actually correct?",
+      "why": "`EngineNotReadyError` has 4 INFERRED edges - model-reasoned connections that need verification."
+    },
+    {
+      "type": "isolated_nodes",
+      "question": "What connects `Tanitas backend package — local GPU inference (no Google Colab).`, `backend/main.py\r ---------------\r FastAPI application entry point for the Tanita`, `Liveness probe that also reports whether the HMR2 model has finished\r     loadin` to the rest of the system?",
+      "why": "36 weakly-connected nodes found - possible documentation gaps or missing edges."
+    },
+    {
+      "type": "low_cohesion",
+      "question": "Should `Community 0` be split into smaller, more focused modules?",
+      "why": "Cohesion score 0.1341991341991342 - nodes in this community are weakly interconnected."
+    }
+  ],
+  "labels": {
+    "0": "Community 0",
+    "1": "Community 1",
+    "2": "Community 2",
+    "3": "Community 3",
+    "4": "Community 4",
+    "5": "Community 5",
+    "6": "Community 6",
+    "7": "Community 7",
+    "8": "Community 8",
+    "9": "Community 9",
+    "10": "Community 10",
+    "11": "Community 11",
+    "12": "Community 12",
+    "13": "Community 13",
+    "14": "Community 14",
+    "15": "Community 15",
+    "16": "Community 16",
+    "17": "Community 17",
+    "18": "Community 18",
+    "19": "Community 19",
+    "20": "Community 20",
+    "21": "Community 21"
+  },
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

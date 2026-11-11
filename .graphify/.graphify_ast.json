@@ -1,0 +1,3078 @@
+{
+  "nodes": [
+    {
+      "id": "backend_init",
+      "label": "__init__.py",
+      "file_type": "code",
+      "source_file": "tanitas/backend/__init__.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "backend_init_rationale_1",
+      "label": "Tanitas backend package — local GPU inference (no Google Colab).",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/__init__.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "backend_main",
+      "label": "main.py",
+      "file_type": "code",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "backend_main_health_check",
+      "label": "health_check()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L88"
+    },
+    {
+      "id": "backend_main_on_startup",
+      "label": "on_startup()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L107"
+    },
+    {
+      "id": "backend_main_on_shutdown",
+      "label": "on_shutdown()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L127"
+    },
+    {
+      "id": "backend_main_rationale_1",
+      "label": "backend/main.py\r ---------------\r FastAPI application entry point for the Tanita",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "backend_main_rationale_89",
+      "label": "Liveness probe that also reports whether the HMR2 model has finished\r     loadin",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L89"
+    },
+    {
+      "id": "routes_init",
+      "label": "__init__.py",
+      "file_type": "code",
+      "source_file": "tanitas/backend/routes/__init__.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "routes_init_rationale_1",
+      "label": "API route modules for the tanitas local-GPU backend.",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/routes/__init__.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "routes_inference",
+      "label": "inference.py",
+      "file_type": "code",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "routes_inference_submit_inference",
+      "label": "submit_inference()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L51"
+    },
+    {
+      "id": "routes_inference_get_inference_status",
+      "label": "get_inference_status()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L102"
+    },
+    {
+      "id": "routes_inference_get_mesh",
+      "label": "get_mesh()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L152"
+    },
+    {
+      "id": "routes_inference_rationale_1",
+      "label": "backend/routes/inference.py\r ----------------------------\r API routes for HMR2 i",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "routes_inference_rationale_54",
+      "label": "Accepts an uploaded image, validates it, and submits it to the local\r     HMR2 i",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L54"
+    },
+    {
+      "id": "routes_inference_rationale_103",
+      "label": "Returns the current status of a job tracked by the local engine.\r \r     Returns",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L103"
+    },
+    {
+      "id": "routes_inference_rationale_153",
+      "label": "Returns the reconstructed OBJ mesh file for a completed job.\r \r     The mesh was",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L153"
+    },
+    {
+      "id": "services_init",
+      "label": "__init__.py",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/__init__.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "services_init_rationale_1",
+      "label": "Local inference services for the tanitas backend (no external network calls).",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/services/__init__.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "services_inference_engine",
+      "label": "inference_engine.py",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "services_inference_engine_enginenotreadyerror",
+      "label": "EngineNotReadyError",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L61"
+    },
+    {
+      "id": "runtimeerror",
+      "label": "RuntimeError",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "services_inference_engine_inferenceengine",
+      "label": "InferenceEngine",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L68"
+    },
+    {
+      "id": "services_inference_engine_inferenceengine_init",
+      "label": ".__init__()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L78"
+    },
+    {
+      "id": "services_inference_engine_inferenceengine_load_async",
+      "label": ".load_async()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L98"
+    },
+    {
+      "id": "services_inference_engine_inferenceengine_load",
+      "label": "._load()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L109"
+    },
+    {
+      "id": "services_inference_engine_inferenceengine_locate_smpl_faces",
+      "label": "._locate_smpl_faces()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L172"
+    },
+    {
+      "id": "services_inference_engine_inferenceengine_load_detector",
+      "label": "._load_detector()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L187"
+    },
+    {
+      "id": "services_inference_engine_inferenceengine_is_ready",
+      "label": ".is_ready()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L222"
+    },
+    {
+      "id": "services_inference_engine_inferenceengine_load_error",
+      "label": ".load_error()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L226"
+    },
+    {
+      "id": "services_inference_engine_inferenceengine_detect_person_box",
+      "label": "._detect_person_box()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L232"
+    },
+    {
+      "id": "services_inference_engine_inferenceengine_run_inference",
+      "label": "._run_inference()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L254"
+    },
+    {
+      "id": "services_inference_engine_inferenceengine_export_obj",
+      "label": "._export_obj()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L294"
+    },
+    {
+      "id": "services_inference_engine_inferenceengine_submit_job",
+      "label": ".submit_job()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L307"
+    },
+    {
+      "id": "services_inference_engine_inferenceengine_get_job",
+      "label": ".get_job()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L334"
+    },
+    {
+      "id": "services_inference_engine_get_engine",
+      "label": "get_engine()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L345"
+    },
+    {
+      "id": "services_inference_engine_rationale_1",
+      "label": "backend/services/inference_engine.py\r -------------------------------------\r Loc",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "services_inference_engine_rationale_62",
+      "label": "Raised when the inference engine could not be initialised.",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L62"
+    },
+    {
+      "id": "services_inference_engine_rationale_69",
+      "label": "Loads the HMR2 model once (in a background thread) and runs inference\r     for e",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L69"
+    },
+    {
+      "id": "services_inference_engine_rationale_99",
+      "label": "Kick off model loading in a background thread (idempotent).",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L99"
+    },
+    {
+      "id": "services_inference_engine_rationale_173",
+      "label": "SMPL faces attribute path varies across 4D-Humans versions.",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L173"
+    },
+    {
+      "id": "services_inference_engine_rationale_188",
+      "label": "Attempt to load the ViTDet/detectron2 person detector.\r         Returns None (fu",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L188"
+    },
+    {
+      "id": "services_inference_engine_rationale_308",
+      "label": "Queue a job and run it in a background thread.",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L308"
+    },
+    {
+      "id": "services_inference_engine_rationale_346",
+      "label": "Return the process-wide InferenceEngine, creating it on first call.\r \r     Const",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L346"
+    },
+    {
+      "id": "utils_init",
+      "label": "__init__.py",
+      "file_type": "code",
+      "source_file": "tanitas/backend/utils/__init__.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "utils_init_rationale_1",
+      "label": "Utility helpers for the tanitas local-GPU backend.",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/utils/__init__.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "utils_validators",
+      "label": "validators.py",
+      "file_type": "code",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "utils_validators_validationerror",
+      "label": "ValidationError",
+      "file_type": "code",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L57"
+    },
+    {
+      "id": "valueerror",
+      "label": "ValueError",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "utils_validators_validate_image",
+      "label": "validate_image()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L64"
+    },
+    {
+      "id": "utils_validators_check_extension",
+      "label": "_check_extension()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L95"
+    },
+    {
+      "id": "utils_validators_check_magic_bytes",
+      "label": "_check_magic_bytes()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L109"
+    },
+    {
+      "id": "utils_validators_check_size",
+      "label": "_check_size()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L143"
+    },
+    {
+      "id": "utils_validators_get_extension",
+      "label": "_get_extension()",
+      "file_type": "code",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L157"
+    },
+    {
+      "id": "utils_validators_rationale_1",
+      "label": "backend/utils/validators.py\r ----------------------------\r Input validation help",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "utils_validators_rationale_58",
+      "label": "Raised when an uploaded image fails validation.",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L58"
+    },
+    {
+      "id": "utils_validators_rationale_65",
+      "label": "Validate an uploaded image by extension, magic bytes, and size.\r \r     Parameter",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L65"
+    },
+    {
+      "id": "utils_validators_rationale_96",
+      "label": "Reject files whose extension is not in the allowlist.",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L96"
+    },
+    {
+      "id": "utils_validators_rationale_110",
+      "label": "Detect the actual image type from magic bytes and verify it matches\r     the dec",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L110"
+    },
+    {
+      "id": "utils_validators_rationale_144",
+      "label": "Reject files that exceed the configured size limit.",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L144"
+    },
+    {
+      "id": "utils_validators_rationale_158",
+      "label": "Return the lowercase file extension including the leading dot.",
+      "file_type": "rationale",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L158"
+    },
+    {
+      "id": "frontend_init",
+      "label": "__init__.py",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/__init__.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "frontend_app",
+      "label": "app.py",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "frontend_app_check_backend_health",
+      "label": "check_backend_health()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L62"
+    },
+    {
+      "id": "frontend_app_submit_image",
+      "label": "submit_image()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L71"
+    },
+    {
+      "id": "frontend_app_poll_status",
+      "label": "poll_status()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L82"
+    },
+    {
+      "id": "frontend_app_fetch_mesh_bytes",
+      "label": "fetch_mesh_bytes()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L92"
+    },
+    {
+      "id": "frontend_app_parse_obj",
+      "label": "parse_obj()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L107"
+    },
+    {
+      "id": "frontend_app_build_mesh_figure",
+      "label": "build_mesh_figure()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L144"
+    },
+    {
+      "id": "frontend_app_render_sidebar",
+      "label": "render_sidebar()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L197"
+    },
+    {
+      "id": "frontend_app_render_upload_section",
+      "label": "render_upload_section()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L233"
+    },
+    {
+      "id": "frontend_app_render_inference_section",
+      "label": "render_inference_section()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L267"
+    },
+    {
+      "id": "frontend_app_render_result_section",
+      "label": "render_result_section()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L329"
+    },
+    {
+      "id": "frontend_app_main",
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L393"
+    },
+    {
+      "id": "frontend_app_rationale_1",
+      "label": "frontend/app.py\r ----------------\r Streamlit web application for the Tanita Huma",
+      "file_type": "rationale",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "frontend_app_rationale_63",
+      "label": "Return True if the backend health endpoint responds OK.",
+      "file_type": "rationale",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L63"
+    },
+    {
+      "id": "frontend_app_rationale_72",
+      "label": "POST the image to the backend and return the parsed JSON response.",
+      "file_type": "rationale",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L72"
+    },
+    {
+      "id": "frontend_app_rationale_83",
+      "label": "GET the current status for a job from the backend.",
+      "file_type": "rationale",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L83"
+    },
+    {
+      "id": "frontend_app_rationale_93",
+      "label": "Download the OBJ file from the backend mesh endpoint.",
+      "file_type": "rationale",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L93"
+    },
+    {
+      "id": "frontend_app_rationale_108",
+      "label": "Parse a Wavefront OBJ file and return (vertices, faces).\r \r     Parameters",
+      "file_type": "rationale",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L108"
+    },
+    {
+      "id": "frontend_app_rationale_145",
+      "label": "Build a Plotly 3D Mesh figure from SMPL vertices and faces.\r \r     The mesh is c",
+      "file_type": "rationale",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L145"
+    },
+    {
+      "id": "frontend_app_rationale_234",
+      "label": "Render the upload widget and return (bytes, filename) or (None, None).",
+      "file_type": "rationale",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L234"
+    },
+    {
+      "id": "frontend_app_rationale_268",
+      "label": "Handle submission and polling for a given image.",
+      "file_type": "rationale",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L268"
+    },
+    {
+      "id": "frontend_app_rationale_330",
+      "label": "Display the 3D mesh result once inference is complete.",
+      "file_type": "rationale",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L330"
+    },
+    {
+      "id": "frontend_postcss_config",
+      "label": "postcss.config.js",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/postcss.config.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_app",
+      "label": "App.jsx",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/App.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_app_app",
+      "label": "App()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/App.jsx",
+      "source_location": "L35"
+    },
+    {
+      "id": "components_header",
+      "label": "Header.jsx",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/Header.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "components_header_header",
+      "label": "Header()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/Header.jsx",
+      "source_location": "L7"
+    },
+    {
+      "id": "components_imageuploader",
+      "label": "ImageUploader.jsx",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/ImageUploader.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "components_imageuploader_allowed_types",
+      "label": "ALLOWED_TYPES",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/ImageUploader.jsx",
+      "source_location": "L15"
+    },
+    {
+      "id": "components_imageuploader_imageuploader",
+      "label": "ImageUploader()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/ImageUploader.jsx",
+      "source_location": "L18"
+    },
+    {
+      "id": "components_meshviewer",
+      "label": "MeshViewer.jsx",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "components_meshviewer_objmesh",
+      "label": "OBJMesh()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L22"
+    },
+    {
+      "id": "components_meshviewer_mesherrorboundary",
+      "label": "MeshErrorBoundary",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L67"
+    },
+    {
+      "id": "components_meshviewer_mesherrorboundary_constructor",
+      "label": ".constructor()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L68"
+    },
+    {
+      "id": "components_meshviewer_mesherrorboundary_getderivedstatefromerror",
+      "label": ".getDerivedStateFromError()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L72"
+    },
+    {
+      "id": "components_meshviewer_mesherrorboundary_componentdidcatch",
+      "label": ".componentDidCatch()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L75"
+    },
+    {
+      "id": "components_meshviewer_mesherrorboundary_render",
+      "label": ".render()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L78"
+    },
+    {
+      "id": "components_meshviewer_loadingmesh",
+      "label": "LoadingMesh()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L87"
+    },
+    {
+      "id": "components_meshviewer_meshviewer",
+      "label": "MeshViewer()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L99"
+    },
+    {
+      "id": "components_processingstatus",
+      "label": "ProcessingStatus.jsx",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/ProcessingStatus.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "components_processingstatus_phase_config",
+      "label": "PHASE_CONFIG",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/ProcessingStatus.jsx",
+      "source_location": "L15"
+    },
+    {
+      "id": "components_processingstatus_spinner",
+      "label": "Spinner()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/ProcessingStatus.jsx",
+      "source_location": "L48"
+    },
+    {
+      "id": "components_processingstatus_statusicon",
+      "label": "StatusIcon()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/ProcessingStatus.jsx",
+      "source_location": "L61"
+    },
+    {
+      "id": "components_processingstatus_processingstatus",
+      "label": "ProcessingStatus()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/ProcessingStatus.jsx",
+      "source_location": "L90"
+    },
+    {
+      "id": "components_resultpanel",
+      "label": "ResultPanel.jsx",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/ResultPanel.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "components_resultpanel_resultpanel",
+      "label": "ResultPanel()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/components/ResultPanel.jsx",
+      "source_location": "L14"
+    },
+    {
+      "id": "src_main",
+      "label": "main.jsx",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/main.jsx",
+      "source_location": "L1"
+    },
+    {
+      "id": "services_api",
+      "label": "api.js",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/services/api.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "services_api_base_url",
+      "label": "BASE_URL",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/services/api.js",
+      "source_location": "L14"
+    },
+    {
+      "id": "services_api_checkhealth",
+      "label": "checkHealth()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/services/api.js",
+      "source_location": "L20"
+    },
+    {
+      "id": "services_api_submitimage",
+      "label": "submitImage()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/services/api.js",
+      "source_location": "L38"
+    },
+    {
+      "id": "services_api_getjobstatus",
+      "label": "getJobStatus()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/services/api.js",
+      "source_location": "L72"
+    },
+    {
+      "id": "services_api_getmeshurl",
+      "label": "getMeshUrl()",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/src/services/api.js",
+      "source_location": "L98"
+    },
+    {
+      "id": "frontend_tailwind_config",
+      "label": "tailwind.config.js",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/tailwind.config.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "frontend_vite_config",
+      "label": "vite.config.js",
+      "file_type": "code",
+      "source_file": "tanitas/frontend/vite.config.js",
+      "source_location": "L1"
+    },
+    {
+      "id": "scripts_download_models",
+      "label": "download_models.py",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "scripts_download_models_run",
+      "label": "_run()",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L56"
+    },
+    {
+      "id": "scripts_download_models_clone_repo",
+      "label": "clone_repo()",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L61"
+    },
+    {
+      "id": "scripts_download_models_download_checkpoint",
+      "label": "download_checkpoint()",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L70"
+    },
+    {
+      "id": "scripts_download_models_print_summary",
+      "label": "print_summary()",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L105"
+    },
+    {
+      "id": "scripts_download_models_main",
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L126"
+    },
+    {
+      "id": "scripts_download_models_rationale_1",
+      "label": "scripts/download_models.py\r ---------------------------\r One-time setup script t",
+      "file_type": "rationale",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "scripts_test_integration",
+      "label": "test_integration.py",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L1"
+    },
+    {
+      "id": "scripts_test_integration_ok",
+      "label": "_ok()",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L45"
+    },
+    {
+      "id": "scripts_test_integration_fail",
+      "label": "_fail()",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L48"
+    },
+    {
+      "id": "scripts_test_integration_step",
+      "label": "_step()",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L52"
+    },
+    {
+      "id": "scripts_test_integration_test_backend_health",
+      "label": "test_backend_health()",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L58"
+    },
+    {
+      "id": "scripts_test_integration_test_submit",
+      "label": "test_submit()",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L74"
+    },
+    {
+      "id": "scripts_test_integration_test_poll",
+      "label": "test_poll()",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L97"
+    },
+    {
+      "id": "scripts_test_integration_test_download_mesh",
+      "label": "test_download_mesh()",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L118"
+    },
+    {
+      "id": "scripts_test_integration_main",
+      "label": "main()",
+      "file_type": "code",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L149"
+    },
+    {
+      "id": "scripts_test_integration_rationale_1",
+      "label": "scripts/test_integration.py\r ----------------------------\r End-to-end integratio",
+      "file_type": "rationale",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L1"
+    }
+  ],
+  "edges": [
+    {
+      "source": "backend_init_rationale_1",
+      "target": "backend_init",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/__init__.py",
+      "source_location": "L1",
+      "weight": 1
+    },
+    {
+      "source": "backend_main",
+      "target": "logging",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L22",
+      "weight": 1
+    },
+    {
+      "source": "backend_main",
+      "target": "threading",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L23",
+      "weight": 1
+    },
+    {
+      "source": "backend_main",
+      "target": "dotenv",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L25",
+      "weight": 1
+    },
+    {
+      "source": "backend_main",
+      "target": "fastapi",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L26",
+      "weight": 1
+    },
+    {
+      "source": "backend_main",
+      "target": "fastapi_middleware_cors",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L27",
+      "weight": 1
+    },
+    {
+      "source": "backend_main",
+      "target": "backend_routes_inference",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L29",
+      "weight": 1
+    },
+    {
+      "source": "backend_main",
+      "target": "backend_services_inference_engine",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L30",
+      "weight": 1
+    },
+    {
+      "source": "backend_main",
+      "target": "backend_main_health_check",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L88",
+      "weight": 1
+    },
+    {
+      "source": "backend_main",
+      "target": "backend_main_on_startup",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L107",
+      "weight": 1
+    },
+    {
+      "source": "backend_main",
+      "target": "backend_main_on_shutdown",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L127",
+      "weight": 1
+    },
+    {
+      "source": "backend_main_rationale_1",
+      "target": "backend_main",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L1",
+      "weight": 1
+    },
+    {
+      "source": "backend_main_rationale_89",
+      "target": "backend_main_health_check",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/main.py",
+      "source_location": "L89",
+      "weight": 1
+    },
+    {
+      "source": "routes_init_rationale_1",
+      "target": "routes_init",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/__init__.py",
+      "source_location": "L1",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference",
+      "target": "logging",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L23",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference",
+      "target": "os",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L24",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference",
+      "target": "uuid",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L25",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference",
+      "target": "pathlib",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L26",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference",
+      "target": "fastapi",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L28",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference",
+      "target": "fastapi_responses",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L29",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference",
+      "target": "backend_services_inference_engine",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L31",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference",
+      "target": "backend_utils_validators",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L32",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference",
+      "target": "routes_inference_submit_inference",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L51",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference",
+      "target": "routes_inference_get_inference_status",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L102",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference",
+      "target": "routes_inference_get_mesh",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L152",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference_rationale_1",
+      "target": "routes_inference",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L1",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference_rationale_54",
+      "target": "routes_inference_submit_inference",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L54",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference_rationale_103",
+      "target": "routes_inference_get_inference_status",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L103",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference_rationale_153",
+      "target": "routes_inference_get_mesh",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L153",
+      "weight": 1
+    },
+    {
+      "source": "services_init_rationale_1",
+      "target": "services_init",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/__init__.py",
+      "source_location": "L1",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine",
+      "target": "io",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L39",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine",
+      "target": "logging",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L40",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine",
+      "target": "os",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L41",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine",
+      "target": "sys",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L42",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine",
+      "target": "threading",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L43",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine",
+      "target": "pathlib",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L44",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine",
+      "target": "typing",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L45",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine",
+      "target": "services_inference_engine_enginenotreadyerror",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L61",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_enginenotreadyerror",
+      "target": "runtimeerror",
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L61",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine",
+      "target": "services_inference_engine_inferenceengine",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L68",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine",
+      "target": "services_inference_engine_inferenceengine_init",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L78",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine",
+      "target": "services_inference_engine_inferenceengine_load_async",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L98",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine",
+      "target": "services_inference_engine_inferenceengine_load",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L109",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine",
+      "target": "services_inference_engine_inferenceengine_locate_smpl_faces",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L172",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine",
+      "target": "services_inference_engine_inferenceengine_load_detector",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L187",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine",
+      "target": "services_inference_engine_inferenceengine_is_ready",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L222",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine",
+      "target": "services_inference_engine_inferenceengine_load_error",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L226",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine",
+      "target": "services_inference_engine_inferenceengine_detect_person_box",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L232",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine",
+      "target": "services_inference_engine_inferenceengine_run_inference",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L254",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine",
+      "target": "services_inference_engine_inferenceengine_export_obj",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L294",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine",
+      "target": "services_inference_engine_inferenceengine_submit_job",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L307",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine",
+      "target": "services_inference_engine_inferenceengine_get_job",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L334",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine",
+      "target": "services_inference_engine_get_engine",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L345",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine_init",
+      "target": "services_inference_engine_inferenceengine_load_async",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L96",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine_load",
+      "target": "services_inference_engine_enginenotreadyerror",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L131",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine_load",
+      "target": "services_inference_engine_inferenceengine_locate_smpl_faces",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L156",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine_load",
+      "target": "services_inference_engine_inferenceengine_load_detector",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L159",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine_run_inference",
+      "target": "services_inference_engine_inferenceengine_detect_person_box",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L265",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine_run_inference",
+      "target": "services_inference_engine_inferenceengine_export_obj",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L282",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_inferenceengine_submit_job",
+      "target": "services_inference_engine_enginenotreadyerror",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L312",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_get_engine",
+      "target": "services_inference_engine_inferenceengine",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L356",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_rationale_1",
+      "target": "services_inference_engine",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L1",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_rationale_62",
+      "target": "services_inference_engine_enginenotreadyerror",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L62",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_rationale_69",
+      "target": "services_inference_engine_inferenceengine",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L69",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_rationale_99",
+      "target": "services_inference_engine_inferenceengine_load_async",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L99",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_rationale_173",
+      "target": "services_inference_engine_inferenceengine_locate_smpl_faces",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L173",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_rationale_188",
+      "target": "services_inference_engine_inferenceengine_load_detector",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L188",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_rationale_308",
+      "target": "services_inference_engine_inferenceengine_submit_job",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L308",
+      "weight": 1
+    },
+    {
+      "source": "services_inference_engine_rationale_346",
+      "target": "services_inference_engine_get_engine",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/services/inference_engine.py",
+      "source_location": "L346",
+      "weight": 1
+    },
+    {
+      "source": "utils_init_rationale_1",
+      "target": "utils_init",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/__init__.py",
+      "source_location": "L1",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators",
+      "target": "logging",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L24",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators",
+      "target": "os",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L25",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators",
+      "target": "dotenv",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L27",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators",
+      "target": "utils_validators_validationerror",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L57",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_validationerror",
+      "target": "valueerror",
+      "relation": "inherits",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L57",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators",
+      "target": "utils_validators_validate_image",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L64",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators",
+      "target": "utils_validators_check_extension",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L95",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators",
+      "target": "utils_validators_check_magic_bytes",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L109",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators",
+      "target": "utils_validators_check_size",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L143",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators",
+      "target": "utils_validators_get_extension",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L157",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_validate_image",
+      "target": "utils_validators_check_extension",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L86",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_validate_image",
+      "target": "utils_validators_check_magic_bytes",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L87",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_validate_image",
+      "target": "utils_validators_check_size",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L88",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_check_extension",
+      "target": "utils_validators_validationerror",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L98",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_check_extension",
+      "target": "utils_validators_get_extension",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L100",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_check_magic_bytes",
+      "target": "utils_validators_get_extension",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L117",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_check_magic_bytes",
+      "target": "utils_validators_validationerror",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L121",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_check_size",
+      "target": "utils_validators_validationerror",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L147",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_rationale_1",
+      "target": "utils_validators",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L1",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_rationale_58",
+      "target": "utils_validators_validationerror",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L58",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_rationale_65",
+      "target": "utils_validators_validate_image",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L65",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_rationale_96",
+      "target": "utils_validators_check_extension",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L96",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_rationale_110",
+      "target": "utils_validators_check_magic_bytes",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L110",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_rationale_144",
+      "target": "utils_validators_check_size",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L144",
+      "weight": 1
+    },
+    {
+      "source": "utils_validators_rationale_158",
+      "target": "utils_validators_get_extension",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/backend/utils/validators.py",
+      "source_location": "L158",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "io",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L28",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "os",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L29",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "time",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L30",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "numpy",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L32",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "plotly_graph_objects",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L33",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "requests",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L34",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "streamlit",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L35",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "dotenv",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L36",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "pil",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L37",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "frontend_app_check_backend_health",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L62",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "frontend_app_submit_image",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L71",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "frontend_app_poll_status",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L82",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "frontend_app_fetch_mesh_bytes",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L92",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "frontend_app_parse_obj",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L107",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "frontend_app_build_mesh_figure",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L144",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "frontend_app_render_sidebar",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L197",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "frontend_app_render_upload_section",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L233",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "frontend_app_render_inference_section",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L267",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "frontend_app_render_result_section",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L329",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app",
+      "target": "frontend_app_main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L393",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_render_sidebar",
+      "target": "frontend_app_check_backend_health",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L218",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_render_inference_section",
+      "target": "frontend_app_submit_image",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L275",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_render_inference_section",
+      "target": "frontend_app_poll_status",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L295",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_render_inference_section",
+      "target": "frontend_app_render_result_section",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L309",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_render_result_section",
+      "target": "frontend_app_fetch_mesh_bytes",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L350",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_render_result_section",
+      "target": "frontend_app_parse_obj",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L372",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_render_result_section",
+      "target": "frontend_app_build_mesh_figure",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L377",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_main",
+      "target": "frontend_app_render_sidebar",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L401",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_main",
+      "target": "frontend_app_render_upload_section",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L403",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_main",
+      "target": "frontend_app_render_inference_section",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L407",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_rationale_1",
+      "target": "frontend_app",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L1",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_rationale_63",
+      "target": "frontend_app_check_backend_health",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L63",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_rationale_72",
+      "target": "frontend_app_submit_image",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L72",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_rationale_83",
+      "target": "frontend_app_poll_status",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L83",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_rationale_93",
+      "target": "frontend_app_fetch_mesh_bytes",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L93",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_rationale_108",
+      "target": "frontend_app_parse_obj",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L108",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_rationale_145",
+      "target": "frontend_app_build_mesh_figure",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L145",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_rationale_234",
+      "target": "frontend_app_render_upload_section",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L234",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_rationale_268",
+      "target": "frontend_app_render_inference_section",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L268",
+      "weight": 1
+    },
+    {
+      "source": "frontend_app_rationale_330",
+      "target": "frontend_app_render_result_section",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/app.py",
+      "source_location": "L330",
+      "weight": 1
+    },
+    {
+      "source": "src_app",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/App.jsx",
+      "source_location": "L18",
+      "weight": 1
+    },
+    {
+      "source": "src_app",
+      "target": "c_users_icroc_desktop_texti_poc_mesh_tanitas_frontend_src_components_header_tsx",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/App.jsx",
+      "source_location": "L19",
+      "weight": 1
+    },
+    {
+      "source": "src_app",
+      "target": "c_users_icroc_desktop_texti_poc_mesh_tanitas_frontend_src_components_imageuploader_tsx",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/App.jsx",
+      "source_location": "L20",
+      "weight": 1
+    },
+    {
+      "source": "src_app",
+      "target": "c_users_icroc_desktop_texti_poc_mesh_tanitas_frontend_src_components_processingstatus_tsx",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/App.jsx",
+      "source_location": "L21",
+      "weight": 1
+    },
+    {
+      "source": "src_app",
+      "target": "c_users_icroc_desktop_texti_poc_mesh_tanitas_frontend_src_components_meshviewer_tsx",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/App.jsx",
+      "source_location": "L22",
+      "weight": 1
+    },
+    {
+      "source": "src_app",
+      "target": "c_users_icroc_desktop_texti_poc_mesh_tanitas_frontend_src_components_resultpanel_tsx",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/App.jsx",
+      "source_location": "L23",
+      "weight": 1
+    },
+    {
+      "source": "src_app",
+      "target": "c_users_icroc_desktop_texti_poc_mesh_tanitas_frontend_src_services_api_ts",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/App.jsx",
+      "source_location": "L24",
+      "weight": 1
+    },
+    {
+      "source": "src_app",
+      "target": "services_api_checkhealth",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/App.jsx",
+      "source_location": "L24",
+      "weight": 1
+    },
+    {
+      "source": "src_app",
+      "target": "services_api_submitimage",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/App.jsx",
+      "source_location": "L24",
+      "weight": 1
+    },
+    {
+      "source": "src_app",
+      "target": "services_api_getjobstatus",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/App.jsx",
+      "source_location": "L24",
+      "weight": 1
+    },
+    {
+      "source": "src_app",
+      "target": "services_api_getmeshurl",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/App.jsx",
+      "source_location": "L24",
+      "weight": 1
+    },
+    {
+      "source": "src_app",
+      "target": "src_app_app",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/App.jsx",
+      "source_location": "L35",
+      "weight": 1
+    },
+    {
+      "source": "components_header",
+      "target": "components_header_header",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/Header.jsx",
+      "source_location": "L7",
+      "weight": 1
+    },
+    {
+      "source": "components_imageuploader",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/ImageUploader.jsx",
+      "source_location": "L12",
+      "weight": 1
+    },
+    {
+      "source": "components_imageuploader",
+      "target": "components_imageuploader_allowed_types",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/ImageUploader.jsx",
+      "source_location": "L15",
+      "weight": 1
+    },
+    {
+      "source": "components_imageuploader",
+      "target": "components_imageuploader_imageuploader",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/ImageUploader.jsx",
+      "source_location": "L18",
+      "weight": 1
+    },
+    {
+      "source": "components_meshviewer",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L13",
+      "weight": 1
+    },
+    {
+      "source": "components_meshviewer",
+      "target": "fiber",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L14",
+      "weight": 1
+    },
+    {
+      "source": "components_meshviewer",
+      "target": "drei",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L15",
+      "weight": 1
+    },
+    {
+      "source": "components_meshviewer",
+      "target": "objloader",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L16",
+      "weight": 1
+    },
+    {
+      "source": "components_meshviewer",
+      "target": "three",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L17",
+      "weight": 1
+    },
+    {
+      "source": "components_meshviewer",
+      "target": "components_meshviewer_objmesh",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L22",
+      "weight": 1
+    },
+    {
+      "source": "components_meshviewer",
+      "target": "components_meshviewer_mesherrorboundary",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L67",
+      "weight": 1
+    },
+    {
+      "source": "components_meshviewer_mesherrorboundary",
+      "target": "components_meshviewer_mesherrorboundary_constructor",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L68",
+      "weight": 1
+    },
+    {
+      "source": "components_meshviewer_mesherrorboundary",
+      "target": "components_meshviewer_mesherrorboundary_getderivedstatefromerror",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L72",
+      "weight": 1
+    },
+    {
+      "source": "components_meshviewer_mesherrorboundary",
+      "target": "components_meshviewer_mesherrorboundary_componentdidcatch",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L75",
+      "weight": 1
+    },
+    {
+      "source": "components_meshviewer_mesherrorboundary",
+      "target": "components_meshviewer_mesherrorboundary_render",
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L78",
+      "weight": 1
+    },
+    {
+      "source": "components_meshviewer",
+      "target": "components_meshviewer_loadingmesh",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L87",
+      "weight": 1
+    },
+    {
+      "source": "components_meshviewer",
+      "target": "components_meshviewer_meshviewer",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/MeshViewer.jsx",
+      "source_location": "L99",
+      "weight": 1
+    },
+    {
+      "source": "components_processingstatus",
+      "target": "components_processingstatus_phase_config",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/ProcessingStatus.jsx",
+      "source_location": "L15",
+      "weight": 1
+    },
+    {
+      "source": "components_processingstatus",
+      "target": "components_processingstatus_spinner",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/ProcessingStatus.jsx",
+      "source_location": "L48",
+      "weight": 1
+    },
+    {
+      "source": "components_processingstatus",
+      "target": "components_processingstatus_statusicon",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/ProcessingStatus.jsx",
+      "source_location": "L61",
+      "weight": 1
+    },
+    {
+      "source": "components_processingstatus",
+      "target": "components_processingstatus_processingstatus",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/ProcessingStatus.jsx",
+      "source_location": "L90",
+      "weight": 1
+    },
+    {
+      "source": "components_resultpanel",
+      "target": "components_resultpanel_resultpanel",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/components/ResultPanel.jsx",
+      "source_location": "L14",
+      "weight": 1
+    },
+    {
+      "source": "src_main",
+      "target": "react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/main.jsx",
+      "source_location": "L1",
+      "weight": 1
+    },
+    {
+      "source": "src_main",
+      "target": "client",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/main.jsx",
+      "source_location": "L2",
+      "weight": 1
+    },
+    {
+      "source": "src_main",
+      "target": "c_users_icroc_desktop_texti_poc_mesh_tanitas_frontend_src_index_css",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/main.jsx",
+      "source_location": "L3",
+      "weight": 1
+    },
+    {
+      "source": "src_main",
+      "target": "c_users_icroc_desktop_texti_poc_mesh_tanitas_frontend_src_app_tsx",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/main.jsx",
+      "source_location": "L4",
+      "weight": 1
+    },
+    {
+      "source": "services_api",
+      "target": "services_api_base_url",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/services/api.js",
+      "source_location": "L14",
+      "weight": 1
+    },
+    {
+      "source": "services_api",
+      "target": "services_api_checkhealth",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/services/api.js",
+      "source_location": "L20",
+      "weight": 1
+    },
+    {
+      "source": "services_api",
+      "target": "services_api_submitimage",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/services/api.js",
+      "source_location": "L38",
+      "weight": 1
+    },
+    {
+      "source": "services_api",
+      "target": "services_api_getjobstatus",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/services/api.js",
+      "source_location": "L72",
+      "weight": 1
+    },
+    {
+      "source": "services_api",
+      "target": "services_api_getmeshurl",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/src/services/api.js",
+      "source_location": "L98",
+      "weight": 1
+    },
+    {
+      "source": "frontend_vite_config",
+      "target": "vite",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/vite.config.js",
+      "source_location": "L1",
+      "weight": 1
+    },
+    {
+      "source": "frontend_vite_config",
+      "target": "plugin_react",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/frontend/vite.config.js",
+      "source_location": "L2",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models",
+      "target": "os",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L33",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models",
+      "target": "subprocess",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L34",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models",
+      "target": "sys",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L35",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models",
+      "target": "tarfile",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L36",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models",
+      "target": "pathlib",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L37",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models",
+      "target": "urllib_request",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L38",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models",
+      "target": "scripts_download_models_run",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L56",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models",
+      "target": "scripts_download_models_clone_repo",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L61",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models",
+      "target": "scripts_download_models_download_checkpoint",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L70",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models",
+      "target": "scripts_download_models_print_summary",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L105",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models",
+      "target": "scripts_download_models_main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L126",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models_clone_repo",
+      "target": "scripts_download_models_run",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L67",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models_main",
+      "target": "scripts_download_models_clone_repo",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L127",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models_main",
+      "target": "scripts_download_models_download_checkpoint",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L128",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models_main",
+      "target": "scripts_download_models_print_summary",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L129",
+      "weight": 1
+    },
+    {
+      "source": "scripts_download_models_rationale_1",
+      "target": "scripts_download_models",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/download_models.py",
+      "source_location": "L1",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "argparse",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L28",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "os",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L28",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "sys",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L28",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "time",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L28",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "requests",
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L29",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "pathlib",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L30",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "dotenv",
+      "relation": "imports_from",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L31",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "scripts_test_integration_ok",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L45",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "scripts_test_integration_fail",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L48",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "scripts_test_integration_step",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L52",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "scripts_test_integration_test_backend_health",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L58",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "scripts_test_integration_test_submit",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L74",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "scripts_test_integration_test_poll",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L97",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "scripts_test_integration_test_download_mesh",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L118",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration",
+      "target": "scripts_test_integration_main",
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L149",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_test_backend_health",
+      "target": "scripts_test_integration_step",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L59",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_test_backend_health",
+      "target": "scripts_test_integration_ok",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L64",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_test_backend_health",
+      "target": "scripts_test_integration_fail",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L69",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_test_submit",
+      "target": "scripts_test_integration_step",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L75",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_test_submit",
+      "target": "scripts_test_integration_fail",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L77",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_test_submit",
+      "target": "scripts_test_integration_ok",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L89",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_test_poll",
+      "target": "scripts_test_integration_step",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L98",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_test_poll",
+      "target": "scripts_test_integration_ok",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L106",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_test_poll",
+      "target": "scripts_test_integration_fail",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L109",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_test_download_mesh",
+      "target": "scripts_test_integration_step",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L119",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_test_download_mesh",
+      "target": "scripts_test_integration_fail",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L122",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_test_download_mesh",
+      "target": "scripts_test_integration_ok",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L133",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_main",
+      "target": "scripts_test_integration_test_backend_health",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L176",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_main",
+      "target": "scripts_test_integration_test_submit",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L183",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_main",
+      "target": "scripts_test_integration_test_poll",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L188",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_main",
+      "target": "scripts_test_integration_test_download_mesh",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L193",
+      "weight": 1
+    },
+    {
+      "source": "scripts_test_integration_rationale_1",
+      "target": "scripts_test_integration",
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "tanitas/scripts/test_integration.py",
+      "source_location": "L1",
+      "weight": 1
+    },
+    {
+      "source": "routes_inference_rationale_1",
+      "target": "services_inference_engine_enginenotreadyerror",
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L31",
+      "weight": 0.8
+    },
+    {
+      "source": "routes_inference_rationale_54",
+      "target": "services_inference_engine_enginenotreadyerror",
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L31",
+      "weight": 0.8
+    },
+    {
+      "source": "routes_inference_rationale_103",
+      "target": "services_inference_engine_enginenotreadyerror",
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L31",
+      "weight": 0.8
+    },
+    {
+      "source": "routes_inference_rationale_153",
+      "target": "services_inference_engine_enginenotreadyerror",
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L31",
+      "weight": 0.8
+    },
+    {
+      "source": "routes_inference_rationale_1",
+      "target": "utils_validators_validationerror",
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L32",
+      "weight": 0.8
+    },
+    {
+      "source": "routes_inference_rationale_54",
+      "target": "utils_validators_validationerror",
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L32",
+      "weight": 0.8
+    },
+    {
+      "source": "routes_inference_rationale_103",
+      "target": "utils_validators_validationerror",
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L32",
+      "weight": 0.8
+    },
+    {
+      "source": "routes_inference_rationale_153",
+      "target": "utils_validators_validationerror",
+      "relation": "uses",
+      "confidence": "INFERRED",
+      "source_file": "tanitas/backend/routes/inference.py",
+      "source_location": "L32",
+      "weight": 0.8
+    }
+  ],
+  "input_tokens": 0,
+  "output_tokens": 0,
+  "hyperedges": []
+}

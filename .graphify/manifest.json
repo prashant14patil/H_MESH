@@ -1,0 +1,94 @@
+{
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/backend/__init__.py": {
+    "mtime": 1794378880463.7976,
+    "hash": "0bb936e0907eeaa0ba1a970cbd506fcf"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/backend/main.py": {
+    "mtime": 1794379161339.5754,
+    "hash": "3dbd33f597a7b2bc34f2204d221f3e47"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/backend/routes/__init__.py": {
+    "mtime": 1794378892232.6243,
+    "hash": "ca6a8aa832191290e832f0287f4258cb"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/backend/routes/inference.py": {
+    "mtime": 1794379137026.9414,
+    "hash": "033e6d093008dabe4f0ed6711ba6354c"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/backend/services/__init__.py": {
+    "mtime": 1794379099622.8467,
+    "hash": "d77675a3f369d714be9fb2d51ef462ea"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/backend/services/inference_engine.py": {
+    "mtime": 1794379232069.0518,
+    "hash": "519550ed0da186d0bd43fe265cc98c7f"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/backend/utils/__init__.py": {
+    "mtime": 1794378900346.9832,
+    "hash": "ae3d350dd01c13d1da0115cbf26d18bd"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/backend/utils/validators.py": {
+    "mtime": 1794378930441.5696,
+    "hash": "d35f72a2355af01312efaf055f3e4eb8"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/frontend/__init__.py": {
+    "mtime": 1794377441520.8516,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/frontend/app.py": {
+    "mtime": 1794380134972.2861,
+    "hash": "142009197b8887fd325e5471fceebab0"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/frontend/postcss.config.js": {
+    "mtime": 1794377446597.5198,
+    "hash": "5b84f4567208c7c747079c0477373231"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/frontend/src/App.jsx": {
+    "mtime": 1794378831743.9436,
+    "hash": "529d9a04678c98d98f126c4637f1deb3"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/frontend/src/components/Header.jsx": {
+    "mtime": 1794377446598.0215,
+    "hash": "78cee51e80621bcd24fac0a0e603bc9b"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/frontend/src/components/ImageUploader.jsx": {
+    "mtime": 1794377446598.7717,
+    "hash": "dd1d37130455d282f77c12b7ecafa15e"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/frontend/src/components/MeshViewer.jsx": {
+    "mtime": 1794377446598.7717,
+    "hash": "5c6ef4962a472ab2f075952eac184487"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/frontend/src/components/ProcessingStatus.jsx": {
+    "mtime": 1794377446599.2737,
+    "hash": "ae5013fe4ebd1d612107980b4f4311ba"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/frontend/src/components/ResultPanel.jsx": {
+    "mtime": 1794377446599.2737,
+    "hash": "f1b0f5d675b3c34ba8fe714abf2f73bd"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/frontend/src/main.jsx": {
+    "mtime": 1794377446600.2788,
+    "hash": "51fd21c378330142b61bf8d1ef3795ef"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/frontend/src/services/api.js": {
+    "mtime": 1794380058132.1416,
+    "hash": "3b24f837d9414e19993aefaba02922f6"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/frontend/tailwind.config.js": {
+    "mtime": 1794377446600.8208,
+    "hash": "08bbc8e7dc3268bab0ecc70f1b84c594"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/frontend/vite.config.js": {
+    "mtime": 1794377446603.8904,
+    "hash": "bd0368f6b75bf04bbae76833029928dc"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/scripts/download_models.py": {
+    "mtime": 1794379258885.6226,
+    "hash": "b80d23add18414b2589b51fc9ac9a862"
+  },
+  "c:/Users/icroc/Desktop/texti/POC-MESH/tanitas/scripts/test_integration.py": {
+    "mtime": 1794379399666.5422,
+    "hash": "6e29403a44c9bc4ef0975093db1564c7"
+  }
+}

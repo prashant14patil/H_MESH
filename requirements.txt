@@ -1,0 +1,51 @@
+# requirements.txt
+# -----------------
+# LOCAL GPU application dependencies.
+#
+# Unlike the original Colab-based POC, HMR2 / PyTorch run directly in
+# THIS process on your machine's GPU. There is no Google Colab, Flask
+# tunnel, or ngrok involved anywhere in this stack.
+#
+# IMPORTANT — install PyTorch with CUDA support FIRST, separately,
+# using the official selector at https://pytorch.org/get-started/locally/
+# so the correct build is chosen for your installed CUDA driver version.
+# Example (CUDA 12.1, Windows/Linux):
+#
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#
+# Then install everything else with:
+#
+#   pip install -r requirements.txt
+
+# --- Web framework (backend) ---
+fastapi==0.110.3
+uvicorn==0.29.0
+python-multipart
+
+# --- Utilities ---
+python-dotenv==1.0.1
+requests==2.32.3
+
+# --- Image / array processing (used by the local inference engine) ---
+numpy==1.26.4
+opencv-python==4.10.0.84
+Pillow==10.3.0
+
+# --- HMR2 / 4D-Humans model runtime dependencies ---
+# (torch / torchvision intentionally NOT pinned here — install the CUDA
+#  build for your system first, as shown above)
+pytorch-lightning==2.2.5
+smplx==0.1.28
+yacs==0.1.8
+webdataset==0.2.100
+einops==0.8.0
+chumpy==0.70
+scikit-image==0.24.0
+
+# --- Optional person detector (full-image fallback is used if this is
+#     not installed — see README for Windows build notes) ---
+# detectron2 @ git+https://github.com/facebookresearch/detectron2.git
+
+# --- Legacy Streamlit frontend (optional – only needed if running frontend/app.py) ---
+# streamlit==1.35.0
+# plotly==5.22.0

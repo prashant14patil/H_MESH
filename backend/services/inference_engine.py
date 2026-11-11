@@ -108,6 +108,24 @@ class InferenceEngine:
     # ------------------------------------------------------------------
     def _load(self) -> None:
         try:
+            # hmr2.utils.renderer forces PYOPENGL_PLATFORM="egl" at import
+            # time unless this var is already set. EGL is not available on
+            # a headless Windows machine, which would crash the import even
+            # though this engine never actually uses hmr2's renderer (we
+            # export OBJ files manually in _export_obj). Pre-set it to the
+            # native Win32 OpenGL platform (confirmed available on this
+            # machine) to avoid that forced EGL import failure.
+            os.environ.setdefault("PYOPENGL_PLATFORM", "win32")
+
+            # hmr2.configs uses os.environ["HOME"] to build its cache dir
+            # path, which does not exist on Windows (Windows provides
+            # USERPROFILE instead). Populate it from USERPROFILE/HOMEDRIVE+
+            # HOMEPATH so the import doesn't crash with a TypeError.
+            if not os.environ.get("HOME"):
+                os.environ["HOME"] = os.environ.get("USERPROFILE") or (
+                    os.environ.get("HOMEDRIVE", "") + os.environ.get("HOMEPATH", "")
+                ) or str(Path.home())
+
             import torch
 
             if _DEVICE_PREF == "cuda" or (_DEVICE_PREF == "auto" and torch.cuda.is_available()):

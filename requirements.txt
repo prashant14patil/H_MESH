@@ -27,9 +27,11 @@ python-dotenv==1.0.1
 requests==2.32.3
 
 # --- Image / array processing (used by the local inference engine) ---
-numpy==1.26.4
+# IMPORTANT: numpy MUST stay <2.0 in this project's environment — chumpy
+# (an HMR2/SMPL dependency) uses deprecated numpy aliases removed in 2.x.
+numpy<2.0,>=1.24
 opencv-python==4.10.0.84
-Pillow==10.3.0
+Pillow
 
 # --- HMR2 / 4D-Humans model runtime dependencies ---
 # (torch / torchvision intentionally NOT pinned here — install the CUDA

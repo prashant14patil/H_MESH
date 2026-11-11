@@ -43,8 +43,19 @@ REPO_DIR = Path("models/4D-Humans")
 # Official HMR2 data bundle (checkpoint + SMPL model files), hosted by the
 # 4D-Humans authors. This single tarball expands into the directory
 # structure load_hmr2() expects (logs/, data/).
-HMR2_DATA_URL = "https://people.eecs.berkeley.edu/~jathushan/projects/4dhumans/hmr2_data.tar.gz"
+#
+# NOTE: this is the URL used internally by hmr2.models.download_models()
+# in the official 4D-Humans repo (hmr2/models/__init__.py). An older,
+# now-dead mirror (people.eecs.berkeley.edu/~jathushan/...) previously
+# used here returns HTTP 403 — do not revert to it.
+HMR2_DATA_URL = "https://www.cs.utexas.edu/~pavlakos/4dhumans/hmr2_data.tar.gz"
 HMR2_DATA_TARBALL = Path("models/hmr2_data.tar.gz")
+
+# The hmr2_data.tar.gz bundle does NOT include the SMPL body model file
+# itself (SMPL_NEUTRAL.pkl) due to its separate license terms. It must be
+# downloaded manually after creating a free account at https://smplify.is.tue.mpg.de/
+# and placed at: models/4D-Humans/data/smpl/SMPL_NEUTRAL.pkl
+SMPL_NEUTRAL_PATH = REPO_DIR / "data/smpl/SMPL_NEUTRAL.pkl"
 
 EXPECTED_CKPT_CANDIDATES = [
     REPO_DIR / "logs/train/multiruns/hmr2/0/checkpoints/epoch=35-step=1000000.ckpt",
@@ -121,6 +132,20 @@ def print_summary() -> None:
                 print(f"  {f.resolve()}")
     print("=" * 60)
     print("Copy the two lines above into your .env file.")
+
+    if not SMPL_NEUTRAL_PATH.is_file():
+        print(
+            "\nWARNING: SMPL_NEUTRAL.pkl was not found at\n"
+            f"  {SMPL_NEUTRAL_PATH.resolve()}\n"
+            "This file has a separate, restrictive license and is NOT bundled\n"
+            "in hmr2_data.tar.gz. To obtain it:\n"
+            "  1. Register for a free account at https://smplify.is.tue.mpg.de/\n"
+            "  2. Download the SMPL model files for Python (version 1.0.0)\n"
+            "  3. Place the neutral model .pkl at the path above (rename if needed)\n"
+            "Without this file, HMR2 inference will fail at model-load time."
+        )
+    else:
+        print(f"SMPL body model found at {SMPL_NEUTRAL_PATH.resolve()}")
 
 
 def main() -> None:

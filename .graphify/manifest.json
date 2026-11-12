@@ -4,8 +4,8 @@
     "hash": "0bb936e0907eeaa0ba1a970cbd506fcf"
   },
   "C:/Users/icroc/Desktop/texti/POC-MESH/backend/main.py": {
-    "mtime": 1794397267800.4548,
-    "hash": "cecff7a7e5663e1c21b2c700f3015525"
+    "mtime": 1794480194647.5972,
+    "hash": "ba91e24f89c569db8567925665a529b8"
   },
   "C:/Users/icroc/Desktop/texti/POC-MESH/backend/routes/__init__.py": {
     "mtime": 1794378892232.6243,
@@ -44,8 +44,8 @@
     "hash": "5b84f4567208c7c747079c0477373231"
   },
   "C:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/App.jsx": {
-    "mtime": 1794378831743.9436,
-    "hash": "529d9a04678c98d98f126c4637f1deb3"
+    "mtime": 1794401216610.7585,
+    "hash": "e6051fddaa8b60ea8bcba74c2893fbe9"
   },
   "C:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/Header.jsx": {
     "mtime": 1794377446598.0215,
@@ -56,8 +56,8 @@
     "hash": "dd1d37130455d282f77c12b7ecafa15e"
   },
   "C:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/MeshViewer.jsx": {
-    "mtime": 1794377446598.7717,
-    "hash": "5c6ef4962a472ab2f075952eac184487"
+    "mtime": 1794398906225.3892,
+    "hash": "682c6926916b95e6e9e474fd1bf494da"
   },
   "C:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/ProcessingStatus.jsx": {
     "mtime": 1794377446599.2737,
@@ -80,8 +80,8 @@
     "hash": "08bbc8e7dc3268bab0ecc70f1b84c594"
   },
   "C:/Users/icroc/Desktop/texti/POC-MESH/frontend/vite.config.js": {
-    "mtime": 1794398009961.0603,
-    "hash": "19353a5835e19d8593533d5baf96112d"
+    "mtime": 1794484256677.2246,
+    "hash": "139f78791e48d49b913f2e98c217a6fa"
   },
   "C:/Users/icroc/Desktop/texti/POC-MESH/scripts/download_models.py": {
     "mtime": 1794382981137.6565,
@@ -94,5 +94,49 @@
   "C:/Users/icroc/Desktop/texti/POC-MESH/scripts/_generate_phase_b_plan.py": {
     "mtime": 1794393963601.618,
     "hash": "ad192c9b56cc005dc54ccdfb6ff8fd24"
+  },
+  "C:/Users/icroc/Desktop/texti/POC-MESH/backend/routes/capture.py": {
+    "mtime": 1794400798141.1655,
+    "hash": "d06f984c1f0268fc9d8591d712323610"
+  },
+  "C:/Users/icroc/Desktop/texti/POC-MESH/backend/routes/pose.py": {
+    "mtime": 1794463633202.8557,
+    "hash": "9b69e9f06ed9953f7767c3d94068dc4f"
+  },
+  "C:/Users/icroc/Desktop/texti/POC-MESH/backend/services/pose_processor.py": {
+    "mtime": 1794402703772.6292,
+    "hash": "f626a732366b0b0851bdbf9dd897af40"
+  },
+  "C:/Users/icroc/Desktop/texti/POC-MESH/backend/services/video_processor.py": {
+    "mtime": 1794466717290.7566,
+    "hash": "ba2fed2b1bfe9253f9f34f2038de88e2"
+  },
+  "C:/Users/icroc/Desktop/texti/POC-MESH/backend/utils/video_validators.py": {
+    "mtime": 1794401542102.7305,
+    "hash": "e6b98522f465ff7ace3c2ba3095f5551"
+  },
+  "C:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/CaptureWorkspace.jsx": {
+    "mtime": 1794480391340.7673,
+    "hash": "89ff4e2e5eab7a6ba59c61f9a3a073c1"
+  },
+  "C:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/FrameGallery.jsx": {
+    "mtime": 1794464237679.3904,
+    "hash": "c64813c9e8591d6d6b0c4828237fe754"
+  },
+  "C:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/PoseResultsPanel.jsx": {
+    "mtime": 1794402913936.5154,
+    "hash": "24750ccfa924a3199080017a32e84f29"
+  },
+  "C:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/VideoCapture.jsx": {
+    "mtime": 1794401492697.6958,
+    "hash": "f320c1dd3ee0f19db0052fe2734b7742"
+  },
+  "C:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/services/captureApi.js": {
+    "mtime": 1794400873128.2305,
+    "hash": "bbedcba23f4dda56b61689eab1be0312"
+  },
+  "C:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/services/poseApi.js": {
+    "mtime": 1794463775500.9717,
+    "hash": "c0632add344be0074cf3c1599b009907"
   }
 }

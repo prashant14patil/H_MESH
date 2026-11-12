@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pose gallery validation</title>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module">
+    import React from 'react'
+    import { createRoot } from 'react-dom/client'
+    import FrameGallery from '/src/components/FrameGallery.jsx'
+    import { getFrameMetadata } from '/src/services/captureApi.js'
+    import { getPoseResults, getViewpointCoverage } from '/src/services/poseApi.js'
+    import '/src/index.css'
+
+    const root = createRoot(document.getElementById('root'))
+    const videoId = new URLSearchParams(location.search).get('video_id')
+    if (!videoId) {
+      root.render(React.createElement('p', null, 'Supply ?video_id=...'))
+    } else {
+      Promise.all([getFrameMetadata(videoId), getPoseResults(videoId), getViewpointCoverage(videoId)])
+        .then(([metadata, poseResults, viewpointData]) => root.render(
+          React.createElement('main', { className: 'p-5 max-w-5xl mx-auto' },
+            React.createElement('h1', { className: 'text-xl font-semibold mb-4' }, 'Pose gallery validation'),
+            React.createElement(FrameGallery, { videoId, metadata, poseResults, viewpointData, posePhase: 'completed' }),
+          ),
+        ))
+        .catch((error) => root.render(React.createElement('pre', null, String(error))))
+    }
+  </script>
+</body>
+</html>

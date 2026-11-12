@@ -31,6 +31,7 @@ from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse, JSONResponse
 
 from backend.services.pose_processor import PoseProcessingError, get_pose_engine
+from backend.services.viewpoint_estimator import ViewpointEstimationError, estimate_viewpoints
 
 logger = logging.getLogger(__name__)
 
@@ -188,3 +189,39 @@ async def get_pose_frame_asset(video_id: str, frame_name: str, asset: str):
         media_type=_ASSET_MEDIA_TYPES[asset],
         filename=f"{frame_name}_{asset}",
     )
+
+
+# ---------------------------------------------------------------------------
+# GET /api/pose/viewpoints/{video_id}
+# ---------------------------------------------------------------------------
+@router.get(
+    "/viewpoints/{video_id}",
+    summary="Get per-frame viewpoint (orientation) classification + 360 coverage summary",
+)
+async def get_viewpoint_coverage(video_id: str) -> JSONResponse:
+    """
+    Derives a 360-degree viewpoint coverage estimate from the pose
+    landmarks already produced by POST /api/pose/process/{video_id} --
+    this endpoint does NOT run any additional MediaPipe inference, it
+    only reads the existing processing_summary.json and applies a
+    shoulder/hip/nose-depth heuristic (see
+    backend/services/viewpoint_estimator.py for full rationale and
+    limitations).
+
+    Each frame is classified into one of: front, left_side, back,
+    right_side, intermediate, front_or_back (ambiguous), or unknown
+    (no person detected), each with a 0..1 confidence score. Front/back
+    disambiguation is NOT guaranteed to be accurate -- see the
+    "notes" field in the response for caveats.
+
+    Errors
+    ------
+    404 – Pose processing has not completed yet for this video_id (run
+          POST /api/pose/process/{video_id} and wait for completion).
+    """
+    try:
+        result = estimate_viewpoints(video_id)
+    except ViewpointEstimationError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
+
+    return JSONResponse(status_code=status.HTTP_200_OK, content=result)

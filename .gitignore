@@ -6,6 +6,7 @@ __pycache__/
 *.pyc
 *.pyo
 .venv/
+.venv-pose/
 venv/
 
 # Models and outputs (large, downloaded/generated — never commit)

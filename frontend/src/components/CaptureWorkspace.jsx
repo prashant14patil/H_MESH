@@ -1,45 +1,63 @@
 /**
  * CaptureWorkspace.jsx
  * ---------------------
- * Orchestrates the 360° video capture + frame extraction workflow
- * (Modules 1 & 2):
+ * Orchestrates the full 360° video capture + frame extraction +
+ * viewpoint-coverage workflow (Modules 1, 2, and 3's viewpoint
+ * estimate):
  *
  *   1. Video selection (VideoCapture)
  *   2. Upload to FastAPI backend  (captureApi.uploadVideo)
- *   3. Trigger processing  (captureApi.processVideo)
- *   4. Poll for extraction status every POLL_INTERVAL_MS
- *   5. Render the extracted frame gallery  (FrameGallery)
+ *   3. Trigger frame extraction  (captureApi.processVideo)
+ *   4. Poll extraction status  (captureApi.getCaptureStatus)
+ *   5. Once extraction completes, auto-trigger pose processing
+ *      (poseApi.processPose) -- reuses the existing MediaPipe
+ *      pipeline, no duplicate processing is started if a pose job is
+ *      already running/completed for this video_id.
+ *   6. Poll pose-processing status  (poseApi.getPoseStatus)
+ *   7. Fetch viewpoint coverage  (poseApi.getViewpointCoverage)
+ *   8. Render the extracted frame gallery + coverage report
+ *      (FrameGallery)
  *
  * State machine:
- *   idle → uploading → uploaded → processing → completed
- *                                            └→ failed
+ *   idle → uploading → uploaded → extracting → pose_processing → completed
+ *                                                              └→ failed
  *
- * This component is self-contained and does not interact with the
- * existing single-image HMR2 inference flow in App.jsx — it is
- * designed to be rendered as a separate "tab"/section so the two
- * workflows never interfere with each other.
+ * This component does not interact with the existing single-image
+ * HMR2 inference flow in App.jsx -- it is rendered as a separate tab
+ * so the two workflows never interfere with each other.
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import VideoCapture from './VideoCapture.jsx'
 import FrameGallery from './FrameGallery.jsx'
+import VideoMeshPanel from './VideoMeshPanel.jsx'
 import {
   uploadVideo,
   processVideo,
   getCaptureStatus,
   getFrameMetadata,
 } from '../services/captureApi.js'
+import {
+  processPose,
+  getPoseStatus,
+  getViewpointCoverage,
+  getPoseResults,
+} from '../services/poseApi.js'
 
 const POLL_INTERVAL_MS = 2000
-const MAX_POLL_ATTEMPTS = 60 // ~2 min before giving up
+const MAX_POLL_ATTEMPTS = 60 // ~2 min before giving up per stage
 
 export default function CaptureWorkspace() {
   const [videoFile, setVideoFile] = useState(null)
-  const [phase, setPhase] = useState('idle') // idle|uploading|uploaded|processing|completed|failed
+  // idle|uploading|uploaded|extracting|pose_processing|completed|failed
+  const [phase, setPhase] = useState('idle')
   const [videoId, setVideoId] = useState(null)
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState(null)
   const [frameMetadata, setFrameMetadata] = useState(null)
+  const [viewpointData, setViewpointData] = useState(null)
+  const [viewpointError, setViewpointError] = useState(null)
+  const [poseResults, setPoseResults] = useState(null)
 
   const pollTimerRef = useRef(null)
   const pollAttemptRef = useRef(0)
@@ -52,7 +70,57 @@ export default function CaptureWorkspace() {
     }
   }, [])
 
-  const startPolling = useCallback(
+  // -----------------------------------------------------------------
+  // Stage 2: poll pose-processing status, then fetch viewpoint coverage
+  // -----------------------------------------------------------------
+  const startPosePolling = useCallback((id) => {
+    pollAttemptRef.current = 0
+
+    pollTimerRef.current = setInterval(async () => {
+      pollAttemptRef.current += 1
+      setAttempt(pollAttemptRef.current)
+
+      if (pollAttemptRef.current > MAX_POLL_ATTEMPTS) {
+        stopPolling()
+        setPhase('completed') // frames are still usable even without viewpoints
+        setViewpointError(`Pose processing did not complete within ${(MAX_POLL_ATTEMPTS * POLL_INTERVAL_MS) / 1000}s.`)
+        return
+      }
+
+      try {
+        const status = await getPoseStatus(id)
+        const s = status.status
+
+        if (s === 'processing') {
+          setPhase('pose_processing')
+        } else if (s === 'completed') {
+          stopPolling()
+          try {
+            const [coverage, results] = await Promise.all([
+              getViewpointCoverage(id),
+              getPoseResults(id),
+            ])
+            setViewpointData(coverage)
+            setPoseResults(results)
+          } catch (err) {
+            setViewpointError(err.message || 'Failed to fetch viewpoint coverage.')
+          }
+          setPhase('completed')
+        } else if (s === 'failed') {
+          stopPolling()
+          setViewpointError(status.detail || 'Pose processing failed on the server.')
+          setPhase('completed') // frame extraction result is still valid/usable
+        }
+      } catch (err) {
+        console.warn('Pose polling error (will retry):', err.message)
+      }
+    }, POLL_INTERVAL_MS)
+  }, [stopPolling])
+
+  // -----------------------------------------------------------------
+  // Stage 1: poll frame-extraction status, then auto-trigger pose
+  // -----------------------------------------------------------------
+  const startExtractionPolling = useCallback(
     (id) => {
       videoIdRef.current = id
       pollAttemptRef.current = 0
@@ -64,7 +132,7 @@ export default function CaptureWorkspace() {
         if (pollAttemptRef.current > MAX_POLL_ATTEMPTS) {
           stopPolling()
           setPhase('failed')
-          setError(`Processing did not complete within ${(MAX_POLL_ATTEMPTS * POLL_INTERVAL_MS) / 1000}s.`)
+          setError(`Frame extraction did not complete within ${(MAX_POLL_ATTEMPTS * POLL_INTERVAL_MS) / 1000}s.`)
           return
         }
 
@@ -73,16 +141,29 @@ export default function CaptureWorkspace() {
           const s = status.status
 
           if (s === 'processing') {
-            setPhase('processing')
+            setPhase('extracting')
           } else if (s === 'completed') {
             stopPolling()
-            setPhase('completed')
             try {
               const meta = await getFrameMetadata(videoIdRef.current)
               setFrameMetadata(meta)
             } catch (err) {
               setPhase('failed')
               setError(err.message || 'Failed to fetch extracted frames.')
+              return
+            }
+
+            // Auto-trigger pose processing (reuses existing Module 3
+            // pipeline; backend no-ops if already processing/completed).
+            try {
+              await processPose(videoIdRef.current)
+              setPhase('pose_processing')
+              startPosePolling(videoIdRef.current)
+            } catch (err) {
+              // Pose processing failing to start shouldn't hide the
+              // already-successful frame extraction result.
+              setViewpointError(err.message || 'Failed to start pose processing.')
+              setPhase('completed')
             }
           } else if (s === 'failed') {
             stopPolling()
@@ -94,7 +175,7 @@ export default function CaptureWorkspace() {
         }
       }, POLL_INTERVAL_MS)
     },
-    [stopPolling],
+    [stopPolling, startPosePolling],
   )
 
   useEffect(() => () => stopPolling(), [stopPolling])
@@ -103,7 +184,10 @@ export default function CaptureWorkspace() {
     if (!videoFile) return
 
     setError(null)
+    setViewpointError(null)
     setFrameMetadata(null)
+    setViewpointData(null)
+    setPoseResults(null)
     setAttempt(0)
     setVideoId(null)
     setPhase('uploading')
@@ -115,13 +199,13 @@ export default function CaptureWorkspace() {
       setPhase('uploaded')
 
       await processVideo(id)
-      setPhase('processing')
-      startPolling(id)
+      setPhase('extracting')
+      startExtractionPolling(id)
     } catch (err) {
       setPhase('failed')
       setError(err.message || 'Failed to upload/process video.')
     }
-  }, [videoFile, startPolling])
+  }, [videoFile, startExtractionPolling])
 
   const handleReset = useCallback(() => {
     stopPolling()
@@ -131,9 +215,12 @@ export default function CaptureWorkspace() {
     setAttempt(0)
     setError(null)
     setFrameMetadata(null)
+    setViewpointData(null)
+    setViewpointError(null)
+    setPoseResults(null)
   }, [stopPolling])
 
-  const isProcessing = ['uploading', 'uploaded', 'processing'].includes(phase)
+  const isProcessing = ['uploading', 'uploaded', 'extracting', 'pose_processing'].includes(phase)
   const hasResult = phase === 'completed' && frameMetadata
 
   return (
@@ -157,7 +244,10 @@ export default function CaptureWorkspace() {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              {phase === 'uploading' ? 'Uploading…' : 'Extracting frames…'}
+              {phase === 'uploading' && 'Uploading…'}
+              {phase === 'uploaded' && 'Starting extraction…'}
+              {phase === 'extracting' && 'Extracting frames…'}
+              {phase === 'pose_processing' && 'Analyzing pose & viewpoints…'}
             </>
           ) : (
             'Process Video'
@@ -170,6 +260,11 @@ export default function CaptureWorkspace() {
             <StatusRow phase={phase} videoId={videoId} attempt={attempt} maxAttempts={MAX_POLL_ATTEMPTS} />
             {error && (
               <p className="mt-2 text-red-600 text-xs">{error}</p>
+            )}
+            {viewpointError && (
+              <p className="mt-2 text-amber-600 text-xs">
+                Viewpoint analysis: {viewpointError}
+              </p>
             )}
           </div>
         )}
@@ -189,15 +284,22 @@ export default function CaptureWorkspace() {
       <div className="space-y-3">
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-base font-semibold text-gray-800">Step 2 — Extracted frames</h2>
+            <h2 className="text-base font-semibold text-gray-800">Step 2 — Extracted frames & viewpoint coverage</h2>
             <p className="text-xs text-gray-400 mt-0.5">
-              Representative frames sampled from the 360° scan, with blur/duplicate filtering
+              Representative frames sampled from the 360° scan, with quality filtering and
+              pose-based viewpoint estimation
             </p>
           </div>
 
           <div className="p-5">
             {hasResult ? (
-              <FrameGallery videoId={videoId} metadata={frameMetadata} />
+              <FrameGallery
+                videoId={videoId}
+                metadata={frameMetadata}
+                viewpointData={viewpointData}
+                poseResults={poseResults}
+                posePhase={phase}
+              />
             ) : (
               <div className="flex flex-col items-center justify-center gap-3 text-gray-300" style={{ height: 320 }}>
                 <svg className="w-14 h-14 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={0.8}>
@@ -211,6 +313,15 @@ export default function CaptureWorkspace() {
             )}
           </div>
         </div>
+        {hasResult && (
+          <VideoMeshPanel
+            key={videoId}
+            videoId={videoId}
+            metadata={frameMetadata}
+            viewpointData={viewpointData}
+            poseResults={poseResults}
+          />
+        )}
       </div>
     </div>
   )
@@ -220,15 +331,17 @@ function StatusRow({ phase, videoId, attempt, maxAttempts }) {
   const labelMap = {
     uploading: 'Uploading video…',
     uploaded: 'Video uploaded, starting extraction…',
-    processing: 'Extracting frames…',
-    completed: 'Frame extraction completed.',
-    failed: 'Frame extraction failed.',
+    extracting: 'Extracting frames…',
+    pose_processing: 'Analyzing pose & viewpoints…',
+    completed: 'Processing completed.',
+    failed: 'Processing failed.',
   }
 
   const colorMap = {
     uploading: 'text-blue-600',
     uploaded: 'text-blue-600',
-    processing: 'text-amber-600',
+    extracting: 'text-amber-600',
+    pose_processing: 'text-amber-600',
     completed: 'text-emerald-600',
     failed: 'text-red-600',
   }
@@ -238,7 +351,7 @@ function StatusRow({ phase, videoId, attempt, maxAttempts }) {
       <span className={`font-medium ${colorMap[phase] || 'text-gray-600'}`}>
         {labelMap[phase] || phase}
       </span>
-      {phase === 'processing' && (
+      {(phase === 'extracting' || phase === 'pose_processing') && (
         <span className="text-xs text-gray-400">attempt {attempt}/{maxAttempts}</span>
       )}
       {videoId && (

@@ -43,7 +43,7 @@ webdataset==0.2.100
 einops==0.8.0
 chumpy==0.70
 scikit-image==0.24.0
-
+matplotlib
 # omegaconf: required at checkpoint-load time by pytorch_lightning's
 # hparams unpickler when loading the official HMR2 .ckpt (it was pickled
 # with an OmegaConf-based config object). Not declared by pytorch-lightning

@@ -94,3 +94,28 @@ export async function getPoseResults(videoId) {
 export function getPoseFrameAssetUrl(videoId, frameName, asset) {
   return `${BASE_URL}/api/pose/frame/${videoId}/${frameName}/${asset}`
 }
+
+/**
+ * Fetch the per-frame viewpoint (orientation) classification and 360
+ * coverage summary for a video. Derived from the existing pose
+ * landmarks (GET /api/pose/results/{video_id}) -- requires pose
+ * processing to have completed first via processPose().
+ *
+ * @param {string} videoId
+ * @returns {Promise<object>} { video_id, frames: [...], coverage: {...} }
+ * @throws {Error}
+ */
+export async function getViewpointCoverage(videoId) {
+  const res = await fetch(`${BASE_URL}/api/pose/viewpoints/${videoId}`)
+
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`
+    try {
+      const err = await res.json()
+      detail = err.detail || detail
+    } catch { /* ignore */ }
+    throw new Error(`Could not fetch viewpoint coverage: ${detail}`)
+  }
+
+  return res.json()
+}

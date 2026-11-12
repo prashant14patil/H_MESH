@@ -43,6 +43,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.routes.capture import router as capture_router
 from backend.routes.inference import router as inference_router
 from backend.routes.pose import router as pose_router
+from backend.routes.video_mesh import router as video_mesh_router
 from backend.services.inference_engine import get_engine
 
 # ---------------------------------------------------------------------------
@@ -92,6 +93,7 @@ app.add_middleware(
 app.include_router(inference_router, prefix="/api/inference", tags=["Inference"])
 app.include_router(capture_router, prefix="/api/capture", tags=["Capture"])
 app.include_router(pose_router, prefix="/api/pose", tags=["Pose"])
+app.include_router(video_mesh_router, prefix="/api/video-mesh", tags=["Video mesh"])
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,251 @@
+/**
+ * CaptureWorkspace.jsx
+ * ---------------------
+ * Orchestrates the 360° video capture + frame extraction workflow
+ * (Modules 1 & 2):
+ *
+ *   1. Video selection (VideoCapture)
+ *   2. Upload to FastAPI backend  (captureApi.uploadVideo)
+ *   3. Trigger processing  (captureApi.processVideo)
+ *   4. Poll for extraction status every POLL_INTERVAL_MS
+ *   5. Render the extracted frame gallery  (FrameGallery)
+ *
+ * State machine:
+ *   idle → uploading → uploaded → processing → completed
+ *                                            └→ failed
+ *
+ * This component is self-contained and does not interact with the
+ * existing single-image HMR2 inference flow in App.jsx — it is
+ * designed to be rendered as a separate "tab"/section so the two
+ * workflows never interfere with each other.
+ */
+
+import { useState, useRef, useEffect, useCallback } from 'react'
+import VideoCapture from './VideoCapture.jsx'
+import FrameGallery from './FrameGallery.jsx'
+import {
+  uploadVideo,
+  processVideo,
+  getCaptureStatus,
+  getFrameMetadata,
+} from '../services/captureApi.js'
+
+const POLL_INTERVAL_MS = 2000
+const MAX_POLL_ATTEMPTS = 60 // ~2 min before giving up
+
+export default function CaptureWorkspace() {
+  const [videoFile, setVideoFile] = useState(null)
+  const [phase, setPhase] = useState('idle') // idle|uploading|uploaded|processing|completed|failed
+  const [videoId, setVideoId] = useState(null)
+  const [attempt, setAttempt] = useState(0)
+  const [error, setError] = useState(null)
+  const [frameMetadata, setFrameMetadata] = useState(null)
+
+  const pollTimerRef = useRef(null)
+  const pollAttemptRef = useRef(0)
+  const videoIdRef = useRef(null)
+
+  const stopPolling = useCallback(() => {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current)
+      pollTimerRef.current = null
+    }
+  }, [])
+
+  const startPolling = useCallback(
+    (id) => {
+      videoIdRef.current = id
+      pollAttemptRef.current = 0
+
+      pollTimerRef.current = setInterval(async () => {
+        pollAttemptRef.current += 1
+        setAttempt(pollAttemptRef.current)
+
+        if (pollAttemptRef.current > MAX_POLL_ATTEMPTS) {
+          stopPolling()
+          setPhase('failed')
+          setError(`Processing did not complete within ${(MAX_POLL_ATTEMPTS * POLL_INTERVAL_MS) / 1000}s.`)
+          return
+        }
+
+        try {
+          const status = await getCaptureStatus(videoIdRef.current)
+          const s = status.status
+
+          if (s === 'processing') {
+            setPhase('processing')
+          } else if (s === 'completed') {
+            stopPolling()
+            setPhase('completed')
+            try {
+              const meta = await getFrameMetadata(videoIdRef.current)
+              setFrameMetadata(meta)
+            } catch (err) {
+              setPhase('failed')
+              setError(err.message || 'Failed to fetch extracted frames.')
+            }
+          } else if (s === 'failed') {
+            stopPolling()
+            setPhase('failed')
+            setError(status.detail || 'Frame extraction failed on the server.')
+          }
+        } catch (err) {
+          console.warn('Capture polling error (will retry):', err.message)
+        }
+      }, POLL_INTERVAL_MS)
+    },
+    [stopPolling],
+  )
+
+  useEffect(() => () => stopPolling(), [stopPolling])
+
+  const handleProcess = useCallback(async () => {
+    if (!videoFile) return
+
+    setError(null)
+    setFrameMetadata(null)
+    setAttempt(0)
+    setVideoId(null)
+    setPhase('uploading')
+
+    try {
+      const uploadResult = await uploadVideo(videoFile)
+      const id = uploadResult.video_id
+      setVideoId(id)
+      setPhase('uploaded')
+
+      await processVideo(id)
+      setPhase('processing')
+      startPolling(id)
+    } catch (err) {
+      setPhase('failed')
+      setError(err.message || 'Failed to upload/process video.')
+    }
+  }, [videoFile, startPolling])
+
+  const handleReset = useCallback(() => {
+    stopPolling()
+    setVideoFile(null)
+    setPhase('idle')
+    setVideoId(null)
+    setAttempt(0)
+    setError(null)
+    setFrameMetadata(null)
+  }, [stopPolling])
+
+  const isProcessing = ['uploading', 'uploaded', 'processing'].includes(phase)
+  const hasResult = phase === 'completed' && frameMetadata
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
+      {/* Left panel — capture */}
+      <div className="space-y-5">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+          <VideoCapture onFileSelected={setVideoFile} disabled={isProcessing} />
+        </div>
+
+        <button
+          onClick={handleProcess}
+          disabled={!videoFile || isProcessing}
+          className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold
+            bg-teal-600 hover:bg-teal-700 disabled:bg-gray-200 disabled:text-gray-400
+            text-white transition-colors shadow-sm disabled:cursor-not-allowed"
+        >
+          {isProcessing ? (
+            <>
+              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              {phase === 'uploading' ? 'Uploading…' : 'Extracting frames…'}
+            </>
+          ) : (
+            'Process Video'
+          )}
+        </button>
+
+        {/* Status */}
+        {phase !== 'idle' && (
+          <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm text-sm">
+            <StatusRow phase={phase} videoId={videoId} attempt={attempt} maxAttempts={MAX_POLL_ATTEMPTS} />
+            {error && (
+              <p className="mt-2 text-red-600 text-xs">{error}</p>
+            )}
+          </div>
+        )}
+
+        {(phase === 'completed' || phase === 'failed') && (
+          <button
+            onClick={handleReset}
+            className="w-full px-4 py-2 rounded-xl border border-gray-300 hover:border-gray-400
+              text-sm text-gray-600 hover:text-gray-800 transition-colors bg-white"
+          >
+            Start over
+          </button>
+        )}
+      </div>
+
+      {/* Right panel — gallery */}
+      <div className="space-y-3">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h2 className="text-base font-semibold text-gray-800">Step 2 — Extracted frames</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Representative frames sampled from the 360° scan, with blur/duplicate filtering
+            </p>
+          </div>
+
+          <div className="p-5">
+            {hasResult ? (
+              <FrameGallery videoId={videoId} metadata={frameMetadata} />
+            ) : (
+              <div className="flex flex-col items-center justify-center gap-3 text-gray-300" style={{ height: 320 }}>
+                <svg className="w-14 h-14 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={0.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round"
+                    d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18-3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                </svg>
+                <p className="text-sm text-gray-400">
+                  {isProcessing ? 'Processing — please wait…' : 'Upload or record a video and click Process to see extracted frames here.'}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StatusRow({ phase, videoId, attempt, maxAttempts }) {
+  const labelMap = {
+    uploading: 'Uploading video…',
+    uploaded: 'Video uploaded, starting extraction…',
+    processing: 'Extracting frames…',
+    completed: 'Frame extraction completed.',
+    failed: 'Frame extraction failed.',
+  }
+
+  const colorMap = {
+    uploading: 'text-blue-600',
+    uploaded: 'text-blue-600',
+    processing: 'text-amber-600',
+    completed: 'text-emerald-600',
+    failed: 'text-red-600',
+  }
+
+  return (
+    <div className="flex items-center justify-between">
+      <span className={`font-medium ${colorMap[phase] || 'text-gray-600'}`}>
+        {labelMap[phase] || phase}
+      </span>
+      {phase === 'processing' && (
+        <span className="text-xs text-gray-400">attempt {attempt}/{maxAttempts}</span>
+      )}
+      {videoId && (
+        <span className="text-[10px] text-gray-300 font-mono truncate ml-2" title={videoId}>
+          {videoId.slice(0, 8)}
+        </span>
+      )}
+    </div>
+  )
+}

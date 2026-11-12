@@ -56,6 +56,15 @@ antlr4-python3-runtime==4.9.3
 #     not installed — see README for Windows build notes) ---
 # detectron2 @ git+https://github.com/facebookresearch/detectron2.git
 
+# --- Module 3: Human detection, segmentation, pose estimation ---
+# mediapipe provides the Pose Landmarker (33-point body pose) and Image
+# Segmenter (foreground/background mask) Tasks used by
+# backend/services/pose_processor.py. Model asset files (.task/.tflite)
+# are downloaded automatically on first use into models/mediapipe/ (see
+# backend/services/pose_processor.py docstring) — no manual setup needed
+# beyond this pip install.
+mediapipe==0.10.14
+
 # --- Legacy Streamlit frontend (optional – only needed if running frontend/app.py) ---
 # streamlit==1.35.0
 # plotly==5.22.0

@@ -21,6 +21,7 @@ import ImageUploader from './components/ImageUploader.jsx'
 import ProcessingStatus from './components/ProcessingStatus.jsx'
 import MeshViewer from './components/MeshViewer.jsx'
 import ResultPanel from './components/ResultPanel.jsx'
+import CaptureWorkspace from './components/CaptureWorkspace.jsx'
 import { checkHealth, submitImage, getJobStatus, getMeshUrl } from './services/api.js'
 
 // ---------------------------------------------------------------------------
@@ -33,6 +34,10 @@ const MAX_POLL_ATTEMPTS = 40      // ~2 min before giving up
 // App
 // ---------------------------------------------------------------------------
 export default function App() {
+  // Active workspace tab: "photo" (existing single-image flow) or
+  // "capture" (new 360° video capture + frame extraction flow).
+  const [activeTab, setActiveTab] = useState('photo')
+
   // Backend health
   const [backendOnline, setBackendOnline] = useState(null)  // null = checking
 
@@ -197,7 +202,34 @@ export default function App() {
           </div>
         )}
 
+        {/* Tab switcher */}
+        <div className="flex gap-2 mb-6 border-b border-gray-200">
+          <button
+            onClick={() => setActiveTab('photo')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'photo'
+                ? 'border-teal-600 text-teal-700'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Single Photo
+          </button>
+          <button
+            onClick={() => setActiveTab('capture')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'capture'
+                ? 'border-teal-600 text-teal-700'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            360° Video Capture
+          </button>
+        </div>
+
+        {activeTab === 'capture' && <CaptureWorkspace />}
+
         {/* Two-column layout on large screens */}
+        {activeTab === 'photo' && (
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
 
           {/* ── Left panel ──────────────────────────────────────────────── */}
@@ -309,6 +341,7 @@ export default function App() {
             </div>
           </div>
         </div>
+        )}
       </main>
 
       {/* Footer */}

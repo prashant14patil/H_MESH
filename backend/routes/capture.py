@@ -31,7 +31,10 @@ Endpoints:
 import logging
 import uuid
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
+from pydantic import BaseModel, StrictBool
+
+from backend.services.capture_authorization import attest, require_authorization
 from fastapi.responses import FileResponse, JSONResponse
 
 from backend.services.video_processor import VideoProcessingError, get_capture_engine
@@ -40,6 +43,11 @@ from backend.utils.video_validators import VideoValidationError, validate_video
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+class AuthorizationRequest(BaseModel):
+    authorized: StrictBool
+    consent: StrictBool
 
 
 # ---------------------------------------------------------------------------
@@ -52,6 +60,8 @@ router = APIRouter()
 )
 async def upload_video(
     video: UploadFile = File(..., description="360 body-scan video (MP4 or MOV)"),
+    authorized: bool = Form(False),
+    consent: bool = Form(False),
 ) -> JSONResponse:
     """
     Accepts an uploaded 360 video, validates its container/size, and
@@ -66,6 +76,8 @@ async def upload_video(
     ------
     400 – Video failed validation (wrong container, too large, etc.)
     """
+    if not authorized or not consent:
+        raise HTTPException(status_code=400, detail="Explicit authorization and consent confirmation are required")
     video_bytes = await video.read()
 
     try:
@@ -77,6 +89,7 @@ async def upload_video(
     video_id = str(uuid.uuid4())
     engine = get_capture_engine()
     engine.save_video(video_id=video_id, filename=video.filename, data=video_bytes)
+    attest(video_id, authorized, consent)
 
     logger.info("Uploaded capture video %s (file: %s)", video_id, video.filename)
 
@@ -84,6 +97,22 @@ async def upload_video(
         status_code=status.HTTP_201_CREATED,
         content={"video_id": video_id, "status": "uploaded", "filename": video.filename},
     )
+
+
+@router.post("/{video_id}/authorization")
+def confirm_authorization(video_id: str, request: AuthorizationRequest):
+    try:
+        return attest(video_id, request.authorized, request.consent)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/{video_id}/authorization")
+def authorization_status(video_id: str):
+    try:
+        return require_authorization(video_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 # ---------------------------------------------------------------------------
@@ -113,7 +142,10 @@ async def process_video(video_id: str) -> JSONResponse:
     engine = get_capture_engine()
 
     try:
+        require_authorization(video_id)
         engine.process_video(video_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     except VideoProcessingError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 

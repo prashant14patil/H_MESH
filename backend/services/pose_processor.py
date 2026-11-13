@@ -35,6 +35,7 @@ Public surface:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -270,7 +271,12 @@ class PoseProcessingEngine:
             out_dir = pose_dir / frame_name
             out_dir.mkdir(parents=True, exist_ok=True)
 
-            frame_bgr = cv2.imread(str(frame_path))
+            try:
+                frame_bytes = frame_path.read_bytes()
+                frame_hash = hashlib.sha256(frame_bytes).hexdigest()
+                frame_bgr = cv2.imdecode(np.frombuffer(frame_bytes, dtype=np.uint8), cv2.IMREAD_COLOR) if frame_bytes else None
+            except (OSError, cv2.error):
+                frame_hash, frame_bgr = None, None
             if frame_bgr is None:
                 per_frame_results.append({
                     "frame": frame_name,
@@ -364,6 +370,7 @@ class PoseProcessingEngine:
 
             frame_metadata = {
                 "frame": frame_name,
+                "source_sha256": frame_hash,
                 "person_detected": has_pose,
                 "detection_confidence": round(
                     float(pose_result.pose_landmarks and 1.0 or 0.0), 3

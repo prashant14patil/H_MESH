@@ -30,6 +30,7 @@ import logging
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse, JSONResponse
 
+from backend.services.capture_authorization import require_authorization
 from backend.services.pose_processor import PoseProcessingError, get_pose_engine
 from backend.services.viewpoint_estimator import ViewpointEstimationError, estimate_viewpoints
 
@@ -72,7 +73,10 @@ async def process_pose(video_id: str) -> JSONResponse:
     engine = get_pose_engine()
 
     try:
+        require_authorization(video_id)
         engine.process_video(video_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
     except PoseProcessingError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
 

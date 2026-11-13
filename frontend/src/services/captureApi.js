@@ -20,9 +20,14 @@ const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
  * @returns {Promise<{video_id: string, status: string, filename: string}>}
  * @throws {Error} with a human-readable message on failure.
  */
-export async function uploadVideo(file) {
+export async function uploadVideo(file, authorization) {
+  if (authorization?.authorized !== true || authorization?.consent !== true) {
+    throw new Error('Explicit authorization and consent confirmation are required')
+  }
   const formData = new FormData()
   formData.append('video', file, file.name)
+  formData.append('authorized', 'true')
+  formData.append('consent', 'true')
 
   const res = await fetch(`${BASE_URL}/api/capture/upload`, {
     method: 'POST',

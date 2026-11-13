@@ -10,11 +10,23 @@ async function request(path, options) {
   return res.json()
 }
 
-export function startMeshBatch(videoId, frames) {
+function batchPayload(videoId, frames, qualityRunId, reviewedFrames, reviewSessionId) {
+  return { video_id: videoId, frames, quality_run_id: qualityRunId, reviewed_frames: reviewedFrames, review_session_id: reviewSessionId }
+}
+
+export function checkMeshReadiness(videoId, frames, qualityRunId, reviewedFrames, reviewSessionId) {
+  return request('/api/video-mesh/readiness', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(batchPayload(videoId, frames, qualityRunId, reviewedFrames, reviewSessionId)),
+  })
+}
+
+export function startMeshBatch(videoId, frames, qualityRunId, reviewedFrames, reviewSessionId, finalConfirmation) {
   return request('/api/video-mesh/runs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ video_id: videoId, frames }),
+    body: JSON.stringify({ ...batchPayload(videoId, frames, qualityRunId, reviewedFrames, reviewSessionId), final_confirmation: finalConfirmation === true }),
   })
 }
 

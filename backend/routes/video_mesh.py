@@ -1,22 +1,45 @@
 """Endpoints for batches of independent single-frame meshes."""
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, StrictBool
 
-from backend.services.video_mesh_batch import get_asset, get_run, start_batch
+from backend.services.video_mesh_batch import check_readiness, get_asset, get_run, start_batch
 
 router = APIRouter()
+
+
+class ReadinessRequest(BaseModel):
+    video_id: str
+    frames: list[str]
+    quality_run_id: str | None = None
+    reviewed_frames: list[str] = Field(default_factory=list)
+    review_session_id: str | None = None
 
 
 class BatchRequest(BaseModel):
     video_id: str
     frames: list[str]
+    quality_run_id: str
+    reviewed_frames: list[str]
+    review_session_id: str
+
+
+class ConfirmedBatchRequest(BatchRequest):
+    final_confirmation: StrictBool = False
+
+
+@router.post("/readiness")
+def readiness(request: ReadinessRequest):
+    return check_readiness(request.video_id, request.frames, request.quality_run_id,
+                           request.reviewed_frames, request.review_session_id)
 
 
 @router.post("/runs", status_code=status.HTTP_202_ACCEPTED)
-def create_run(request: BatchRequest):
+def create_run(request: ConfirmedBatchRequest):
+    if request.final_confirmation is not True:
+        raise HTTPException(status_code=400, detail="Explicit final confirmation is required")
     try:
-        return start_batch(request.video_id, request.frames)
+        return start_batch(request.video_id, request.frames, request.quality_run_id, request.reviewed_frames, request.review_session_id)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:

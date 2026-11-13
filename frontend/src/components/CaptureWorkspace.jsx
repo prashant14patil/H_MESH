@@ -31,6 +31,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import VideoCapture from './VideoCapture.jsx'
 import FrameGallery from './FrameGallery.jsx'
 import VideoMeshPanel from './VideoMeshPanel.jsx'
+import CaptureQualityPanel from './CaptureQualityPanel.jsx'
+import SubjectReviewPanel from './SubjectReviewPanel.jsx'
 import {
   uploadVideo,
   processVideo,
@@ -58,6 +60,18 @@ export default function CaptureWorkspace() {
   const [viewpointData, setViewpointData] = useState(null)
   const [viewpointError, setViewpointError] = useState(null)
   const [poseResults, setPoseResults] = useState(null)
+  const [qualityReport, setQualityReport] = useState(null)
+  const [reviewSession, setReviewSession] = useState(null)
+  const [reviewDecisions, setReviewDecisions] = useState({})
+  const [reviewFrame, setReviewFrame] = useState(null)
+  const [savedVideoId, setSavedVideoId] = useState('')
+  const [savedRunId, setSavedRunId] = useState('')
+  const [restoring, setRestoring] = useState(false)
+  const [restoreVersion, setRestoreVersion] = useState(0)
+  const [uploadAuthorized, setUploadAuthorized] = useState(false)
+  const [uploadConsent, setUploadConsent] = useState(false)
+  const [savedAuthorized, setSavedAuthorized] = useState(false)
+  const [savedConsent, setSavedConsent] = useState(false)
 
   const pollTimerRef = useRef(null)
   const pollAttemptRef = useRef(0)
@@ -180,20 +194,64 @@ export default function CaptureWorkspace() {
 
   useEffect(() => () => stopPolling(), [stopPolling])
 
+  async function reopenSaved(event) {
+    event.preventDefault()
+    setRestoring(true)
+    setError(null)
+    try {
+      const id = savedVideoId.trim()
+      const runId = savedRunId.trim()
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      if (!uuid.test(id) || !uuid.test(runId)) throw new Error('Enter valid recording and report IDs')
+      if (!savedAuthorized || !savedConsent) throw new Error('Confirm authorization and consent before opening this recording')
+      const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+      const [metadata, response] = await Promise.all([
+        getFrameMetadata(id),
+        fetch(`${base}/api/capture-quality/runs/${encodeURIComponent(runId)}/report`),
+      ])
+      if (!response.ok) throw new Error(`Quality report unavailable (HTTP ${response.status})`)
+      const report = await response.json()
+      if (metadata.status !== 'completed' || metadata.video_id !== id ||
+          report.video_id !== id || report.run_id !== runId || !Array.isArray(report.frames)) {
+        throw new Error('Capture and completed quality report do not match')
+      }
+      const confirmation = await fetch(`${base}/api/capture/${encodeURIComponent(id)}/authorization`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ authorized: savedAuthorized, consent: savedConsent }),
+      })
+      if (!confirmation.ok) {
+        const detail = await confirmation.json().catch(() => ({}))
+        throw new Error(detail.detail || `Authorization unavailable (HTTP ${confirmation.status})`)
+      }
+      stopPolling()
+      setReviewSession(null); setReviewDecisions({}); setReviewFrame(null)
+      setRestoreVersion(version => version + 1)
+      setVideoId(id); setFrameMetadata(metadata); setQualityReport(report)
+      setPoseResults(null); setViewpointData(null); setViewpointError(null)
+      setPhase('completed')
+    } catch (err) {
+      setError(`Could not reopen capture: ${err.message}`)
+    } finally {
+      setRestoring(false)
+    }
+  }
+
   const handleProcess = useCallback(async () => {
-    if (!videoFile) return
+    if (!videoFile || !uploadAuthorized || !uploadConsent) return
 
     setError(null)
     setViewpointError(null)
     setFrameMetadata(null)
     setViewpointData(null)
     setPoseResults(null)
+    setQualityReport(null)
+    setReviewSession(null); setReviewDecisions({}); setReviewFrame(null)
     setAttempt(0)
     setVideoId(null)
     setPhase('uploading')
 
     try {
-      const uploadResult = await uploadVideo(videoFile)
+      const uploadResult = await uploadVideo(videoFile, { authorized: uploadAuthorized, consent: uploadConsent })
       const id = uploadResult.video_id
       setVideoId(id)
       setPhase('uploaded')
@@ -205,11 +263,12 @@ export default function CaptureWorkspace() {
       setPhase('failed')
       setError(err.message || 'Failed to upload/process video.')
     }
-  }, [videoFile, startExtractionPolling])
+  }, [videoFile, uploadAuthorized, uploadConsent, startExtractionPolling])
 
   const handleReset = useCallback(() => {
     stopPolling()
     setVideoFile(null)
+    setUploadAuthorized(false); setUploadConsent(false); setSavedAuthorized(false); setSavedConsent(false)
     setPhase('idle')
     setVideoId(null)
     setAttempt(0)
@@ -218,6 +277,8 @@ export default function CaptureWorkspace() {
     setViewpointData(null)
     setViewpointError(null)
     setPoseResults(null)
+    setQualityReport(null)
+    setReviewSession(null); setReviewDecisions({}); setReviewFrame(null)
   }, [stopPolling])
 
   const isProcessing = ['uploading', 'uploaded', 'extracting', 'pose_processing'].includes(phase)
@@ -228,12 +289,19 @@ export default function CaptureWorkspace() {
       {/* Left panel — capture */}
       <div className="space-y-5">
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
-          <VideoCapture onFileSelected={setVideoFile} disabled={isProcessing} />
+          <VideoCapture onFileSelected={file => { setVideoFile(file); setUploadAuthorized(false); setUploadConsent(false) }} disabled={isProcessing || restoring} />
+        </div>
+
+        <div className="bg-white rounded-xl border p-4 text-xs space-y-2">
+          <h3 className="font-semibold text-sm">Authorization and consent for selected video</h3>
+          <p>Operator assertion only; this application cannot verify consent or identity. Confirm for this specific video before uploading and processing it.</p>
+          <label className="flex gap-2"><input type="checkbox" checked={uploadAuthorized} onChange={e => setUploadAuthorized(e.target.checked)} disabled={!videoFile || isProcessing || restoring} /> I am authorized to process this recording and generate meshes.</label>
+          <label className="flex gap-2"><input type="checkbox" checked={uploadConsent} onChange={e => setUploadConsent(e.target.checked)} disabled={!videoFile || isProcessing || restoring} /> Everyone depicted has consented to this processing and mesh generation.</label>
         </div>
 
         <button
           onClick={handleProcess}
-          disabled={!videoFile || isProcessing}
+          disabled={!videoFile || !uploadAuthorized || !uploadConsent || isProcessing || restoring}
           className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold
             bg-teal-600 hover:bg-teal-700 disabled:bg-gray-200 disabled:text-gray-400
             text-white transition-colors shadow-sm disabled:cursor-not-allowed"
@@ -254,6 +322,23 @@ export default function CaptureWorkspace() {
           )}
         </button>
 
+        <form onSubmit={reopenSaved} className="bg-white rounded-xl border p-4 space-y-2">
+          <h3 className="font-semibold text-sm">Reopen saved capture</h3>
+          <p className="text-xs text-gray-600">Enter the existing recording and quality-report IDs. This does not approve frames.</p>
+          <label className="block text-xs">Recording ID
+            <input required disabled={restoring || isProcessing} value={savedVideoId} onChange={e => { setSavedVideoId(e.target.value); setSavedAuthorized(false); setSavedConsent(false) }} className="block w-full border rounded p-1" />
+          </label>
+          <label className="block text-xs">Quality report ID
+            <input required disabled={restoring || isProcessing} value={savedRunId} onChange={e => setSavedRunId(e.target.value)} className="block w-full border rounded p-1" />
+          </label>
+          <p className="text-xs">Operator assertion only; the application cannot verify consent or identity. Confirm for this specific recording.</p>
+          <label className="flex gap-2 text-xs"><input type="checkbox" checked={savedAuthorized} onChange={e => setSavedAuthorized(e.target.checked)} disabled={restoring || isProcessing} /> I am authorized to process this recording and generate meshes.</label>
+          <label className="flex gap-2 text-xs"><input type="checkbox" checked={savedConsent} onChange={e => setSavedConsent(e.target.checked)} disabled={restoring || isProcessing} /> Everyone depicted has consented to this processing and mesh generation.</label>
+          <button disabled={restoring || isProcessing || !savedAuthorized || !savedConsent} className="border rounded px-3 py-2 text-sm disabled:text-gray-400">
+            {restoring ? 'Opening…' : 'Open saved capture'}
+          </button>
+        </form>
+
         {/* Status */}
         {phase !== 'idle' && (
           <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm text-sm">
@@ -269,6 +354,7 @@ export default function CaptureWorkspace() {
           </div>
         )}
 
+        {phase === 'idle' && error && <p role="alert" className="text-red-700 text-xs">{error}</p>}
         {(phase === 'completed' || phase === 'failed') && (
           <button
             onClick={handleReset}
@@ -281,7 +367,7 @@ export default function CaptureWorkspace() {
       </div>
 
       {/* Right panel — gallery */}
-      <div className="space-y-3">
+      <div className="space-y-3 min-w-0">
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100">
             <h2 className="text-base font-semibold text-gray-800">Step 2 — Extracted frames & viewpoint coverage</h2>
@@ -313,13 +399,28 @@ export default function CaptureWorkspace() {
             )}
           </div>
         </div>
+        {hasResult && <CaptureQualityPanel key={`quality-${videoId}`} videoId={videoId} onReport={setQualityReport} restoredReport={qualityReport}
+          reviewSession={reviewSession?.quality_run_id === qualityReport?.run_id ? reviewSession : null} reviewDecisions={reviewDecisions} />}
+        {hasResult && qualityReport && (
+          <SubjectReviewPanel key={`${qualityReport.run_id}-${restoreVersion}`} videoId={videoId} report={qualityReport}
+            requestedFrame={reviewFrame} decisions={reviewDecisions}
+            onSession={(session, restoredDecisions = {}) => { setReviewSession(session); setReviewDecisions(restoredDecisions) }}
+            onDecision={decision => setReviewDecisions(old => ({ ...old, [decision.frame_id]: decision }))} />
+        )}
         {hasResult && (
           <VideoMeshPanel
-            key={videoId}
+            key={`${videoId}-${restoreVersion}`}
             videoId={videoId}
             metadata={frameMetadata}
             viewpointData={viewpointData}
             poseResults={poseResults}
+            qualityReport={qualityReport}
+            reviewSession={reviewSession?.quality_run_id === qualityReport?.run_id ? reviewSession : null}
+            reviewDecisions={reviewDecisions}
+            onReviewFrame={name => {
+              setReviewFrame({ name })
+              document.getElementById('subject-review')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }}
           />
         )}
       </div>

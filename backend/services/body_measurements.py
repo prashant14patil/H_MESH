@@ -349,3 +349,106 @@ def scale_to_height(measurements: dict, height_cm, height_uncertainty_cm: float 
             "Not validated against tape measurements; not a Tanita BIA/BCM body-composition result.",
         ],
     }
+
+
+# ------------------------------------------------- tape-measure validation
+TAPE_SITES = ("chest", "waist", "abdomen", "hip", "upper_arm_left", "upper_arm_right", "forearm_left",
+              "forearm_right", "thigh_left", "thigh_right", "calf_left", "calf_right")
+CLOTHING = ("minimal", "tight", "loose", "unknown")
+TAPE_PROTOCOL = {
+    "chest": "horizontal, under the armpits at the fullest part of the chest, arms relaxed, end of normal exhale",
+    "waist": "horizontal at the narrowest part of the torso between lowest rib and hip bone",
+    "abdomen": "horizontal at navel level",
+    "hip": "horizontal around the fullest part of the buttocks, feet together",
+    "upper_arm": "perpendicular to the arm, halfway between shoulder tip and elbow, arm hanging relaxed",
+    "forearm": "perpendicular to the forearm at its fullest part just below the elbow, hand relaxed",
+    "thigh": "perpendicular to the thigh, halfway between groin crease and top of the kneecap, weight on both feet",
+    "calf": "perpendicular to the lower leg at its fullest part, weight on both feet",
+}
+
+
+def validate_tape(tape_cm: dict) -> dict:
+    """Tape circumferences in cm keyed by site; unknown sites and implausible values are rejected."""
+    if not isinstance(tape_cm, dict) or not tape_cm:
+        raise ValueError("tape_cm must map at least one measurement site to centimetres")
+    clean = {}
+    for site, value in tape_cm.items():
+        if site not in TAPE_SITES:
+            raise ValueError(f"Unknown measurement site: {site!r}")
+        if value is None:
+            continue
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ValueError(f"{site}: tape value must be a finite number")
+        if not 10.0 <= float(value) <= 250.0:
+            raise ValueError(f"{site}: tape value must be between 10 and 250 cm")
+        clean[site] = float(value)
+    if not clean:
+        raise ValueError("tape_cm contains no values")
+    return clean
+
+
+def compare_to_tape(scaled: dict, tape_cm: dict) -> dict:
+    """Per-site model-minus-tape errors for one subject (scaled = measurements_cm.json content)."""
+    tape_cm = validate_tape(tape_cm)
+    sites, errs = {}, []
+    for site, tape in tape_cm.items():
+        m = scaled.get("measurements", {}).get(site, {})
+        model = m.get("tape_circumference_cm") if m.get("valid") else None
+        if model is None:
+            sites[site] = {"tape_cm": tape, "model_cm": None, "compared": False,
+                           "reason": "model cross-section invalid at this site"}
+            continue
+        diff = float(model) - tape
+        sites[site] = {"tape_cm": tape, "model_cm": float(model), "compared": True,
+                       "error_cm": round(diff, 2), "abs_error_cm": round(abs(diff), 2),
+                       "error_pct": round(100.0 * diff / tape, 2),
+                       "height_uncertainty_contribution_cm": m.get("height_uncertainty_contribution_cm")}
+        errs.append((diff, 100.0 * diff / tape))
+    summary = {"sites_compared": len(errs)}
+    if errs:
+        d = np.array([e[0] for e in errs]); p = np.array([e[1] for e in errs])
+        summary.update({"mean_error_cm": round(float(d.mean()), 2), "mean_abs_error_cm": round(float(np.abs(d).mean()), 2),
+                        "max_abs_error_cm": round(float(np.abs(d).max()), 2),
+                        "mean_abs_error_pct": round(float(np.abs(p).mean()), 2)})
+    return {"sites": sites, "summary": summary,
+            "sign_convention": "error = model - tape (positive means the model is larger)"}
+
+
+def aggregate_tape(records: list[dict]) -> dict:
+    """Pool tape_validation.json records across subjects: per-site bias and error, overall and by clothing.
+
+    One record per recording (the most recently recorded) so re-running the same video does not count a
+    subject twice. Bias (mean model - tape) is systematic and could be corrected; the spread around it is not.
+    """
+    latest = {}
+    for r in records:
+        key = r.get("video_id") or r.get("run_id")
+        if key not in latest or (r.get("recorded_at") or 0) > (latest[key].get("recorded_at") or 0):
+            latest[key] = r
+    subjects = list(latest.values())
+
+    def stats(rows):
+        if not rows:
+            return None
+        d = np.array([x[0] for x in rows]); p = np.array([x[1] for x in rows])
+        out = {"n": len(rows), "mean_error_cm": round(float(d.mean()), 2),
+               "mean_abs_error_cm": round(float(np.abs(d).mean()), 2),
+               "mean_abs_error_pct": round(float(np.abs(p).mean()), 2),
+               "max_abs_error_cm": round(float(np.abs(d).max()), 2)}
+        out["sd_error_cm"] = round(float(d.std(ddof=1)), 2) if len(rows) > 1 else None
+        return out
+
+    per_site, by_clothing = {}, {}
+    for site in TAPE_SITES:
+        rows = [(s["sites"][site]["error_cm"], s["sites"][site]["error_pct"], s.get("clothing", "unknown"))
+                for s in subjects if s.get("sites", {}).get(site, {}).get("compared")]
+        if rows:
+            per_site[site] = stats(rows)
+            by_clothing[site] = {c: stats([r for r in rows if r[2] == c]) for c in CLOTHING
+                                 if any(r[2] == c for r in rows)}
+    return {"subjects": len(subjects), "clothing_counts": {c: sum(1 for s in subjects if s.get("clothing", "unknown") == c)
+                                                           for c in CLOTHING},
+            "per_site": per_site, "per_site_by_clothing": by_clothing,
+            "sign_convention": "error = model - tape (positive means the model is larger)",
+            "caveat": ("Small samples do not establish accuracy; report n with every number. Bias is only "
+                       "meaningful once several subjects of varied body types are measured.")}

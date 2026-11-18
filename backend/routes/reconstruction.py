@@ -24,6 +24,13 @@ class ScaleRequest(BaseModel):
     height_cm: float
 
 
+class TapeRequest(BaseModel):
+    # Independent tape circumferences in cm, keyed by site (chest, waist, hip, thigh_left, ...).
+    tape_cm: dict[str, float | None]
+    clothing: str = "unknown"   # minimal | tight | loose | unknown — what the subject wore in the video
+    note: str = Field(default="", max_length=500)
+
+
 @router.post("/runs", status_code=status.HTTP_202_ACCEPTED)
 def start(request: StartRequest):
     try:
@@ -58,6 +65,17 @@ def apply_scale(run_id: str, request: ScaleRequest):
     """Convert a completed run's measurements to centimetres from the subject's known height."""
     try:
         return recon.apply_height_scale(run_id, request.height_cm)
+    except recon.RunNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/runs/{run_id}/tape")
+def record_tape(run_id: str, request: TapeRequest):
+    """Compare a scaled run's circumferences with independent tape measurements of the same subject."""
+    try:
+        return recon.record_tape_measurements(run_id, request.tape_cm, request.clothing, request.note)
     except recon.RunNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:

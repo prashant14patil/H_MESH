@@ -57,6 +57,15 @@ export function applyHeightScale(runId, heightCm) {
   })
 }
 
+/** Record independent tape circumferences (cm) for a scaled run and get the model-vs-tape comparison. */
+export function recordTapeMeasurements(runId, tapeCm, clothing, note = '') {
+  return request(`/api/reconstruction/runs/${encodeURIComponent(runId)}/tape`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tape_cm: tapeCm, clothing, note }),
+  })
+}
+
 export function reconstructionFileUrl(runId, name) {
   return `${BASE_URL}/api/reconstruction/runs/${encodeURIComponent(runId)}/files/${encodeURIComponent(name)}`
 }

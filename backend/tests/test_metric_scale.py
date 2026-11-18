@@ -113,3 +113,75 @@ def test_start_rejects_implausible_height_before_anything_runs(client, monkeypat
     r = client.post("/api/reconstruction/runs",
                     json={"video_id": "00000000-0000-4000-8000-000000000000", "height_cm": 400})
     assert r.status_code == 400 and "height_cm" in r.json()["detail"] and not called
+
+
+# ------------------------------------------------- tape-measure validation
+def test_compare_to_tape_signs_and_summary():
+    scaled = bm.scale_to_height(_measurements(1.75), 175.0)  # waist 80, hip 100, calf invalid
+    out = bm.compare_to_tape(scaled, {"waist": 76.0, "hip": 104.0, "calf_left": 36.0})
+    assert out["sites"]["waist"]["error_cm"] == pytest.approx(4.0)      # model larger
+    assert out["sites"]["hip"]["error_pct"] == pytest.approx(-3.85, abs=0.01)
+    assert out["sites"]["calf_left"]["compared"] is False
+    s = out["summary"]
+    assert s["sites_compared"] == 2 and s["mean_error_cm"] == pytest.approx(0.0) and s["mean_abs_error_cm"] == pytest.approx(4.0)
+
+
+@pytest.mark.parametrize("bad", [{}, {"neck": 38}, {"waist": 5}, {"waist": "80"}, {"waist": float("nan")}, {"waist": None}])
+def test_validate_tape_rejects_bad_input(bad):
+    with pytest.raises(ValueError):
+        bm.validate_tape(bad)
+
+
+def test_aggregate_dedupes_recordings_and_splits_by_clothing():
+    def rec(video, t, clothing, waist_err):
+        return {"video_id": video, "recorded_at": t, "clothing": clothing,
+                "sites": {"waist": {"compared": True, "error_cm": waist_err, "error_pct": waist_err},
+                          "hip": {"compared": False}}}
+    agg = bm.aggregate_tape([rec("a", 1, "loose", 9.0), rec("a", 2, "tight", 1.0),  # same subject: keep t=2
+                             rec("b", 1, "tight", 3.0), rec("c", 1, "loose", 6.0)])
+    assert agg["subjects"] == 3 and agg["clothing_counts"]["tight"] == 2
+    w = agg["per_site"]["waist"]
+    assert w["n"] == 3 and w["mean_error_cm"] == pytest.approx(10 / 3, abs=0.01)
+    assert agg["per_site_by_clothing"]["waist"]["tight"]["mean_error_cm"] == pytest.approx(2.0)
+    assert agg["per_site_by_clothing"]["waist"]["loose"]["n"] == 1
+    assert "hip" not in agg["per_site"]
+
+
+def test_api_tape_requires_scale_then_compares_and_follows_height_change(client, finished_run):
+    url = f"/api/reconstruction/runs/{RUN_ID}/tape"
+    body = {"tape_cm": {"waist": 78.0, "hip": 100.0}, "clothing": "tight", "note": "measured twice, averaged"}
+    r = client.post(url, json=body)
+    assert r.status_code == 400 and "height" in r.json()["detail"].lower()
+    client.post(f"/api/reconstruction/runs/{RUN_ID}/scale", json={"height_cm": 175})
+    r = client.post(url, json=body)
+    assert r.status_code == 200, r.text
+    tv = r.json()["result"]["tape_validation"]
+    assert tv["sites"]["waist"]["error_cm"] == pytest.approx(2.0) and tv["clothing"] == "tight"
+    saved = json.loads((finished_run / "tape_validation.json").read_text())
+    assert saved["note"] == "measured twice, averaged" and "waist" in saved["protocol"]
+    # Correcting the height re-scores the stored tape values instead of leaving a stale comparison.
+    r = client.post(f"/api/reconstruction/runs/{RUN_ID}/scale", json={"height_cm": 170})
+    tv = r.json()["result"]["tape_validation"]
+    assert tv["sites"]["waist"]["model_cm"] == pytest.approx(77.7, abs=0.1)
+    assert json.loads((finished_run / "tape_validation.json").read_text())["height_cm"] == 170
+    assert client.get(f"/api/reconstruction/runs/{RUN_ID}/files/tape_validation.json").status_code == 200
+
+
+def test_api_tape_rejects_bad_payloads(client, finished_run):
+    client.post(f"/api/reconstruction/runs/{RUN_ID}/scale", json={"height_cm": 175})
+    url = f"/api/reconstruction/runs/{RUN_ID}/tape"
+    assert client.post(url, json={"tape_cm": {"neck": 40}}).status_code == 400
+    assert client.post(url, json={"tape_cm": {"waist": 80}, "clothing": "pyjamas"}).status_code == 400
+    assert client.post(url, json={"tape_cm": {"waist": 900}}).status_code == 400
+    assert client.post("/api/reconstruction/runs/00000000-0000-4000-8000-000000000000/tape",
+                       json={"tape_cm": {"waist": 80}}).status_code == 404
+    assert not (finished_run / "tape_validation.json").exists()
+
+
+def test_report_script_runs_on_recorded_tape(client, finished_run, tmp_path):
+    import subprocess, sys
+    client.post(f"/api/reconstruction/runs/{RUN_ID}/scale", json={"height_cm": 175})
+    client.post(f"/api/reconstruction/runs/{RUN_ID}/tape", json={"tape_cm": {"waist": 78.0}, "clothing": "minimal"})
+    out = subprocess.run([sys.executable, "scripts/tape_validation_report.py", "--root", str(finished_run.parent)],
+                         capture_output=True, text=True, check=True).stdout
+    assert "Subjects: 1" in out and "waist" in out and "2.00" in out

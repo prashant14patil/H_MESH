@@ -12,8 +12,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import MeshViewer from './MeshViewer.jsx'
 import {
   startReconstruction, getReconstruction, confirmPerson, reconstructionFileUrl, applyHeightScale,
+  recordTapeMeasurements,
 } from '../services/reconstructionApi.js'
 import { parseHeightCm } from './heightScale.js'
+import { CLOTHING_OPTIONS, hasTapeValues, parseTapeInputs } from './tapeValidation.js'
 
 const POLL_MS = 1500
 
@@ -46,8 +48,16 @@ export default function UnifiedReconstructionPanel({ videoId }) {
   const [error, setError] = useState(null)
   const [meshInfo, setMeshInfo] = useState(null)
   const [heightText, setHeightText] = useState('')
+  const [tapeText, setTapeText] = useState({})
+  const [clothing, setClothing] = useState('unknown')
+  const [tapeNote, setTapeNote] = useState('')
   const timer = useRef(null)
   const height = parseHeightCm(heightText)
+  // Previously saved tape values pre-fill the inputs and are resent with any edits.
+  const savedTape = Object.fromEntries(Object.entries(run?.result?.tape_validation?.sites || {})
+    .filter(([, s]) => s?.tape_cm != null).map(([k, s]) => [k, String(s.tape_cm)]))
+  const tapeInputs = { ...savedTape, ...tapeText }
+  const tape = parseTapeInputs(tapeInputs)
 
   const stop = useCallback(() => {
     if (timer.current) { clearInterval(timer.current); timer.current = null }
@@ -107,11 +117,24 @@ export default function UnifiedReconstructionPanel({ videoId }) {
     }
   }
 
+  const submitTape = async () => {
+    if (!hasTapeValues(tape)) return
+    setBusy(true); setError(null)
+    try {
+      setRun(await recordTapeMeasurements(run.run_id, tape.values, clothing, tapeNote))
+    } catch (e) {
+      setError(`Could not save the tape measurements: ${e.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const running = run && (run.status === 'running' || run.status === 'awaiting_person_selection')
   const done = run?.status === 'completed'
   const result = run?.result
   const file = (name) => reconstructionFileUrl(run.run_id, name)
   const metric = result?.metric_scale
+  const tapeResult = result?.tape_validation
   const heightField = (
     <label className="flex flex-wrap items-center gap-2 text-xs text-gray-700">
       <span>Subject’s barefoot height (cm, optional)</span>
@@ -255,7 +278,9 @@ export default function UnifiedReconstructionPanel({ videoId }) {
                     <tr className="text-left text-gray-500">
                       <th className="pr-4 py-0.5 font-normal">Site</th>
                       <th className="pr-4 py-0.5 font-normal">× height</th>
-                      {metric && <th className="py-0.5 font-normal">cm</th>}
+                      {metric && <th className="pr-4 py-0.5 font-normal">model cm</th>}
+                      {metric && <th className="pr-4 py-0.5 font-normal">tape cm</th>}
+                      {tapeResult && <th className="py-0.5 font-normal">model − tape</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -263,7 +288,25 @@ export default function UnifiedReconstructionPanel({ videoId }) {
                       <tr key={key} className="border-b border-gray-100">
                         <td className="pr-4 py-0.5 text-gray-600">{MEASUREMENT_LABELS[key] || key}</td>
                         <td className="pr-4 py-0.5 font-mono">{value == null ? 'invalid section' : fmt(value)}</td>
-                        {metric && <td className="py-0.5 font-mono">{fmt(metric.measurements_cm?.[key], 1)}</td>}
+                        {metric && <td className="pr-4 py-0.5 font-mono">{fmt(metric.measurements_cm?.[key], 1)}</td>}
+                        {metric && (
+                          <td className="pr-4 py-0.5">
+                            <input type="number" inputMode="decimal" step="0.1" min="10" max="250"
+                              aria-label={`Tape measurement for ${MEASUREMENT_LABELS[key] || key} in centimetres`}
+                              value={tapeInputs[key] ?? ''}
+                              onChange={(e) => setTapeText((t) => ({ ...t, [key]: e.target.value }))}
+                              aria-invalid={tape.errors[key] ? 'true' : 'false'}
+                              className={`w-20 rounded border px-1 py-0.5 font-mono ${tape.errors[key] ? 'border-red-500' : 'border-gray-300'}`} />
+                            {tape.errors[key] && <span className="ml-1 text-red-700">{tape.errors[key]}</span>}
+                          </td>
+                        )}
+                        {tapeResult && (
+                          <td className="py-0.5 font-mono">
+                            {tapeResult.sites?.[key]?.error_cm != null
+                              ? `${tapeResult.sites[key].error_cm > 0 ? '+' : ''}${fmt(tapeResult.sites[key].error_cm, 1)} (${fmt(tapeResult.sites[key].error_pct, 1)}%)`
+                              : '—'}
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -275,6 +318,40 @@ export default function UnifiedReconstructionPanel({ videoId }) {
                     {metric ? 'Update cm values' : 'Convert to cm'}
                   </button>
                 </div>
+                {metric && (
+                  <div className="rounded border border-gray-200 p-2 space-y-2" aria-label="Tape-measure validation">
+                    <p className="font-medium text-gray-800">Validate against a tape measure (optional)</p>
+                    <p className="text-gray-600">
+                      Enter independent tape circumferences for this subject in the “tape cm” column, measured on skin or
+                      tight clothing at the same sites (natural waist, fullest hip, mid-thigh…). Leave unmeasured sites blank.
+                      Only enter measurements taken with the subject’s consent.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="flex items-center gap-1">
+                        <span>Clothing in the video</span>
+                        <select value={clothing} onChange={(e) => setClothing(e.target.value)}
+                          className="rounded border border-gray-300 px-1 py-0.5">
+                          {CLOTHING_OPTIONS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                        </select>
+                      </label>
+                      <input value={tapeNote} onChange={(e) => setTapeNote(e.target.value)} maxLength={500}
+                        placeholder="Note (optional, no names)" aria-label="Tape measurement note"
+                        className="flex-1 min-w-[10rem] rounded border border-gray-300 px-2 py-0.5" />
+                      <button onClick={submitTape} disabled={busy || !hasTapeValues(tape)}
+                        className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 text-white text-xs">
+                        {tapeResult ? 'Update comparison' : 'Compare with model'}
+                      </button>
+                    </div>
+                    {tapeResult?.summary?.sites_compared > 0 && (
+                      <p className="text-gray-700">
+                        {tapeResult.summary.sites_compared} site(s) compared · mean abs error {fmt(tapeResult.summary.mean_abs_error_cm, 1)} cm
+                        ({fmt(tapeResult.summary.mean_abs_error_pct, 1)}%) · mean bias {fmt(tapeResult.summary.mean_error_cm, 1)} cm
+                        · worst {fmt(tapeResult.summary.max_abs_error_cm, 1)} cm. One subject is not an accuracy result —
+                        pool several with <code>scripts/tape_validation_report.py</code>.
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             )}
             <div className="flex flex-wrap gap-2">
@@ -287,6 +364,7 @@ export default function UnifiedReconstructionPanel({ videoId }) {
               {result.measurements && <a className="px-3 py-2 rounded-lg border text-sm" href={file('measurement_rings.obj')} download="measurement_rings.obj">Measurement rings (OBJ)</a>}
               {metric && <a className="px-3 py-2 rounded-lg border text-sm" href={file(metric.mesh_obj)} download="final_body_mesh_metric.obj">OBJ in metres</a>}
               {metric && <a className="px-3 py-2 rounded-lg border text-sm" href={file(metric.measurements_file)} target="_blank" rel="noreferrer">Measurements (cm)</a>}
+              {tapeResult && <a className="px-3 py-2 rounded-lg border text-sm" href={file(tapeResult.file)} target="_blank" rel="noreferrer">Tape comparison</a>}
               <button onClick={start} disabled={busy} className="px-3 py-2 rounded-lg border text-sm">Run again</button>
             </div>
             <p className="text-xs text-gray-500">

@@ -54,7 +54,7 @@ ASSET_FILES = {"final_body_mesh.obj", "final_body_mesh.ply", "reconstruction_rep
                "contact_sheet.jpg", "orientation_check.jpg", "candidates_overview.jpg",
                "measurements.json", "measurement_rings.obj", "measurements_overlay.jpg",
                "view_comparison.jpg", "mesh_turntable.gif", "silhouette_masks.jpg",
-               "measurements_cm.json", "final_body_mesh_metric.obj"}
+               "measurements_cm.json", "final_body_mesh_metric.obj", "tape_validation.json"}
 SIL_WEIGHT = float(os.getenv("RECON_SIL_WEIGHT", "1.0"))
 BETA_SIGMA_FLOOR = 0.25      # minimum per-coefficient spread used by the shape prior
 BETA_PRIOR_WEIGHT = float(os.getenv("RECON_BETA_PRIOR", "0.0"))  # chosen by cross-validation on a separate recording
@@ -258,21 +258,65 @@ def _scale_run(run: dict, height_cm) -> dict:
         "measurements_cm": {k: m.get("tape_circumference_cm") for k, m in scaled["measurements"].items()},
         "measurements_file": "measurements_cm.json", "mesh_obj": "final_body_mesh_metric.obj"}
     run["result"]["scale_status"] = "metric_from_supplied_height"
+    tape_path = root / "tape_validation.json"
+    if tape_path.is_file():  # a corrected height changes every model value: keep the comparison current
+        previous = json.loads(tape_path.read_text(encoding="utf-8"))
+        _write_tape(run, root, scaled, previous["tape_cm"], previous.get("clothing", "unknown"),
+                    previous.get("note", ""), previous.get("recorded_at"))
     _persist(run)
+    return run
+
+
+def _write_tape(run: dict, root: Path, scaled: dict, tape_cm: dict, clothing: str, note: str,
+                recorded_at=None) -> None:
+    from backend.services import body_measurements as bm
+    comparison = bm.compare_to_tape(scaled, tape_cm)
+    record = {"run_id": run["run_id"], "video_id": run.get("video_id"), "height_cm": scaled["height_cm"],
+              "clothing": clothing, "note": note, "tape_cm": bm.validate_tape(tape_cm),
+              "recorded_at": recorded_at or time.time(), "compared_at": time.time(),
+              "protocol": bm.TAPE_PROTOCOL, **comparison}
+    _write_json(root / "tape_validation.json", record)
+    run["result"]["tape_validation"] = {"file": "tape_validation.json", "clothing": clothing,
+                                        "summary": comparison["summary"],
+                                        "sites": {k: {kk: v.get(kk) for kk in ("tape_cm", "model_cm", "error_cm", "error_pct")}
+                                                  for k, v in comparison["sites"].items()}}
+
+
+def _load_run_for_update(run_id: str) -> dict:
+    """Caller holds _STATE_LOCK. Returns the live run dict, or the persisted one for runs from earlier sessions."""
+    root = _run_dir(run_id)
+    run = _RUNS.get(run_id)
+    if run is None:
+        path = root / "status.json"
+        if not path.is_file():
+            raise RunNotFoundError("Run not found")
+        run = json.loads(path.read_text(encoding="utf-8"))
     return run
 
 
 def apply_height_scale(run_id: str, height_cm) -> dict:
     """Set absolute scale on a finished run from the subject's known barefoot height (no re-fit)."""
-    root = _run_dir(run_id)
     with _STATE_LOCK:
-        run = _RUNS.get(run_id)
-        if run is None:
-            path = root / "status.json"
-            if not path.is_file():
-                raise RunNotFoundError("Run not found")
-            run = json.loads(path.read_text(encoding="utf-8"))
-        _scale_run(run, height_cm)
+        _scale_run(_load_run_for_update(run_id), height_cm)
+    return get_run(run_id)
+
+
+def record_tape_measurements(run_id: str, tape_cm: dict, clothing: str = "unknown", note: str = "") -> dict:
+    """Store independent tape measurements for a scaled run and compare them with the model's cm values."""
+    from backend.services import body_measurements as bm
+    if clothing not in bm.CLOTHING:
+        raise ValueError(f"clothing must be one of {', '.join(bm.CLOTHING)}")
+    note = str(note or "")[:500]
+    with _STATE_LOCK:
+        run = _load_run_for_update(run_id)
+        if run.get("status") != "completed" or not run.get("result"):
+            raise ValueError("Tape measurements can only be recorded for a completed reconstruction")
+        root = _run_dir(run_id)
+        scaled_path = root / "measurements_cm.json"
+        if not scaled_path.is_file():
+            raise ValueError("Apply the subject's height first: tape values are compared in centimetres")
+        _write_tape(run, root, json.loads(scaled_path.read_text(encoding="utf-8")), tape_cm, clothing, note)
+        _persist(run)
     return get_run(run_id)
 
 

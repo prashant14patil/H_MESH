@@ -395,6 +395,18 @@ export default function VideoCapture({ onFileSelected, disabled = false }) {
           <li>Capture front, side, back, and intermediate views evenly.</li>
           <li>Maintain consistent lighting and a plain, uncluttered background.</li>
         </ul>
+        <h4 className="text-xs font-semibold text-teal-800 mt-3 mb-1">For accurate body measurements</h4>
+        <ul className="space-y-1 text-xs text-teal-700 list-disc list-inside">
+          <li>
+            <span className="font-medium">Wear tight-fitting clothing</span> (e.g. a fitted top and leggings or shorts) and remove
+            jackets, bags and belts. Loose clothing is the largest error source: the model sees the clothed outline, and
+            baggy clothes can add several centimetres to waist, hip and thigh.
+          </li>
+          <li>Hold the arms slightly away from the body (about 30–45°) and keep the feet hip-width apart, so the arms and legs do not merge with the torso.</li>
+          <li>Place the camera at about waist height, 2–3 m away, in portrait orientation, with a little space above the head and below the feet.</li>
+          <li>Turn slowly and steadily for one full turn (about 20–30 seconds) and keep the same pose while turning.</li>
+          <li>Tie back long hair if possible, and note the person’s barefoot height — it sets the scale for every measurement.</li>
+        </ul>
       </div>
     </div>
   )

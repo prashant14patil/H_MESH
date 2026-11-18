@@ -8,9 +8,13 @@ Responsibilities:
 - Verify the actual MIME type from the file header (magic bytes),
   not just the filename, to prevent extension spoofing.
 - Enforce a configurable maximum file size.
+- Decode the image: reject corrupt/truncated files, decompression bombs and tiny images.
 
 Environment variables:
-    MAX_UPLOAD_SIZE_MB  – Maximum allowed upload in megabytes (default: 10).
+    MAX_UPLOAD_SIZE_MB    – Maximum allowed upload in megabytes (default: 10).
+    MAX_IMAGE_SIDE_PX     – Maximum decoded width/height in pixels (default: 8000).
+    MAX_IMAGE_MEGAPIXELS  – Maximum decoded pixel count in megapixels (default: 40).
+    MIN_IMAGE_SIDE_PX     – Minimum width/height for whole-body photo uploads (default: 200).
 
 Public surface:
     validate_image(filename, data)  – Raises ValidationError if invalid.
@@ -35,6 +39,12 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 _MAX_SIZE_MB: float = float(os.getenv("MAX_UPLOAD_SIZE_MB", "10"))
 _MAX_SIZE_BYTES: int = int(_MAX_SIZE_MB * 1024 * 1024)
+# Decoded-dimension limits (a small compressed file can declare a huge resolution).
+_MAX_SIDE_PX: int = int(os.getenv("MAX_IMAGE_SIDE_PX", "8000"))
+_MAX_PIXELS: int = int(os.getenv("MAX_IMAGE_MEGAPIXELS", "40")) * 1_000_000
+# Minimum side for whole-body photo uploads (callers opt in via min_side_px; frame/crop paths have
+# their own size rules).
+MIN_PHOTO_SIDE_PX: int = int(os.getenv("MIN_IMAGE_SIDE_PX", "200"))
 
 # Allowed extensions mapped to their magic-byte signatures.
 # JPEG: FF D8 FF
@@ -61,7 +71,7 @@ class ValidationError(ValueError):
 # ---------------------------------------------------------------------------
 # Public validator
 # ---------------------------------------------------------------------------
-def validate_image(filename: str, data: bytes) -> None:
+def validate_image(filename: str, data: bytes, min_side_px: int | None = None) -> None:
     """
     Validate an uploaded image by extension, magic bytes, and size.
 
@@ -86,6 +96,7 @@ def validate_image(filename: str, data: bytes) -> None:
     _check_extension(filename)
     _check_magic_bytes(filename, data)
     _check_size(filename, data)
+    _check_decodes(filename, data, min_side_px)
     logger.debug("Image '%s' passed all validation checks (%d bytes).", filename, len(data))
 
 
@@ -152,6 +163,42 @@ def _check_size(filename: str, data: bytes) -> None:
             f"File '{filename}' is {size_mb:.1f} MB, which exceeds the "
             f"maximum allowed size of {_MAX_SIZE_MB} MB."
         )
+
+
+def _check_decodes(filename: str, data: bytes, min_side_px: int | None = None) -> None:
+    """Reject images that are corrupt/truncated, implausibly small, or declare huge dimensions.
+
+    The header is read first (lazily, no pixel decode) so a tiny file declaring an enormous
+    resolution is rejected before any large allocation; then the full pixel data is decoded so
+    truncated files fail here, synchronously, instead of inside a background job.
+    """
+    import io
+    import warnings
+
+    from PIL import Image
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(io.BytesIO(data)) as img:
+                width, height = img.size
+                if max(width, height) > _MAX_SIDE_PX or width * height > _MAX_PIXELS:
+                    raise ValidationError(
+                        f"File '{filename}' is {width}x{height} px; the maximum is {_MAX_SIDE_PX} px per side "
+                        f"and {_MAX_PIXELS // 1_000_000} megapixels.")
+                if min_side_px and min(width, height) < min_side_px:
+                    raise ValidationError(
+                        f"File '{filename}' is {width}x{height} px; at least {min_side_px} px per side is needed "
+                        "to reconstruct a body.")
+                img.verify()
+            with Image.open(io.BytesIO(data)) as img:
+                img.load()  # verify() does not decode pixels; load() catches truncated data
+    except ValidationError:
+        raise
+    except (Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
+        raise ValidationError(f"File '{filename}' declares an unsafe image size.") from exc
+    except Exception as exc:  # noqa: BLE001 - any decoder failure means the file is unusable
+        raise ValidationError(f"File '{filename}' is corrupt or truncated and cannot be decoded.") from exc
 
 
 def _get_extension(filename: str) -> str:

@@ -29,7 +29,7 @@ from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse
 
 from backend.services.inference_engine import EngineNotReadyError, get_engine
-from backend.utils.validators import ValidationError, validate_image
+from backend.utils.validators import MIN_PHOTO_SIDE_PX, ValidationError, validate_image
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ async def submit_inference(
     image_bytes = await image.read()
 
     try:
-        validate_image(filename=image.filename, data=image_bytes)
+        validate_image(filename=image.filename, data=image_bytes, min_side_px=MIN_PHOTO_SIDE_PX)
     except ValidationError as exc:
         logger.warning("Image validation failed: %s", exc)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))

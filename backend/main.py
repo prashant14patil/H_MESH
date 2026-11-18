@@ -163,6 +163,13 @@ async def on_startup() -> None:
 
     threading.Thread(target=_load_in_background, daemon=True).start()
 
+    # Reconstruction runs left "running" by a previous process can never finish; report them as interrupted.
+    try:
+        from backend.services.body_reconstruction import mark_orphaned_runs
+        mark_orphaned_runs()
+    except Exception:  # noqa: BLE001 - housekeeping must never block startup
+        logger.exception("Could not check for interrupted reconstruction runs")
+
 
 @app.on_event("shutdown")
 async def on_shutdown() -> None:

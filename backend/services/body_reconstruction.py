@@ -173,15 +173,46 @@ def get_run(run_id: str):
         run = json.loads(path.read_text(encoding="utf-8"))
         if run.get("status") in ("running", "awaiting_person_selection"):
             # Not owned by this process: the backend restarted (e.g. --reload) and the worker thread died.
-            run.update(status="failed", message="Interrupted: the backend restarted while this reconstruction was running. "
-                                                "Start the reconstruction again.",
-                       error={"code": "interrupted_by_backend_restart",
-                              "message": "The backend restarted while this reconstruction was running "
-                                         f"(last stage: {run.get('stage')}). Start the reconstruction again."})
-            with _STATE_LOCK:
-                _persist(run)
+            _mark_interrupted(run)
         return run
     return None
+
+
+def _mark_interrupted(run: dict) -> None:
+    run.update(status="failed", message="Interrupted: the backend restarted while this reconstruction was running. "
+                                        "Start the reconstruction again.",
+               error={"code": "interrupted_by_backend_restart",
+                      "message": "The backend restarted while this reconstruction was running "
+                                 f"(last stage: {run.get('stage')}). Start the reconstruction again."})
+    with _STATE_LOCK:
+        _persist(run)
+
+
+def mark_orphaned_runs() -> list[str]:
+    """At startup: runs left 'running' on disk by a previous process can never finish; mark them interrupted.
+
+    Without this they keep showing as running in listings until someone opens them. Runs owned by
+    this process (in memory) are never touched.
+    """
+    marked = []
+    if not _ROOT.is_dir():
+        return marked
+    for status_path in _ROOT.glob("*/status.json"):
+        try:
+            run = json.loads(status_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        run_id = run.get("run_id")
+        if (run.get("status") in ("running", "awaiting_person_selection") and _valid_uuid(run_id)
+                and status_path.parent.name == run_id):
+            with _STATE_LOCK:
+                if run_id in _RUNS:
+                    continue
+            _mark_interrupted(run)
+            marked.append(run_id)
+    if marked:
+        logger.warning("Marked %d reconstruction run(s) interrupted by an earlier backend restart", len(marked))
+    return marked
 
 
 def list_completed_runs(limit: int = 50) -> list[dict]:

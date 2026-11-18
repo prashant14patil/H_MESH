@@ -41,6 +41,7 @@ import logging
 import os
 import sys
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -53,6 +54,8 @@ _HMR2_REPO_PATH = os.getenv("HMR2_REPO_PATH", "models/4D-Humans")
 _CHECKPOINT_PATH = os.getenv("HMR2_CHECKPOINT", "")
 _DEVICE_PREF = os.getenv("DEVICE", "auto").lower()
 _OUTPUT_DIR = Path(os.getenv("MESH_OUTPUT_DIR", "outputs/meshes"))
+# A job still processing after this many seconds is reported as failed (hung GPU/driver, deadlock).
+_INFERENCE_TIMEOUT_SEC = float(os.getenv("INFERENCE_TIMEOUT_SEC", "300"))
 _USE_DETECTRON2 = os.getenv("USE_DETECTRON2", "true").lower() in ("1", "true", "yes")
 
 _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -77,6 +80,7 @@ class InferenceEngine:
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
+        self._jobs_lock = threading.Lock()  # job records only (never held during model load)
         self._ready = False
         self._loading = False
         self._load_error: str | None = None
@@ -334,11 +338,10 @@ class InferenceEngine:
         import numpy as np
         import cv2
         import torch
-        from PIL import Image as PILImage
         from hmr2.utils import recursive_to
         from hmr2.datasets.vitdet_dataset import ViTDetDataset
 
-        img_np = np.array(PILImage.open(io.BytesIO(image_bytes)).convert("RGB"))
+        img_np = decode_upright_rgb(image_bytes)
         img_cv2 = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
         box = self._detect_person_box(img_np)
@@ -397,21 +400,56 @@ class InferenceEngine:
                 self._load_error or "Inference engine is not ready."
             )
 
-        self.jobs[job_id] = {"status": "queued"}
+        now = time.time()
+        self.jobs[job_id] = {"status": "queued", "created_at": now, "updated_at": now}
+
+        def _finish(update: dict[str, Any]) -> None:
+            with self._jobs_lock:
+                job = self.jobs.get(job_id, {})
+                if job.get("status") == "failed" and job.get("timed_out"):
+                    return  # the watchdog already reported this job; do not resurrect it
+                self.jobs[job_id] = {**update, "created_at": job.get("created_at", now),
+                                     "started_at": job.get("started_at"), "updated_at": time.time()}
 
         def _worker():
-            self.jobs[job_id] = {"status": "processing"}
+            with self._jobs_lock:
+                self.jobs[job_id].update(status="processing", started_at=time.time(), updated_at=time.time())
             try:
-                result = self._run_inference(image_bytes, job_id)
-                self.jobs[job_id] = result
+                _finish(self._run_inference(image_bytes, job_id))
             except Exception as exc:  # noqa: BLE001
                 logger.exception("Job %s failed", job_id)
-                self.jobs[job_id] = {"status": "failed", "detail": str(exc)}
+                _finish({"status": "failed", "detail": str(exc)})
 
         threading.Thread(target=_worker, daemon=True).start()
 
     def get_job(self, job_id: str) -> dict[str, Any] | None:
-        return self.jobs.get(job_id)
+        """Job record; a job processing longer than INFERENCE_TIMEOUT_SEC is reported as failed.
+
+        A running GPU kernel cannot be force-killed from Python, so this detects a hung job
+        rather than cancelling it; a late result is discarded.
+        """
+        with self._jobs_lock:
+            job = self.jobs.get(job_id)
+            if job and job.get("status") in ("queued", "processing"):
+                started = job.get("started_at") or job.get("created_at") or time.time()
+                if time.time() - started > _INFERENCE_TIMEOUT_SEC:
+                    job.update(status="failed", timed_out=True, updated_at=time.time(),
+                               detail=f"Inference did not finish within {_INFERENCE_TIMEOUT_SEC:.0f} s and was abandoned.")
+                    logger.error("Job %s timed out", job_id)
+            return dict(job) if job else None
+
+
+def decode_upright_rgb(image_bytes: bytes):
+    """Decode an upload to an RGB array, applying the EXIF orientation phone cameras store.
+
+    Without this a portrait phone photo (EXIF orientation 6/8) is processed sideways.
+    """
+    import numpy as np
+    from PIL import Image as PILImage
+    from PIL import ImageOps
+
+    with PILImage.open(io.BytesIO(image_bytes)) as img:
+        return np.array(ImageOps.exif_transpose(img).convert("RGB"))
 
 
 # ---------------------------------------------------------------------------

@@ -11,8 +11,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import MeshViewer from './MeshViewer.jsx'
 import {
-  startReconstruction, getReconstruction, confirmPerson, reconstructionFileUrl,
+  startReconstruction, getReconstruction, confirmPerson, reconstructionFileUrl, applyHeightScale,
 } from '../services/reconstructionApi.js'
+import { parseHeightCm } from './heightScale.js'
 
 const POLL_MS = 1500
 
@@ -44,7 +45,9 @@ export default function UnifiedReconstructionPanel({ videoId }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState(null)
   const [meshInfo, setMeshInfo] = useState(null)
+  const [heightText, setHeightText] = useState('')
   const timer = useRef(null)
+  const height = parseHeightCm(heightText)
 
   const stop = useCallback(() => {
     if (timer.current) { clearInterval(timer.current); timer.current = null }
@@ -70,7 +73,7 @@ export default function UnifiedReconstructionPanel({ videoId }) {
   const start = async () => {
     setBusy(true); setError(null); setMeshInfo(null)
     try {
-      const r = await startReconstruction(videoId)
+      const r = await startReconstruction(videoId, null, height.value)
       setRun(r)
       poll(r.run_id)
     } catch (e) {
@@ -92,10 +95,33 @@ export default function UnifiedReconstructionPanel({ videoId }) {
     }
   }
 
+  const applyScale = async () => {
+    if (height.value == null) return
+    setBusy(true); setError(null)
+    try {
+      setRun(await applyHeightScale(run.run_id, height.value))
+    } catch (e) {
+      setError(`Could not apply the height: ${e.message}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const running = run && (run.status === 'running' || run.status === 'awaiting_person_selection')
   const done = run?.status === 'completed'
   const result = run?.result
   const file = (name) => reconstructionFileUrl(run.run_id, name)
+  const metric = result?.metric_scale
+  const heightField = (
+    <label className="flex flex-wrap items-center gap-2 text-xs text-gray-700">
+      <span>Subject’s barefoot height (cm, optional)</span>
+      <input type="number" inputMode="decimal" min="100" max="250" step="0.5" value={heightText}
+        onChange={(e) => setHeightText(e.target.value)} aria-invalid={height.error ? 'true' : 'false'}
+        aria-label="Subject barefoot height in centimetres"
+        className="w-24 rounded border border-gray-300 px-2 py-1 text-sm" placeholder="e.g. 172" />
+      {height.error && <span className="text-red-700">{height.error}</span>}
+    </label>
+  )
 
   return (
     <section className="bg-white rounded-2xl border border-teal-200 shadow-sm overflow-hidden" data-testid="unified-reconstruction">
@@ -108,10 +134,11 @@ export default function UnifiedReconstructionPanel({ videoId }) {
       </div>
 
       <div className="p-5 space-y-4">
+        {!running && !done && heightField}
         {!running && !done && (
           <button
             onClick={start}
-            disabled={busy || !videoId}
+            disabled={busy || !videoId || Boolean(height.error)}
             className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 text-white text-sm font-medium"
           >
             {run?.status === 'failed' ? 'Try again' : 'Reconstruct 3D body'}
@@ -189,7 +216,7 @@ export default function UnifiedReconstructionPanel({ videoId }) {
               <Stat label="Same person throughout" value={result.consistent_single_subject ? 'Yes' : 'Check warnings'} />
               <Stat label="Geometry valid" value={result.geometry_valid ? 'Yes' : 'No'} />
               <Stat label="View coverage" value={result.coverage_sufficient ? 'Front, back, both sides' : 'Incomplete'} />
-              <Stat label="Scale" value="Relative / estimated (not metric)" />
+              <Stat label="Scale" value={metric ? `From supplied height (${fmt(metric.height_cm, 1)} cm)` : 'Relative / estimated (not metric)'} />
               {result.silhouette_views != null && <Stat label="Silhouettes used" value={`${result.silhouette_views} of ${result.frames_selected} views`} />}
               {result.silhouette_iou_fit != null && <Stat label="Silhouette IoU (fitted views)" value={fmt(result.silhouette_iou_fit)} />}
               {result.held_out_iou != null && <Stat label="Silhouette IoU (held-out, cross-validated)"
@@ -214,17 +241,40 @@ export default function UnifiedReconstructionPanel({ videoId }) {
             {result.measurements && (
               <div className="text-xs space-y-1">
                 <p className="font-medium text-gray-800">Circumferences from mesh cross-sections ({result.measurements_valid} valid)</p>
-                <p className="text-amber-800">Relative values: tape circumference ÷ mesh height. No calibration or known-size reference exists, so these are not centimetres, and they follow the clothed outline.</p>
+                {metric ? (
+                  <p className="text-amber-800">
+                    Centimetres are scaled from the height you entered ({fmt(metric.height_cm, 1)} cm); every value shares its
+                    error (±1 cm of height ≈ ±{fmt(metric.relative_scale_uncertainty * 100, 1)}%). Girths follow the clothed outline
+                    and have not been validated against tape measurements.
+                  </p>
+                ) : (
+                  <p className="text-amber-800">Relative values: tape circumference ÷ mesh height. No calibration or known-size reference exists, so these are not centimetres, and they follow the clothed outline. Enter the subject’s height below to convert them.</p>
+                )}
                 <table className="min-w-[16rem] border-collapse">
+                  <thead>
+                    <tr className="text-left text-gray-500">
+                      <th className="pr-4 py-0.5 font-normal">Site</th>
+                      <th className="pr-4 py-0.5 font-normal">× height</th>
+                      {metric && <th className="py-0.5 font-normal">cm</th>}
+                    </tr>
+                  </thead>
                   <tbody>
                     {Object.entries(result.measurements).map(([key, value]) => (
                       <tr key={key} className="border-b border-gray-100">
                         <td className="pr-4 py-0.5 text-gray-600">{MEASUREMENT_LABELS[key] || key}</td>
-                        <td className="py-0.5 font-mono">{value == null ? 'invalid section' : `${fmt(value)} × height`}</td>
+                        <td className="pr-4 py-0.5 font-mono">{value == null ? 'invalid section' : fmt(value)}</td>
+                        {metric && <td className="py-0.5 font-mono">{fmt(metric.measurements_cm?.[key], 1)}</td>}
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  {heightField}
+                  <button onClick={applyScale} disabled={busy || height.value == null}
+                    className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 text-white text-xs">
+                    {metric ? 'Update cm values' : 'Convert to cm'}
+                  </button>
+                </div>
               </div>
             )}
             <div className="flex flex-wrap gap-2">
@@ -235,12 +285,14 @@ export default function UnifiedReconstructionPanel({ videoId }) {
               <a className="px-3 py-2 rounded-lg border text-sm" href={file('tracking_report.json')} target="_blank" rel="noreferrer">Tracking report</a>
               {result.measurements && <a className="px-3 py-2 rounded-lg border text-sm" href={file('measurements.json')} target="_blank" rel="noreferrer">Measurements</a>}
               {result.measurements && <a className="px-3 py-2 rounded-lg border text-sm" href={file('measurement_rings.obj')} download="measurement_rings.obj">Measurement rings (OBJ)</a>}
+              {metric && <a className="px-3 py-2 rounded-lg border text-sm" href={file(metric.mesh_obj)} download="final_body_mesh_metric.obj">OBJ in metres</a>}
+              {metric && <a className="px-3 py-2 rounded-lg border text-sm" href={file(metric.measurements_file)} target="_blank" rel="noreferrer">Measurements (cm)</a>}
               <button onClick={start} disabled={busy} className="px-3 py-2 rounded-lg border text-sm">Run again</button>
             </div>
             <p className="text-xs text-gray-500">
-              The mesh is shown in a standard measurement A-pose. Its size is a relative SMPL estimate: no camera calibration
-              or known-size reference was available, so no height or circumference is reported in centimetres, and nothing
-              here measures body fat, muscle or other internal composition.
+              The mesh is shown in a standard measurement A-pose. A single camera cannot recover absolute size, so
+              centimetres are only shown when you supply the subject’s barefoot height, and they inherit any error in it.
+              Nothing here measures body fat, muscle or other internal composition.
             </p>
           </div>
         )}

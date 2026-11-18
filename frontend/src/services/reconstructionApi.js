@@ -18,12 +18,12 @@ async function request(path, options) {
   return res.json()
 }
 
-export async function startReconstruction(videoId, targetBoxNorm = null) {
+export async function startReconstruction(videoId, targetBoxNorm = null, heightCm = null) {
   try {
     return await request('/api/reconstruction/runs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ video_id: videoId, target_box_norm: targetBoxNorm }),
+      body: JSON.stringify({ video_id: videoId, target_box_norm: targetBoxNorm, height_cm: heightCm }),
     })
   } catch (e) {
     // FastAPI's generic 404 means the route itself is missing: the running backend
@@ -45,6 +45,15 @@ export function confirmPerson(runId, candidateId) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ candidate_id: candidateId }),
+  })
+}
+
+/** Convert a completed run's circumferences to cm from the subject's barefoot height. */
+export function applyHeightScale(runId, heightCm) {
+  return request(`/api/reconstruction/runs/${encodeURIComponent(runId)}/scale`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ height_cm: heightCm }),
   })
 }
 

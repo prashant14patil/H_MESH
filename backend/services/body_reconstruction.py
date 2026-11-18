@@ -53,13 +53,18 @@ ASSET_FILES = {"final_body_mesh.obj", "final_body_mesh.ply", "reconstruction_rep
                "selected_frames.json", "tracking_report.json", "final_mesh_views.jpg",
                "contact_sheet.jpg", "orientation_check.jpg", "candidates_overview.jpg",
                "measurements.json", "measurement_rings.obj", "measurements_overlay.jpg",
-               "view_comparison.jpg", "mesh_turntable.gif", "silhouette_masks.jpg"}
+               "view_comparison.jpg", "mesh_turntable.gif", "silhouette_masks.jpg",
+               "measurements_cm.json", "final_body_mesh_metric.obj"}
 SIL_WEIGHT = float(os.getenv("RECON_SIL_WEIGHT", "1.0"))
 BETA_SIGMA_FLOOR = 0.25      # minimum per-coefficient spread used by the shape prior
 BETA_PRIOR_WEIGHT = float(os.getenv("RECON_BETA_PRIOR", "0.0"))  # chosen by cross-validation on a separate recording
 SIL_EXCLUDE_IOU = 0.75       # a view whose fitted silhouette IoU stays below this is unreliable
 SIL_TAU_FRAC = float(os.getenv("RECON_SIL_TAU", "0.01"))  # robust silhouette scale (fraction of box height)
 CV_FOLDS = 4
+
+
+class RunNotFoundError(Exception):
+    """No reconstruction with this ID exists."""
 
 
 class ReconstructionError(RuntimeError):
@@ -171,9 +176,12 @@ def get_asset(run_id: str, name: str):
     return path if path.is_file() else None
 
 
-def start_run(video_id: str, target_box_norm: list | None = None) -> dict:
+def start_run(video_id: str, target_box_norm: list | None = None, height_cm: float | None = None) -> dict:
     if not _valid_uuid(video_id):
         raise ValueError("Invalid recording ID")
+    if height_cm is not None:
+        from backend.services.body_measurements import validate_height_cm
+        height_cm = validate_height_cm(height_cm)
     require_authorization(video_id)  # genuine consent gate is preserved
     engine = video_processor.get_capture_engine()
     meta = engine.get_metadata(video_id)
@@ -193,7 +201,7 @@ def start_run(video_id: str, target_box_norm: list | None = None) -> dict:
         run_id = str(uuid.uuid4())
         run = {"run_id": run_id, "video_id": video_id, "status": "running", "stage": "decode",
                "progress": 0.0, "message": "Queued", "warnings": [], "candidates": [],
-               "created_at": time.time(), "result": None, "error": None}
+               "created_at": time.time(), "result": None, "error": None, "requested_height_cm": height_cm}
         _RUNS[run_id] = run
         _EVENTS[run_id] = threading.Event()
         _persist(run)
@@ -218,6 +226,56 @@ def select_person(run_id: str, candidate_id: int) -> dict:
     return get_run(run_id)
 
 
+def _scale_run(run: dict, height_cm) -> dict:
+    """Write cm measurements + a metre-scaled OBJ for a completed run (caller holds _STATE_LOCK)."""
+    from backend.services import body_measurements as bm
+    height_cm = bm.validate_height_cm(height_cm)
+    if run.get("status") != "completed" or not run.get("result"):
+        raise ValueError("Metric scale can only be applied to a completed reconstruction")
+    root = _run_dir(run["run_id"])
+    mpath, opath = root / "measurements.json", root / "final_body_mesh.obj"
+    if not mpath.is_file() or not opath.is_file():
+        raise ValueError("This run has no measurements.json/final_body_mesh.obj to scale")
+    scaled = bm.scale_to_height(json.loads(mpath.read_text(encoding="utf-8")), height_cm)
+    verts, faces = smv.read_obj(opath)
+    if verts.ndim != 2 or len(verts) == 0 or not np.isfinite(verts).all():
+        raise ValueError("final_body_mesh.obj could not be read")
+    metres_per_unit = scaled["cm_per_mesh_unit"] / 100.0
+    tmp = root / "final_body_mesh_metric.tmp"
+    smv.write_obj(tmp, verts * metres_per_unit, faces,
+                  header=(f"Unified SMPL body mesh scaled to a supplied barefoot height of {height_cm:.1f} cm.\n"
+                          "Units: metres. Frame: y up, +z front, feet on y=0. Pose: measurement A-pose.\n"
+                          "Absolute size comes only from the supplied height. "
+                          "External geometry only - not a Tanita BIA/BCM measurement."))
+    os.replace(tmp, root / "final_body_mesh_metric.obj")
+    scaled["mesh_file"] = "final_body_mesh_metric.obj"
+    scaled["mesh_units"] = "metres"
+    scaled["applied_at"] = time.time()
+    _write_json(root / "measurements_cm.json", scaled)
+    run["result"]["metric_scale"] = {
+        "height_cm": height_cm, "cm_per_mesh_unit": scaled["cm_per_mesh_unit"],
+        "relative_scale_uncertainty": scaled["relative_scale_uncertainty"],
+        "measurements_cm": {k: m.get("tape_circumference_cm") for k, m in scaled["measurements"].items()},
+        "measurements_file": "measurements_cm.json", "mesh_obj": "final_body_mesh_metric.obj"}
+    run["result"]["scale_status"] = "metric_from_supplied_height"
+    _persist(run)
+    return run
+
+
+def apply_height_scale(run_id: str, height_cm) -> dict:
+    """Set absolute scale on a finished run from the subject's known barefoot height (no re-fit)."""
+    root = _run_dir(run_id)
+    with _STATE_LOCK:
+        run = _RUNS.get(run_id)
+        if run is None:
+            path = root / "status.json"
+            if not path.is_file():
+                raise RunNotFoundError("Run not found")
+            run = json.loads(path.read_text(encoding="utf-8"))
+        _scale_run(run, height_cm)
+    return get_run(run_id)
+
+
 def _worker(run, source: Path, meta: dict, target_box_norm):
     with _RUN_LOCK:
         try:
@@ -229,6 +287,14 @@ def _worker(run, source: Path, meta: dict, target_box_norm):
                 run["progress"] = 1.0
                 run["message"] = "Unified body mesh ready"
                 _persist(run)
+            if run.get("requested_height_cm") is not None:
+                try:
+                    with _STATE_LOCK:
+                        _scale_run(run, run["requested_height_cm"])
+                except (ValueError, OSError) as exc:  # the mesh itself is still valid
+                    _warn(run, "metric_scale_failed", f"Could not apply the supplied height: {exc}")
+                    with _STATE_LOCK:
+                        _persist(run)
         except ReconstructionError as exc:
             _fail(run, str(exc), "reconstruction_blocked")
         except Exception as exc:  # noqa: BLE001

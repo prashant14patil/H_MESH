@@ -12,16 +12,22 @@ class StartRequest(BaseModel):
     video_id: str
     # Optional: normalised [x0, y0, x1, y1] of the intended person on the selection frame.
     target_box_norm: list[float] | None = Field(default=None, min_length=4, max_length=4)
+    # Optional barefoot standing height; when given, cm measurements are written on completion.
+    height_cm: float | None = None
 
 
 class PersonRequest(BaseModel):
     candidate_id: int
 
 
+class ScaleRequest(BaseModel):
+    height_cm: float
+
+
 @router.post("/runs", status_code=status.HTTP_202_ACCEPTED)
 def start(request: StartRequest):
     try:
-        return recon.start_run(request.video_id, request.target_box_norm)
+        return recon.start_run(request.video_id, request.target_box_norm, request.height_cm)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:
@@ -43,6 +49,17 @@ def run_status(run_id: str):
 def confirm_person(run_id: str, request: PersonRequest):
     try:
         return recon.select_person(run_id, request.candidate_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/runs/{run_id}/scale")
+def apply_scale(run_id: str, request: ScaleRequest):
+    """Convert a completed run's measurements to centimetres from the subject's known height."""
+    try:
+        return recon.apply_height_scale(run_id, request.height_cm)
+    except recon.RunNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

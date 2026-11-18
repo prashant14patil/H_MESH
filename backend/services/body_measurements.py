@@ -287,3 +287,65 @@ def strip_rings(measurements: dict) -> dict:
 
 def circle_perimeter(r: float) -> float:
     return 2 * math.pi * r
+
+
+# ------------------------------------------------------------ metric scale
+MIN_HEIGHT_CM = 100.0
+MAX_HEIGHT_CM = 250.0
+
+
+def validate_height_cm(height_cm) -> float:
+    """Operator-supplied barefoot standing height in centimetres."""
+    if isinstance(height_cm, bool) or not isinstance(height_cm, (int, float)) or not math.isfinite(height_cm):
+        raise ValueError("height_cm must be a finite number")
+    if not MIN_HEIGHT_CM <= float(height_cm) <= MAX_HEIGHT_CM:
+        raise ValueError(f"height_cm must be between {MIN_HEIGHT_CM:.0f} and {MAX_HEIGHT_CM:.0f}")
+    return float(height_cm)
+
+
+def scale_to_height(measurements: dict, height_cm, height_uncertainty_cm: float = 1.0) -> dict:
+    """Convert relative circumferences (measurements.json) to centimetres using a known stature.
+
+    Monocular reconstruction fixes shape but not absolute size, so one known length sets the scale:
+    factor = height_cm / mesh_height. Every circumference scales by the same factor; a stature error of
+    +-d cm therefore moves every value by the same relative amount (d / height). This is a scale
+    transfer, not an accuracy guarantee for the shape itself.
+    """
+    height_cm = validate_height_cm(height_cm)
+    mesh_height = measurements.get("mesh_height")
+    if not isinstance(mesh_height, (int, float)) or not math.isfinite(mesh_height) or mesh_height <= 0:
+        raise ValueError("measurements have no valid mesh_height to scale from")
+    factor = height_cm / float(mesh_height)
+    rel = float(height_uncertainty_cm) / height_cm
+    out = {}
+    for name, m in measurements.get("measurements", {}).items():
+        if not m.get("valid") or not isinstance(m.get("tape_circumference"), (int, float)):
+            out[name] = {"valid": False, "reason": m.get("reason", "invalid cross-section")}
+            continue
+        tape = m["tape_circumference"] * factor
+        out[name] = {"valid": True, "tape_circumference_cm": round(tape, 1),
+                     "contour_perimeter_cm": round(m["contour_perimeter"] * factor, 1)
+                     if isinstance(m.get("contour_perimeter"), (int, float)) else None,
+                     "height_uncertainty_contribution_cm": round(tape * rel, 2),
+                     "definition": m.get("definition")}
+    return {
+        "units": "centimetres (scaled from operator-supplied height)",
+        "height_cm": height_cm,
+        "mesh_height_units": float(mesh_height),
+        "cm_per_mesh_unit": factor,
+        "height_uncertainty_cm_assumed": float(height_uncertainty_cm),
+        "relative_scale_uncertainty": rel,
+        "valid_count": sum(1 for m in out.values() if m["valid"]),
+        "total": len(out),
+        "measurements": out,
+        "method": ("uniform scale so the final mesh's vertical extent equals the supplied barefoot height; "
+                   "circumferences are the existing plane sections multiplied by the same factor"),
+        "limitations": [
+            "Absolute size comes entirely from the supplied height; an error in it scales every value equally.",
+            "Stature is the vertical extent of the measurement A-pose mesh (legs abducted 5 deg), which is "
+            "a few millimetres shorter than upright standing stature.",
+            "The SMPL surface has no hair or shoes, so the height must be barefoot; the fitted shape follows the "
+            "clothed silhouette and can overstate girths under loose clothing.",
+            "Not validated against tape measurements; not a Tanita BIA/BCM body-composition result.",
+        ],
+    }

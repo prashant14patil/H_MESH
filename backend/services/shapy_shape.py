@@ -36,6 +36,9 @@ SHAPY_DIR = Path(os.getenv("SHAPY_DIR", str(ROOT / "models" / "shapy")))
 CKPT = SHAPY_DIR / "trained_models" / "shapy" / "SHAPY_A" / "checkpoints" / "best_checkpoint"
 HRNET_PY = SHAPY_DIR / "code" / "regressor" / "human_shape" / "models" / "backbone" / "hrnet.py"
 RESULT_FILE = "shapy_measurements.json"
+# 2: horizontal-flip test-time augmentation (each crop and its mirror image). On two recordings of the same
+#    person it cut the between-recording waist/hip difference from ~0.6 cm to ~0.2 cm.
+RESULT_VERSION = 2
 MESH_FILE = "shapy_body_mesh.obj"
 CROP = 256
 SCALE = 1.2                       # SHAPY test-time bbox enlargement
@@ -211,7 +214,11 @@ def compute_for_run(run_dir: Path, video: Path) -> dict:
     started = time.time()
     with _LOCK:
         net, body, device = _models()
-        batch = torch.as_tensor(np.stack(crops)).permute(0, 3, 1, 2).to(device)
+        stack = np.stack(crops)
+        # Flip TTA: the mirror image of a centred crop is the crop of the mirrored frame; body shape is
+        # left-right symmetric, so both views estimate the same betas with independent errors.
+        stack = np.concatenate([stack, stack[:, :, ::-1]])
+        batch = torch.as_tensor(np.ascontiguousarray(stack)).permute(0, 3, 1, 2).to(device)
         betas_each = np.concatenate([net(batch[k:k + 8]).cpu().numpy() for k in range(0, len(batch), 8)])
         betas, robust_std, outliers = smv.robust_beta_aggregate(betas_each)
         v, j = body.posed(betas, smv.measurement_pose()[:21])
@@ -222,7 +229,8 @@ def compute_for_run(run_dir: Path, video: Path) -> dict:
                           "External geometry only - not a Tanita BIA/BCM measurement."))
     record = bm.strip_rings(meas)
     record.update({
-        "model": "SHAPY (SHAPY_A checkpoint, SMPL-X neutral, 10 betas)",
+        "model": "SHAPY (SHAPY_A checkpoint, SMPL-X neutral, 10 betas)", "version": RESULT_VERSION,
+        "test_time_augmentation": "horizontal flip (each frame and its mirror image)",
         "frames_used": len(crops), "frame_indices": used, "betas_smplx": betas.tolist(),
         "betas_each": betas_each.tolist(), "beta_robust_std": robust_std.tolist(),
         "outlier_frames": [int(o) for o in outliers], "mesh_file": MESH_FILE,

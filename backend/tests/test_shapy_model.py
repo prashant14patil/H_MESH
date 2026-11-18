@@ -46,6 +46,7 @@ def test_read_display_frames_refuses_misoriented_frames(tmp_path):
 
 def _record():
     return {"mesh_height": 1.7, "valid_count": 2, "total": 3, "model": "SHAPY", "frames_used": 5,
+            "version": shapy_shape.RESULT_VERSION,
             "measurements": {"waist": {"valid": True, "tape_circumference": 0.85, "tape_circumference_over_height": 0.5},
                              "hip": {"valid": True, "tape_circumference": 1.02, "tape_circumference_over_height": 0.6},
                              "calf_left": {"valid": False}}}
@@ -91,6 +92,24 @@ def test_api_returns_stored_result_in_cm_of_current_height(client, tmp_path):
     body = client.post(f"/api/reconstruction/runs/{RUN_ID}/shapy").json()  # stored: no recompute
     assert body["computed"] and body["height_cm"] == 176
     assert body["measurements_cm"]["hip"] == pytest.approx(105.6, abs=0.1)
+
+
+def test_api_recomputes_results_stored_by_an_older_method(client, tmp_path, monkeypatch):
+    _status(tmp_path, height=176)
+    old = _record()
+    old["version"] = 1
+    (tmp_path / RUN_ID / shapy_shape.RESULT_FILE).write_text(json.dumps(old))
+    assert client.get(f"/api/reconstruction/runs/{RUN_ID}/shapy").json()["computed"] is False
+    calls = []
+    monkeypatch.setattr(shapy_shape, "available", lambda: True)
+    monkeypatch.setattr(shapy_shape, "compute_for_run", lambda run_dir, video: calls.append(video) or _record())
+    from backend.services import video_processor
+    monkeypatch.setattr(video_processor, "_OUTPUT_ROOT", tmp_path / "captures")
+    src = tmp_path / "captures" / "00000000-0000-4000-8000-0000000000cc"
+    src.mkdir(parents=True)
+    (src / "original.mov").write_bytes(b"x")
+    body = client.post(f"/api/reconstruction/runs/{RUN_ID}/shapy").json()
+    assert len(calls) == 1 and body["computed"] and body["measurements_cm"]["waist"] == pytest.approx(88.0)
 
 
 def test_api_rejects_unfinished_or_unknown_runs_and_missing_model(client, tmp_path, monkeypatch):

@@ -46,7 +46,7 @@ def models():
 def get_shapy(run_id: str):
     run = _completed_run(run_id)
     record = _load(run_id)
-    if record is None:
+    if record is None or record.get("version", 1) < shapy_shape.RESULT_VERSION:
         return {"computed": False, "available": shapy_shape.available()}
     return {"computed": True, "available": shapy_shape.available(), **shapy_shape.summarize(record, _height(run))}
 
@@ -56,6 +56,8 @@ def compute_shapy(run_id: str, recompute: bool = False):
     """Compute (once) SHAPY measurements for a completed run; cm follow the run's current height."""
     run = _completed_run(run_id)
     record = None if recompute else _load(run_id)
+    if record is not None and record.get("version", 1) < shapy_shape.RESULT_VERSION:
+        record = None  # stored with an older method: recompute
     if record is None:
         if not shapy_shape.available():
             raise HTTPException(status_code=503, detail="SHAPY model files are not installed on this backend")

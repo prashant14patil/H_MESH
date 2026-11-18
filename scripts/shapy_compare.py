@@ -29,9 +29,8 @@ def main() -> int:
     run_dir = ROOT / "outputs" / "reconstructions" / args.run_id
     status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
     stored = run_dir / shapy_shape.RESULT_FILE
-    if stored.is_file() and not args.recompute:
-        record = json.loads(stored.read_text(encoding="utf-8"))
-    else:
+    record = json.loads(stored.read_text(encoding="utf-8")) if stored.is_file() and not args.recompute else None
+    if record is None or record.get("version", 1) < shapy_shape.RESULT_VERSION:
         video = next((ROOT / "data" / "captures" / status["video_id"]).glob("original.*"))
         record = shapy_shape.compute_for_run(run_dir, video)
     shapy = shapy_shape.summarize(record, height_cm)["measurements_cm"]

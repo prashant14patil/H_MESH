@@ -150,6 +150,17 @@ class FitConfig:
     # ever ADDS to the outline, so the body may lie inside it but should not protrude: < 1 stops loose
     # garments from inflating girths. 1.0 = symmetric (previous behaviour).
     sil_coverage_weight: float = 1.0
+    # "Stay inside the outline" term. "charbonnier" (default): non-saturating penalty summed over vertices and
+    # normalised per contour sample, so it is on the same scale as the coverage term and a vertex far outside
+    # the mask keeps pulling back. "legacy": the earlier Geman-McClure mean over ALL vertices, which saturates
+    # beyond ~2 tau and is diluted ~17x by interior vertices, so the body could protrude 7-8% outside its own
+    # clothed outline. Kept only for comparison runs.
+    sil_outside_form: str = "charbonnier"
+    sil_inside_weight: float = 1.0
+    # Optimise per-view articulated body pose. When False only the shared shape, per-view global orientation
+    # and camera move: silhouette evidence must then be explained by the ONE body shape instead of being
+    # absorbed by per-view joint bends that the exported (re-posed) mesh never contains.
+    fit_body_pose: bool = True
     beta_sigma: np.ndarray | None = None  # per-coefficient scale for the pull to betas_init (Mahalanobis)
     seed: int = 0
 
@@ -212,17 +223,20 @@ class _SilhouetteTargets:
 
 
 def _silhouette_loss(vertices, cam, views: FitViews, device, tau_frac: float = 0.01, targets=None,
-                     coverage_weight: float = 1.0):
-    """Symmetric silhouette agreement using projected SMPL vertices.
+                     coverage_weight: float = 1.0, outside_form: str = "charbonnier", inside_weight: float = 1.0):
+    """Silhouette agreement using projected SMPL vertices.
 
     * outside term: projected vertices that fall outside the observed mask are penalised by
-      their distance to the mask (from a distance transform) -> the body may not be too big;
+      their distance to the mask (from a distance transform) -> the body may not be too big.
+      Clothing only ever adds to the outline, so a body protruding outside it is always wrong;
+      this term is therefore non-saturating (Charbonnier) and summed per contour sample;
     * coverage term: every observed contour point must have a projected vertex nearby
-      (chamfer) -> the body may not be too small.
+      (chamfer) -> the body may not be too small. Robust (Geman-McClure), because loose
+      clothing, hair and shoes legitimately leave parts of the outline unfilled.
 
-    Both are robust (Geman-McClure) at a scale of ``tau_frac`` x box height. Without a
-    differentiable rasteriser this vertex-based form is a practical surrogate of silhouette
-    IoU; the exact rasterised IoU is reported separately by :func:`silhouette_metrics`.
+    Scale is ``tau_frac`` x box height. Without a differentiable rasteriser this vertex-based
+    form is a practical surrogate; the exact rasterised IoU and protrusion are reported
+    separately by :func:`silhouette_metrics`.
     """
     if not views.contours:
         return vertices.new_zeros(())
@@ -245,7 +259,11 @@ def _silhouette_loss(vertices, cam, views: FitViews, device, tau_frac: float = 0
             grid = torch.stack([gx, gy], dim=-1)[None, None]
             outside = torch.nn.functional.grid_sample(dm[None, None], grid, align_corners=True,
                                                       padding_mode="border")[0, 0, 0] * s
-            loss = loss + _robust(outside / tau).mean()
+            if outside_form == "legacy":
+                loss = loss + _robust(outside / tau).mean()
+            else:
+                x = outside / tau
+                loss = loss + inside_weight * (torch.sqrt(1 + x ** 2) - 1).sum() / max(len(item["contour"]), 1)
         total = total + item["weight"] * loss
         weight_sum += item["weight"]
     return total / max(weight_sum, 1e-6)
@@ -281,9 +299,10 @@ def fit_multiview(smpl, views: FitViews, betas_init: np.ndarray, cfg: FitConfig 
 
     beta = beta0.clone().requires_grad_(fit_shape)
     go6 = matrix_to_rot6d(go0).clone().requires_grad_(True)
-    pose6 = matrix_to_rot6d(pose0).clone().requires_grad_(True)
+    pose6 = matrix_to_rot6d(pose0).clone().requires_grad_(cfg.fit_body_pose)
     cam = cam0.clone().requires_grad_(True)
-    groups = [{"params": [go6, pose6], "lr": cfg.lr_pose}, {"params": [cam], "lr": cfg.lr_cam}]
+    groups = [{"params": [go6, pose6] if cfg.fit_body_pose else [go6], "lr": cfg.lr_pose},
+              {"params": [cam], "lr": cfg.lr_cam}]
     if fit_shape:
         groups.append({"params": [beta], "lr": cfg.lr_beta})
     opt = torch.optim.Adam(groups)
@@ -320,7 +339,7 @@ def fit_multiview(smpl, views: FitViews, betas_init: np.ndarray, cfg: FitConfig 
         l_sil = None
         if use_sil:
             l_sil = _silhouette_loss(verts, cam, views, device, cfg.sil_tau_frac, sil_targets,
-                                     cfg.sil_coverage_weight)
+                                     cfg.sil_coverage_weight, cfg.sil_outside_form, cfg.sil_inside_weight)
             loss = loss + cfg.w_silhouette * l_sil
         if not torch.isfinite(loss):
             raise FitError("Optimisation diverged (non-finite loss)")
@@ -429,6 +448,10 @@ def silhouette_metrics(pred: np.ndarray, obs: np.ndarray, box_height: float) -> 
     p, o = pred.astype(bool), obs.astype(bool)
     union = np.logical_or(p, o).sum()
     iou = float(np.logical_and(p, o).sum() / union) if union else 0.0
+    # IoU is symmetric, but the two error directions mean different things against a CLOTHED outline:
+    # protrusion (body outside the outline) is always an error; uncovered outline may be loose clothing.
+    extra = {"protrusion_frac": float((p & ~o).sum() / max(p.sum(), 1)),
+             "uncovered_frac": float((o & ~p).sum() / max(o.sum(), 1))}
 
     def contour_dist(a, b):
         cnt, _ = cv2.findContours(a.astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_NONE)
@@ -444,12 +467,46 @@ def silhouette_metrics(pred: np.ndarray, obs: np.ndarray, box_height: float) -> 
         return dt[np.clip(pts[:, 1], 0, b.shape[0] - 1), np.clip(pts[:, 0], 0, b.shape[1] - 1)]
     d1, d2 = contour_dist(p, o), contour_dist(o, p)
     if d1 is None or d2 is None:
-        return {"iou": iou, "contour_mean_pct_height": None, "contour_p90_pct_height": None,
+        return {"iou": iou, **extra, "contour_mean_pct_height": None, "contour_p90_pct_height": None,
                 "area_ratio_pred_over_obs": float(p.sum() / max(o.sum(), 1))}
     d = np.concatenate([d1, d2])
-    return {"iou": iou, "contour_mean_pct_height": float(d.mean() / box_height * 100),
+    return {"iou": iou, **extra, "contour_mean_pct_height": float(d.mean() / box_height * 100),
             "contour_p90_pct_height": float(np.percentile(d, 90) / box_height * 100),
             "area_ratio_pred_over_obs": float(p.sum() / max(o.sum(), 1))}
+
+
+TORSO_LEVELS = (0.15, 0.55, 0.75, 0.95)  # 0 = shoulder keypoints, 1 = hip keypoints (chest .. hip)
+
+
+def _run_width(mask: np.ndarray, y: float, x: float) -> float:
+    """Width of the contiguous mask run on row ``y`` that contains (or is nearest to) column ``x``."""
+    row = mask[int(np.clip(round(y), 0, mask.shape[0] - 1))].astype(bool)
+    nz = np.nonzero(row)[0]
+    if not len(nz):
+        return float("nan")
+    xc = int(round(x)) if 0 <= round(x) < len(row) and row[int(round(x))] else int(nz[np.argmin(np.abs(nz - x))])
+    left, right = xc, xc
+    while left > 0 and row[left - 1]:
+        left -= 1
+    while right < len(row) - 1 and row[right + 1]:
+        right += 1
+    return float(right - left + 1)
+
+
+def torso_width_ratios(pred: np.ndarray, obs: np.ndarray, keypoints: np.ndarray, levels=TORSO_LEVELS) -> list:
+    """Model / observed torso width at levels between the shoulder and hip keypoints (COCO 5,6 / 11,12).
+
+    In a frontal view this is body WIDTH, in a profile view body DEPTH: the proportion check IoU cannot make.
+    A value > 1 means the body sticks out of its (clothed) outline at that level, which is always an error;
+    < 1 means the outline is wider than the body (loose clothing, or a body that is too thin).
+    """
+    sh, hp = np.asarray(keypoints)[[5, 6]].mean(0), np.asarray(keypoints)[[11, 12]].mean(0)
+    out = []
+    for t in levels:
+        p = sh + t * (hp - sh)
+        wo, wp = _run_width(obs, p[1], p[0]), _run_width(pred, p[1], p[0])
+        out.append(float(wp / wo) if wo and np.isfinite(wo) and np.isfinite(wp) else None)
+    return out
 
 
 # ------------------------------------------------------------ canonical mesh

@@ -85,7 +85,8 @@ export default function BodyAvatarPanel({ run }) {
   const cmp = comparing ? comparableValues(current, compareRun) : null
   const unit = cmp ? cmp.unit : scan.unit
   const shown = cmp ? interpolateValues(cmp.before, cmp.now, t) : scan.values
-  const tapeSites = result?.tape_validation?.sites
+  // Excluded tape records (e.g. test entries) are never shown as a tape check.
+  const tapeSites = result?.tape_validation && !result.tape_validation.excluded ? result.tape_validation.sites : null
 
   const statusOf = (site) => (cmp ? changeStatus(site, cmp.before[site], cmp.now[site]) : siteStatus(site, scan.values, tapeSites))
   const segStatus = Object.fromEntries(CALLOUTS.map((c) => [c.segment, segmentStatus(c, statusOf)]))

@@ -66,6 +66,19 @@ export function recordTapeMeasurements(runId, tapeCm, clothing, note = '') {
   })
 }
 
+/** Capture conditions of a run (who, clothing, camera distance, posture) for the validation report. */
+export function getConditions(runId) {
+  return request(`/api/reconstruction/runs/${encodeURIComponent(runId)}/conditions`)
+}
+
+export function recordConditions(runId, conditions) {
+  return request(`/api/reconstruction/runs/${encodeURIComponent(runId)}/conditions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(conditions),
+  })
+}
+
 /** Completed runs with measurements, newest first. */
 export async function listReconstructions(limit = 50) {
   return (await request(`/api/reconstruction/runs?limit=${limit}`)).runs

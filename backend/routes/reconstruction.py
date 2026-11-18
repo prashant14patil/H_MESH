@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from backend.services import body_reconstruction as recon
+from backend.services import measurement_validation as mv
 
 router = APIRouter()
 
@@ -86,6 +87,44 @@ def record_tape(run_id: str, request: TapeRequest):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+class ConditionsRequest(BaseModel):
+    # Capture conditions for validation: who (a code, not a name), clothing, camera distance, posture.
+    subject_id: str
+    clothing: str = "unknown"          # minimal | tight | loose | unknown
+    distance_m: float | None = None    # camera to subject
+    posture: str = "a_pose_standard"   # a_pose_standard | arms_lower | arms_higher | relaxed_slouch | other
+    height_cm: float | None = None     # stadiometer height, if measured
+    note: str = Field(default="", max_length=500)
+
+
+@router.get("/runs/{run_id}/conditions")
+def get_conditions(run_id: str):
+    """Capture conditions recorded for a run (empty object when none were recorded)."""
+    try:
+        run_dir = recon._run_dir(run_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return mv._read_json(run_dir / mv.CONDITIONS_FILE) or {}
+
+
+@router.post("/runs/{run_id}/conditions")
+def record_conditions(run_id: str, request: ConditionsRequest):
+    """Tag a completed run with its capture conditions (used by scripts/validation_report.py)."""
+    try:
+        run_dir = recon._run_dir(run_id)
+        if not (run_dir / "status.json").is_file():
+            raise HTTPException(status_code=404, detail="Run not found")
+        return mv.write_conditions(run_dir, request.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/validation/report")
+def validation_report(subject: str | None = None, fit_config: str = "latest"):
+    """Repeatability, condition effects and tape accuracy pooled over all completed runs."""
+    return mv.build_report(recon._ROOT, recon._source_key, default_subject=subject, fit_config=fit_config)
 
 
 @router.get("/runs/{run_id}/files/{name}")

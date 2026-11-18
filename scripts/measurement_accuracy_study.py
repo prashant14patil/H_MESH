@@ -82,12 +82,16 @@ def load_run(run_id: str):
             "yaw": z["yaw"], "saved_betas": saved["betas"], "saved_measurements": meas}
 
 
+OUTSIDE_FORM = None  # set from --outside; None = FitConfig default
+
+
 def fit(smpl, views, betas_init, beta_sigma, coverage, device, iterations=300, beta_prior=0.0):
     align = smv.fit_multiview(smpl, views, betas_init, smv.FitConfig(iterations=150), device, fit_shape=False)
     aligned = smv.FitViews(**{**views.__dict__, "global_orient": align.global_orient, "body_pose": align.body_pose,
                               "cam_t": align.cam_t})
     cfg = smv.FitConfig(iterations=iterations, w_silhouette=1.0, w_beta_init=beta_prior, beta_sigma=beta_sigma,
-                        sil_tau_frac=0.01, sil_coverage_weight=coverage)
+                        sil_tau_frac=0.01, sil_coverage_weight=coverage,
+                        **({"sil_outside_form": OUTSIDE_FORM} if OUTSIDE_FORM else {}))
     return smv.fit_multiview(smpl, aligned, betas_init, cfg, device)
 
 
@@ -152,7 +156,11 @@ def main():
     ap.add_argument("--height-cm", type=float, default=None)
     ap.add_argument("--cv", action="store_true", help="also compute 4-fold held-out silhouette IoU (slow)")
     ap.add_argument("--output", type=Path, required=True)
+    ap.add_argument("--outside", choices=["legacy", "charbonnier"], default=None,
+                    help="form of the 'stay inside the outline' term (default: FitConfig's default)")
     args = ap.parse_args()
+    global OUTSIDE_FORM
+    OUTSIDE_FORM = args.outside
 
     import torch
     device = "cuda" if torch.cuda.is_available() else "cpu"

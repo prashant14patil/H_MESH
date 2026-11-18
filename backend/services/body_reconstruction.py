@@ -57,12 +57,24 @@ ASSET_FILES = {"final_body_mesh.obj", "final_body_mesh.ply", "reconstruction_rep
                "measurements_cm.json", "final_body_mesh_metric.obj", "tape_validation.json"}
 SIL_WEIGHT = float(os.getenv("RECON_SIL_WEIGHT", "1.0"))
 BETA_SIGMA_FLOOR = 0.25      # minimum per-coefficient spread used by the shape prior
-# Mahalanobis pull of the shared shape toward the multi-frame HMR2 shape. With 0 the silhouette term inflates
-# girths to fill loose clothing (hip ~0.72 x height, shape coefficients ~2.8 SD, body protruding 7-8% outside its
-# own clothed outline); 0.2 halves the protrusion and keeps girths anatomically plausible at a small cost in
-# clothed-outline IoU. Evidence: docs/MEASUREMENT_ACCURACY_REPEATABILITY_REPORT.md. Set RECON_BETA_PRIOR=0 for
-# the previous behaviour.
-BETA_PRIOR_WEIGHT = float(os.getenv("RECON_BETA_PRIOR", "0.2"))
+# Silhouette "stay inside the outline" term (see smpl_multiview.FitConfig.sil_outside_form). The legacy term
+# saturated and was diluted by interior vertices, so the body protruded 7-8% outside its own clothed outline;
+# the HMR2 shape prior below was then raised to hide that, which pinned the shape to HMR2's estimate and cut
+# profile depth ~20%. Evidence: docs/RECONSTRUCTION_ACCURACY_INVESTIGATION.md.
+#   original (16 Nov):  RECON_SIL_OUTSIDE=legacy RECON_BETA_PRIOR=0.02
+#   committed:          RECON_SIL_OUTSIDE=legacy RECON_BETA_PRIOR=0
+#   pre-fix working:    RECON_SIL_OUTSIDE=legacy RECON_BETA_PRIOR=0.2
+SIL_OUTSIDE_FORM = os.getenv("RECON_SIL_OUTSIDE", "charbonnier")
+# Mahalanobis pull toward the multi-frame HMR2 shape. Its sigma is HMR2's frame-to-frame JITTER, not the
+# uncertainty of HMR2's shape, so even small weights pin the result to HMR2's (average-biased) estimate.
+BETA_PRIOR_WEIGHT = float(os.getenv("RECON_BETA_PRIOR", "0.0"))
+# Population prior: SMPL betas are in population standard deviations, so N(0, I) is the statistically
+# meaningful regulariser of how unusual a body shape is.
+POP_PRIOR_WEIGHT = float(os.getenv("RECON_POP_PRIOR", "0.05"))
+# Whether stage B may bend each view's joints to match that view's silhouette (see FitConfig.fit_body_pose).
+FIT_BODY_POSE = os.getenv("RECON_FIT_BODY_POSE", "1") == "1"
+PROTRUSION_WARN = 0.03       # mean share of the rendered body outside the clothed outline
+FIT_HELD_GAP_WARN = 0.05     # fit IoU minus held-out IoU
 # Weight of the silhouette "fill the outline" term (1 = symmetric). Kept at 1: with the shape prior on, lowering it
 # changed girths by < 1% in the study; exposed for further experiments.
 SIL_COVERAGE_WEIGHT = float(os.getenv("RECON_SIL_COVERAGE", "1.0"))
@@ -927,8 +939,26 @@ def silhouette_scores(smpl, faces, betas, go, pose, cam, views: smv.FitViews, ma
             continue
         uv = smv.project_np(verts[i] + cam[i], views.focal, views.center[i])
         pred = smv.rasterize_silhouette(uv, faces, mask.shape)
-        scores.append(smv.silhouette_metrics(pred, mask, float(views.box_height[i])))
+        s = smv.silhouette_metrics(pred, mask, float(views.box_height[i]))
+        s["torso_width_ratio"] = smv.torso_width_ratios(pred, mask, views.keypoints[i])
+        scores.append(s)
     return scores
+
+
+def proportion_check(scores, yaws) -> dict:
+    """Median model/observed torso width per torso level, separately for frontal and profile views.
+
+    Profile views measure body DEPTH, frontal views WIDTH. Against a clothed outline a correct body sits at
+    <= 1 everywhere (protruding is impossible) and close to 1 where clothing is tight.
+    """
+    groups = {"front_back_width": lambda y: abs(y) < 30 or abs(y) > 150, "side_depth": lambda y: 60 < abs(y) < 120}
+    out = {"levels_shoulder0_hip1": list(smv.TORSO_LEVELS)}
+    for name, sel in groups.items():
+        rows = [s["torso_width_ratio"] for s, y in zip(scores, yaws) if s and sel(y) and s.get("torso_width_ratio")]
+        arr = np.array([[np.nan if v is None else v for v in r] for r in rows], dtype=float) if rows else None
+        out[name] = {"views": len(rows),
+                     "median_ratio": (np.nanmedian(arr, 0).round(3).tolist() if arr is not None else None)}
+    return out
 
 
 def per_frame_hmr2_scores(per_frame, selected, idx, views, mask_list, faces) -> list:
@@ -953,6 +983,9 @@ def _summary(scores):
     cd = np.array([s["contour_mean_pct_height"] for s in vals if s["contour_mean_pct_height"] is not None])
     return {"views_scored": len(vals), "iou_mean": float(iou.mean()), "iou_median": float(np.median(iou)),
             "iou_min": float(iou.min()),
+            # Body outside its own clothed outline (always an error) vs outline left unfilled (may be clothing).
+            "protrusion_frac_mean": float(np.mean([s.get("protrusion_frac", np.nan) for s in vals])),
+            "uncovered_frac_mean": float(np.mean([s.get("uncovered_frac", np.nan) for s in vals])),
             "contour_distance_mean_pct_height": float(cd.mean()) if len(cd) else None,
             "area_ratio_pred_over_obs_median": float(np.median([s["area_ratio_pred_over_obs"] for s in vals]))}
 
@@ -989,8 +1022,20 @@ def _cfg_keypoint_shape():
 
 def _cfg_silhouette(beta_sigma):
     return smv.FitConfig(iterations=300, w_silhouette=SIL_WEIGHT, w_beta_init=BETA_PRIOR_WEIGHT,
-                         sil_coverage_weight=SIL_COVERAGE_WEIGHT,
+                         w_beta_prior=POP_PRIOR_WEIGHT, sil_coverage_weight=SIL_COVERAGE_WEIGHT,
+                         sil_outside_form=SIL_OUTSIDE_FORM, fit_body_pose=FIT_BODY_POSE,
                          beta_sigma=beta_sigma, sil_tau_frac=SIL_TAU_FRAC)
+
+
+def fit_config_record() -> dict:
+    """The exact shape-fit settings of this run, saved in the report so any result can be reproduced later."""
+    cfg = _cfg_silhouette(np.ones(10))
+    return {"silhouette_weight": cfg.w_silhouette, "outside_term": cfg.sil_outside_form,
+            "inside_weight": cfg.sil_inside_weight, "coverage_weight": cfg.sil_coverage_weight,
+            "tau_frac_of_box_height": cfg.sil_tau_frac, "hmr2_shape_prior_weight": cfg.w_beta_init,
+            "population_shape_prior_weight": cfg.w_beta_prior, "per_view_body_pose_optimised": cfg.fit_body_pose,
+            "iterations": cfg.iterations, "beta_sigma_floor": BETA_SIGMA_FLOOR,
+            "env_overrides": {k: os.environ[k] for k in sorted(os.environ) if k.startswith("RECON_")}}
 
 
 def fit_shared_shape(smpl, views, betas_init, beta_sigma, device):
@@ -1122,6 +1167,24 @@ def fit_unified(engine, selected, per_frame, records, view_info, image_wh, run, 
         "median_error_pct_height_median_shape": held_results[agg_key]["keypoint_error_pct_height"],
         "median_error_pct_height_shared_shape": held_results[new_key]["keypoint_error_pct_height"],
     }
+    # --- consistency / proportion checks that IoU cannot make ---------------------------------
+    yaws = [view_info[p]["yaw_deg"] for p in selected]
+    proportions = proportion_check(full_scores, yaws)
+    fit_summary = _summary(full_scores)
+    prot = fit_summary.get("protrusion_frac_mean")
+    if prot is not None and prot > PROTRUSION_WARN:
+        _warn(run, "body_protrudes_outside_outline",
+              f"The fitted body lies {prot:.1%} outside its own (clothed) silhouette on average; a body cannot be "
+              "larger than its clothing, so check masks and camera alignment.")
+    side = (proportions.get("side_depth") or {}).get("median_ratio") or []
+    if any(v is not None and v > 1.05 for v in side):
+        _warn(run, "body_depth_exceeds_profile",
+              f"Body depth exceeds the observed profile outline (model/observed {side}).")
+    fit_iou, held_iou = fit_summary.get("iou_mean"), held_results[new_key].get("iou_mean")
+    if fit_iou is not None and held_iou is not None and fit_iou - held_iou > FIT_HELD_GAP_WARN:
+        _warn(run, "per_view_overfit",
+              f"Fit IoU {fit_iou:.3f} exceeds held-out IoU {held_iou:.3f} by more than {FIT_HELD_GAP_WARN:.2f}: "
+              "per-view parameters are absorbing silhouette error that the shared shape does not explain.")
     _progress(run, "fit", 0.95, "Shape fusion complete")
     # Fitted parameters, so benchmarks can re-pose and re-score the result without re-running inference.
     np.savez_compressed(_run_dir(run["run_id"]) / "diagnostics" / "fit_result.npz",
@@ -1133,6 +1196,7 @@ def fit_unified(engine, selected, per_frame, records, view_info, image_wh, run, 
             "betas_median": betas_med, "betas_aggregate": betas_agg, "beta_sigma": beta_sigma,
             "beta_outlier_frames": [selected[i] for i in beta_outliers],
             "init_error_pct_height": init_rel * 100, "heldout": heldout, "mask_list": mask_list,
+            "proportions": proportions, "fit_config": fit_config_record(),
             "scores": {"silhouette_keypoint_shared_shape (new)": full_scores,
                        "keypoint_only_shared_shape (previous method)": kp_scores,
                        "hmr2_aggregate_shape": agg_scores,
@@ -1319,8 +1383,9 @@ def export_outputs(engine, run, root, frames, records, per_frame, view_info, sel
             "segmenter, combined by majority vote; source agreement gates each silhouette",
             "Shape prior: robust (outlier-rejecting, quality-weighted) median of per-frame HMR2 betas",
             "Stage A: per-view pose/global orientation/camera fitted to 2D keypoints with the shape frozen",
-            "Stage B: ONE shared beta vector + per-view pose/camera fitted to 2D keypoints AND silhouettes "
-            "(outside-distance + contour-coverage terms) with a Mahalanobis prior to the HMR2 shape",
+            "Stage B: ONE shared beta vector + per-view orientation/camera (and body pose unless locked) fitted to 2D "
+            "keypoints AND silhouettes: non-saturating 'stay inside the outline' term + robust contour coverage; "
+            "settings in fit_config",
             "Unreliable silhouettes (low fitted IoU) are excluded and the shape refitted",
             "Held-out validation: shapes from train views only, scored by silhouette IoU on unseen views",
             "Final mesh: shared betas in a standard measurement A-pose, identity orientation (upright, +z front)",
@@ -1353,9 +1418,12 @@ def export_outputs(engine, run, root, frames, records, per_frame, view_info, sel
             "median_keypoint_error_pct_height_previous_method": fit_out["kp_only_error_after_pct"],
             "held_out_validation": fit_out["heldout"],
             "camera_model": "shared pinhole with HMR2's assumed focal length (5000/224*max(W,H)); true intrinsics unknown",
-            "terms": ["Geman-McClure 2D keypoint reprojection", "pose prior to stage-A pose", "beta shrinkage",
-                      "Mahalanobis prior to robust HMR2 shape", "constant camera distance",
-                      "silhouette outside-distance (distance transform)", "silhouette contour coverage (chamfer)"],
+            "terms": ["Geman-McClure 2D keypoint reprojection", "pose prior to stage-A pose",
+                      "population shape prior (betas ~ N(0, I))", "optional Mahalanobis prior to robust HMR2 shape",
+                      "constant camera distance",
+                      "silhouette outside-distance (distance transform; Charbonnier, per contour sample)",
+                      "silhouette contour coverage (robust chamfer)"],
+            "fit_config": fit_out["fit_config"],
             "silhouette_term": "used" if usable else "not used (no reliable silhouettes)"},
         "silhouette_fitting": {
             "views_with_reliable_mask": len(usable),
@@ -1365,6 +1433,14 @@ def export_outputs(engine, run, root, frames, records, per_frame, view_info, sel
             "metric": "exact rasterised silhouette IoU and symmetric contour distance (% of subject box height) "
                       "on the optimisation views",
             "summary_by_method": sil_summary,
+            "proportion_check": fit_out["proportions"],
+            "metric_notes": [
+                "Fit IoU uses per-view orientation/camera (and pose) optimised on that very silhouette; held-out IoU "
+                "does not. A large gap means per-view parameters absorb error the shared shape does not explain.",
+                "protrusion_frac: share of the rendered body OUTSIDE the clothed outline - always an error.",
+                "uncovered_frac: share of the outline the body leaves empty - expected under loose clothing.",
+                "proportion_check: model/observed torso width per level; profile views measure body depth.",
+                "None of these is ground truth: absolute 3D accuracy needs tape or a 3D scan."],
             "note": "Silhouettes include clothing, hair and shoes; IoU measures agreement with the clothed outline."},
         "canonical_pose": {"method": "standard measurement A-pose (arms 45 deg below horizontal, legs abducted 5 deg); "
                                      "the observed poses are explained per view and do not change the shape",
@@ -1428,6 +1504,10 @@ def export_outputs(engine, run, root, frames, records, per_frame, view_info, sel
             "silhouette_views": len(usable),
             "silhouette_iou_fit": sil_summary.get("silhouette_keypoint_shared_shape (new)", {}).get("iou_mean"),
             "held_out_iou": new.get("iou_mean"), "held_out_iou_previous_method": old.get("iou_mean"),
+            "silhouette_protrusion_fit": sil_summary.get("silhouette_keypoint_shared_shape (new)", {}).get(
+                "protrusion_frac_mean"),
+            "held_out_protrusion": new.get("protrusion_frac_mean"),
+            "proportion_check": fit_out["proportions"],
             "held_out_views": len(fit_out["heldout"]["views_held_out"]),
             "keypoint_error_pct_height": fit_out["error_after_pct"],
             "measurements_valid": f"{measurements['valid_count']}/{measurements['total']}",

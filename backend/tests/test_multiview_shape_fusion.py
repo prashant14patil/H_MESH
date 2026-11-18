@@ -90,6 +90,60 @@ def test_silhouette_from_a_single_view_cannot_recover_depth():
     assert abs(result.betas[2] + 1.0) > 0.5           # depth is not: multiple views are required
 
 
+def _fit_ellipsoid(views, form):
+    torch.manual_seed(0)
+    cfg = smv.FitConfig(iterations=300, w_keypoints=0.0, w_beta_prior=0.0, w_beta_init=0.0, w_silhouette=1.0,
+                        w_pose_prior=50.0, w_depth=50.0, lr_beta=0.05, sil_outside_form=form)
+    return smv.fit_multiview(_Ellipsoid(), views, np.zeros(10), cfg, device="cpu")
+
+
+def test_inside_term_recovers_depth_at_least_as_well_as_legacy():
+    """Exact outlines: the corrected outside term must not lose the depth the profile views carry."""
+    true_beta = np.array([1.0, 0.0, -1.0] + [0.0] * 7)
+    _, views, _ = _ellipsoid_views(true_beta, np.linspace(0, 315, 8))
+    new, old = _fit_ellipsoid(views, "charbonnier"), _fit_ellipsoid(views, "legacy")
+    assert abs(new.betas[2] + 1.0) < 0.25 and abs(new.betas[0] - 1.0) < 0.25
+    assert abs(new.betas[2] + 1.0) <= abs(old.betas[2] + 1.0) + 0.02
+
+
+def test_inside_term_limits_inflation_under_loose_outline():
+    """Outline grown by a 'garment': the body must inflate less with the corrected (non-saturating) term."""
+    true_beta = np.array([1.0, 0.0, -1.0] + [0.0] * 7)
+    _, views, masks = _ellipsoid_views(true_beta, np.linspace(0, 315, 8))
+    kernel = np.ones((31, 31), np.uint8)
+    for i, m in enumerate(masks):
+        loose = cv2.dilate(m, kernel)
+        ys, xs = np.nonzero(loose)
+        views.contours[i], _, views.dist_maps[i] = sm.silhouette_target(loose, [xs.min(), ys.min(), xs.max(), ys.max()])
+    new, old = _fit_ellipsoid(views, "charbonnier"), _fit_ellipsoid(views, "legacy")
+    err = lambda b: abs(b[0] - 1.0) + abs(b[2] + 1.0)  # noqa: E731
+    assert err(new.betas) < err(old.betas)
+
+
+def test_silhouette_metrics_split_protrusion_and_uncovered():
+    obs = np.zeros((100, 100), np.uint8); obs[20:80, 20:80] = 1
+    pred = np.zeros_like(obs); pred[10:70, 20:80] = 1      # 10 rows above the outline, 10 rows short below
+    m = smv.silhouette_metrics(pred, obs, 60.0)
+    assert m["protrusion_frac"] == pytest.approx(10 / 60)
+    assert m["uncovered_frac"] == pytest.approx(10 / 60)
+
+
+def test_torso_width_ratios_measure_width_per_level():
+    obs = np.zeros((200, 200), np.uint8); obs[20:180, 60:140] = 1   # 80 px wide torso
+    pred = np.zeros_like(obs); pred[20:180, 70:130] = 1             # 60 px wide model
+    kp = np.zeros((17, 2)); kp[[5, 6]] = [[80, 40], [120, 40]]; kp[[11, 12]] = [[85, 150], [115, 150]]
+    r = smv.torso_width_ratios(pred, obs, kp)
+    assert all(v == pytest.approx(0.75) for v in r)
+
+
+def test_locked_body_pose_is_not_changed_by_the_fit():
+    true_beta = np.array([1.0, 0.0, 0.0] + [0.0] * 7)
+    _, views, _ = _ellipsoid_views(true_beta, [0, 90, 180, 270])
+    cfg = smv.FitConfig(iterations=20, w_keypoints=0.0, w_silhouette=1.0, fit_body_pose=False)
+    r = smv.fit_multiview(_Ellipsoid(), views, np.zeros(10), cfg, device="cpu")
+    assert np.allclose(r.body_pose, views.body_pose, atol=1e-5)
+
+
 def test_excluded_silhouette_views_do_not_influence_shape():
     true_beta = np.array([1.0, 0.0, 0.0] + [0.0] * 7)
     body, views, _ = _ellipsoid_views(true_beta, [0, 90, 180, 270])

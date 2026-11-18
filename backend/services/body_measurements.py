@@ -422,7 +422,9 @@ def aggregate_tape(records: list[dict]) -> dict:
     """
     latest = {}
     for r in records:
-        key = r.get("video_id") or r.get("run_id")
+        if r.get("excluded"):  # e.g. test entries typed in to try the form: never validation evidence
+            continue
+        key = r.get("source_key") or r.get("video_id") or r.get("run_id")
         if key not in latest or (r.get("recorded_at") or 0) > (latest[key].get("recorded_at") or 0):
             latest[key] = r
     subjects = list(latest.values())

@@ -19,7 +19,7 @@ import * as THREE from 'three'
 // ---------------------------------------------------------------------------
 // Inner mesh component (inside Canvas, has access to Three.js context)
 // ---------------------------------------------------------------------------
-function OBJMesh({ url, onLoad, onError }) {
+function OBJMesh({ url, upright, onLoad, onError }) {
   const obj = useLoader(OBJLoader, url)
 
   // Compute vertex/face counts and call onLoad once
@@ -59,7 +59,7 @@ function OBJMesh({ url, onLoad, onError }) {
       {/* Rotate 180° around X to correct up-axis mismatch (OBJ exported with
           Z-up / head-down orientation) so the mesh stands upright facing
           forward in Three.js's Y-up coordinate system. */}
-      <group rotation={[Math.PI, 0, 0]}>
+      <group rotation={upright ? [0, 0, 0] : [Math.PI, 0, 0]}>
         <primitive object={obj} />
       </group>
     </Center>
@@ -101,7 +101,9 @@ function LoadingMesh() {
 // ---------------------------------------------------------------------------
 // Public component
 // ---------------------------------------------------------------------------
-export default function MeshViewer({ meshUrl, onLoad, onError }) {
+// `upright`: the OBJ is already y-up (unified reconstruction output), so the
+// legacy 180-degree X flip for raw HMR2 camera-frame meshes must NOT be applied.
+export default function MeshViewer({ meshUrl, upright = false, onLoad, onError }) {
   const controlsRef = useRef(null)
 
   const handleReset = useCallback(() => {
@@ -133,7 +135,7 @@ export default function MeshViewer({ meshUrl, onLoad, onError }) {
         {/* Mesh */}
         <MeshErrorBoundary onError={onError}>
           <Suspense fallback={<LoadingMesh />}>
-            <OBJMesh url={meshUrl} onLoad={onLoad} onError={onError} />
+            <OBJMesh url={meshUrl} upright={upright} onLoad={onLoad} onError={onError} />
           </Suspense>
         </MeshErrorBoundary>
 

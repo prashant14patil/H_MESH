@@ -21,12 +21,14 @@ FIX (see _resolve_video_timing / _extract_frames below):
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
 import shutil
 import threading
 import time
+import uuid
 from collections import deque
 from pathlib import Path
 from typing import Any
@@ -142,13 +144,29 @@ class VideoCaptureEngine:
             duration_sec = frame_count / 30.0
         return duration_sec, frame_count
 
+    @staticmethod
+    def _open_oriented_capture(video_path: str):
+        """Use the FFmpeg decoder's display transform exactly once, before sampling."""
+        import cv2
+
+        cap = cv2.VideoCapture(str(video_path), cv2.CAP_FFMPEG)
+        if not cap.isOpened():
+            cap.release()
+            raise VideoProcessingError("OpenCV FFmpeg could not open video file '%s'." % video_path)
+        try:
+            rotation = cap.get(cv2.CAP_PROP_ORIENTATION_META)
+            if not cap.set(cv2.CAP_PROP_ORIENTATION_AUTO, 1) or cap.get(cv2.CAP_PROP_ORIENTATION_AUTO) != 1:
+                raise VideoProcessingError("FFmpeg decoder cannot enable display-matrix autorotation")
+            return cap, rotation
+        except Exception:
+            cap.release()
+            raise
+
     def _resolve_video_timing(self, video_path: str) -> dict:
         """Return trustworthy fps/duration/total_frames/resolution."""
         import cv2
 
-        cap = cv2.VideoCapture(str(video_path))
-        if not cap.isOpened():
-            raise VideoProcessingError("OpenCV could not open video file '%s'." % video_path)
+        cap, rotation = self._open_oriented_capture(video_path)
         try:
             reported_fps = cap.get(cv2.CAP_PROP_FPS) or 0.0
             reported_total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT) or 0)
@@ -192,6 +210,7 @@ class VideoCaptureEngine:
                 "timing_source": timing_source,
                 "reported_fps": round(float(reported_fps), 3),
                 "reported_total_frames": reported_total,
+                "orientation_meta_deg": rotation,
             }
         finally:
             cap.release()
@@ -255,14 +274,16 @@ class VideoCaptureEngine:
         else:
             candidate_times = [0.0]
 
-        frames_dir = self._frames_dir(video_id)
-        if frames_dir.exists():
-            shutil.rmtree(frames_dir)
-        frames_dir.mkdir(parents=True, exist_ok=True)
-
-        cap = cv2.VideoCapture(str(video_path))
-        if not cap.isOpened():
-            raise VideoProcessingError("OpenCV could not re-open video file for extraction.")
+        video_dir = self._video_dir(video_id)
+        video_dir.mkdir(parents=True, exist_ok=True)
+        stage_dir = video_dir / (".extraction-" + str(uuid.uuid4()))
+        frames_dir = stage_dir / "extracted_frames"
+        frames_dir.mkdir(parents=True)
+        try:
+            cap, rotation = self._open_oriented_capture(video_path)
+        except Exception:
+            shutil.rmtree(stage_dir, ignore_errors=True)
+            raise
 
         accepted: list[dict] = []
         rejected: list[dict] = []
@@ -324,10 +345,15 @@ class VideoCaptureEngine:
                 # unreadable frames are dropped from the result set.
                 accepted_idx += 1
                 fname = "frame_%03d.jpg" % accepted_idx
-                cv2.imwrite(str(frames_dir / fname), frame_bgr, [cv2.IMWRITE_JPEG_QUALITY, 92])
+                if not cv2.imwrite(str(frames_dir / fname), frame_bgr, [cv2.IMWRITE_JPEG_QUALITY, 92]):
+                    raise VideoProcessingError(f"Could not write extracted frame {fname}")
+                digest = hashlib.sha256((frames_dir / fname).read_bytes()).hexdigest()
 
                 accepted.append({
                     "filename": fname,
+                    "source_sha256": digest,
+                    "width": int(frame_bgr.shape[1]),
+                    "height": int(frame_bgr.shape[0]),
                     "timestamp_sec": ts,
                     "blur_score": round(blur_score, 2),
                     "is_blurry": is_blurry,
@@ -347,6 +373,8 @@ class VideoCaptureEngine:
                     "timing_source": timing["timing_source"],
                     "reported_fps": timing["reported_fps"],
                     "reported_total_frames": timing["reported_total_frames"],
+                    "orientation_meta_deg": rotation,
+                    "orientation_applied": "ffmpeg_decoder_auto",
                 },
                 "target_frame_count": target_count,
                 "max_extracted_frames": max_frames,
@@ -358,9 +386,41 @@ class VideoCaptureEngine:
                 "processing_time_sec": round(time.time() - started, 3),
             }
 
-            meta_path = self._video_dir(video_id) / "metadata.json"
-            with open(meta_path, "w", encoding="utf-8") as fh:
-                json.dump(metadata, fh, indent=2)
+            if not accepted:
+                raise VideoProcessingError("No frames were extracted")
+            stage_meta = stage_dir / "metadata.json"
+            with open(stage_meta, "w", encoding="utf-8") as fh:
+                json.dump(metadata, fh, indent=2, allow_nan=False)
+
+            # Preserve previous data and roll back if promotion fails.
+            final_frames = self._frames_dir(video_id)
+            meta_path = video_dir / "metadata.json"
+            archive = video_dir / ("extraction-archive-" + str(uuid.uuid4()))
+            archive.mkdir()
+            had_frames = final_frames.exists()
+            had_meta = meta_path.exists()
+            moved_frames = moved_meta = promoted_frames = promoted_meta = False
+            try:
+                if had_frames:
+                    os.replace(final_frames, archive / "extracted_frames")
+                    moved_frames = True
+                if had_meta:
+                    os.replace(meta_path, archive / "metadata.json")
+                    moved_meta = True
+                os.replace(frames_dir, final_frames)
+                promoted_frames = True
+                os.replace(stage_meta, meta_path)
+                promoted_meta = True
+            except Exception:
+                if promoted_meta:
+                    meta_path.unlink(missing_ok=True)
+                if promoted_frames:
+                    shutil.rmtree(final_frames)
+                if moved_frames:
+                    os.replace(archive / "extracted_frames", final_frames)
+                if moved_meta:
+                    os.replace(archive / "metadata.json", meta_path)
+                raise
 
             logger.info(
                 "Extracted %d frames (%d rejected, timing_source=%s) for video %s in %.2fs",
@@ -375,6 +435,7 @@ class VideoCaptureEngine:
             }
         finally:
             cap.release()
+            shutil.rmtree(stage_dir, ignore_errors=True)
 
 
 _capture_engine: VideoCaptureEngine | None = None

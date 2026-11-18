@@ -197,7 +197,31 @@ class PoseProcessingEngine:
         if not summary_path.is_file():
             return None
         with open(summary_path, "r", encoding="utf-8") as fh:
-            return json.load(fh)
+            summary = json.load(fh)
+        metadata_path = self._video_dir(video_id) / "metadata.json"
+        if metadata_path.is_file():
+            with open(metadata_path, "r", encoding="utf-8") as fh:
+                extraction = json.load(fh)
+            extracted = extraction.get("frames", [])
+            # New extractions carry hashes; do not serve pose from older pixels.
+            if any(frame.get("source_sha256") for frame in extracted):
+                poses = {frame.get("frame"): frame for frame in summary.get("frames", [])}
+                if len(poses) != len(extracted):
+                    return None
+                for frame in extracted:
+                    name = frame.get("filename", "")
+                    if Path(name).name != name:
+                        return None
+                    expected = frame.get("source_sha256")
+                    pose = poses.get(Path(name).stem, {})
+                    path = self._frames_dir(video_id) / name
+                    try:
+                        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+                    except OSError:
+                        return None
+                    if not expected or expected != actual or pose.get("source_sha256") != actual:
+                        return None
+        return summary
 
     def get_frame_result_path(self, video_id: str, frame_name: str, asset: str):
         """
@@ -207,6 +231,8 @@ class PoseProcessingEngine:
         """
         safe_frame = Path(frame_name).name
         safe_asset = Path(asset).name
+        if self.get_summary(video_id) is None:
+            return None
         path = self._pose_dir(video_id) / safe_frame / safe_asset
         if path.is_file():
             return path

@@ -4,6 +4,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, StrictBool
 
 from backend.services.video_mesh_batch import check_readiness, get_asset, get_run, start_batch
+from backend.services.experimental_video_mesh import start_experimental
 
 router = APIRouter()
 
@@ -26,6 +27,34 @@ class BatchRequest(BaseModel):
 
 class ConfirmedBatchRequest(BatchRequest):
     final_confirmation: StrictBool = False
+
+
+class UnknownInspection(BaseModel):
+    filename: str
+    source_sha256: str
+    inspected: StrictBool
+    warning_acknowledged: StrictBool
+
+
+class ExperimentalBatchRequest(BaseModel):
+    video_id: str
+    quality_run_id: str
+    unknown_inspections: list[UnknownInspection] = Field(default_factory=list)
+    experimental_risk_acknowledged: StrictBool = False
+    final_confirmation: StrictBool = False
+
+
+@router.post("/experimental/runs", status_code=status.HTTP_202_ACCEPTED)
+def create_experimental_run(request: ExperimentalBatchRequest):
+    if request.final_confirmation is not True or request.experimental_risk_acknowledged is not True:
+        raise HTTPException(status_code=400, detail="Explicit experimental risk acknowledgement and final confirmation are required")
+    try:
+        return start_experimental(request.video_id, request.quality_run_id,
+                                  [item.dict() for item in request.unknown_inspections])
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @router.post("/readiness")

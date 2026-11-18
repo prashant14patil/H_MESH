@@ -22,11 +22,12 @@ import { getFrameImageUrl } from '../services/captureApi.js'
 import { getPoseFrameAssetUrl } from '../services/poseApi.js'
 
 const VIEWPOINT_LABELS = {
-  front: 'Front',
-  back: 'Back',
-  left_side: 'Left side',
-  right_side: 'Right side',
-  intermediate: 'Intermediate',
+  front: 'Front hint',
+  back: 'Back hint',
+  left_side: 'Left side hint',
+  right_side: 'Right side hint',
+  side_ambiguous: 'Profile hint (side unknown)',
+  intermediate: 'Intermediate hint',
   front_or_back: 'Front or back (ambiguous)',
   unknown: 'Unknown',
 }
@@ -36,6 +37,7 @@ const VIEWPOINT_COLORS = {
   back: 'bg-indigo-500',
   left_side: 'bg-sky-500',
   right_side: 'bg-purple-500',
+  side_ambiguous: 'bg-amber-500',
   intermediate: 'bg-teal-500',
   front_or_back: 'bg-amber-500',
   unknown: 'bg-gray-400',
@@ -114,7 +116,7 @@ export default function FrameGallery({ videoId, metadata, viewpointData, poseRes
         </div>
       )}
 
-      {coverage && <CoverageSummary coverage={coverage} notes={coverage.notes} />}
+      {coverage && <><p className="text-xs text-amber-700">Viewpoint labels and coverage are unvalidated hints, not confirmed orientations or a complete scan.</p><CoverageSummary coverage={coverage} notes={coverage.notes} /></>}
 
       {/* Gallery grid */}
       <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
@@ -200,13 +202,12 @@ function CoverageSummary({ coverage, notes }) {
               clipRule="evenodd" />
           </svg>
           <div>
-            <strong className="font-semibold">Insufficient viewpoint coverage.</strong>{' '}
-            This video does not appear to contain enough of a full 360° rotation
+            <strong className="font-semibold">Viewpoint coverage is unconfirmed.</strong>{' '}
+            The heuristic did not identify all directional hints
             {missing_buckets.length > 0 && (
               <> (no frames classified as: {missing_buckets.map((b) => VIEWPOINT_LABELS[b] || b).join(', ')})</>
             )}
-            . Multi-view 3D reconstruction quality may be degraded — consider
-            re-capturing with a slower, more complete rotation.
+            . This does not prove those viewpoints are absent. Inspect the recording manually.
           </div>
         </div>
       )}
@@ -248,7 +249,7 @@ function FrameThumb({ videoId, frame, viewpoint, onClick }) {
       {/* Viewpoint badge */}
       {vpLabel && (
         <span
-          title={`Confidence: ${viewpoint.confidence}`}
+          title={`Unvalidated heuristic score: ${viewpoint.confidence}; not a probability`}
           className={`absolute top-1 left-1 px-1.5 py-0.5 rounded-full text-[9px] font-semibold text-white ${vpColor}`}
         >
           {vpLabel}
@@ -258,7 +259,7 @@ function FrameThumb({ videoId, frame, viewpoint, onClick }) {
       {/* Timestamp + confidence overlay, shown on hover */}
       <div className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[10px] px-1.5 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex justify-between">
         <span>{frame.timestamp_sec?.toFixed(2)}s</span>
-        {viewpoint && <span>conf {viewpoint.confidence}</span>}
+        {viewpoint && <span>heuristic {viewpoint.confidence}</span>}
       </div>
     </button>
   )
@@ -313,7 +314,7 @@ function FrameDetail({ videoId, selection, onClose }) {
           label="Viewpoint"
           value={viewpoint ? (VIEWPOINT_LABELS[viewpoint.viewpoint] || viewpoint.viewpoint) : '—'}
         />
-        <InfoChip label="Confidence" value={viewpoint ? viewpoint.confidence : '—'} />
+        <InfoChip label="Unvalidated score" value={viewpoint ? viewpoint.confidence : '—'} />
       </div>
 
       {viewpoint?.reason && (

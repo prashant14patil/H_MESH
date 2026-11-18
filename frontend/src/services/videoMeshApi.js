@@ -30,6 +30,18 @@ export function startMeshBatch(videoId, frames, qualityRunId, reviewedFrames, re
   })
 }
 
+export function startExperimentalMeshBatch(videoId, qualityRunId, unknownInspections) {
+  return request('/api/video-mesh/experimental/runs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      video_id: videoId, quality_run_id: qualityRunId,
+      unknown_inspections: unknownInspections,
+      experimental_risk_acknowledged: true, final_confirmation: true,
+    }),
+  })
+}
+
 export function getMeshBatch(runId) {
   return request(`/api/video-mesh/runs/${encodeURIComponent(runId)}`, {
     signal: AbortSignal.timeout(15000),

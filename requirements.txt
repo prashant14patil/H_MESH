@@ -68,3 +68,9 @@ mediapipe==0.10.14
 # --- Legacy Streamlit frontend (optional – only needed if running frontend/app.py) ---
 # streamlit==1.35.0
 # plotly==5.22.0
+
+# --- Unified 360 reconstruction (backend/services/body_reconstruction.py) ---
+# trimesh + rtree: topology / self-intersection validation of the final mesh.
+# torchvision Keypoint R-CNN weights (person detector) download on first use.
+trimesh
+rtree

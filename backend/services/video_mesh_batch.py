@@ -29,6 +29,7 @@ _RUN_ROOT = Path(os.getenv("VIDEO_MESH_OUTPUT_DIR", "outputs/video_mesh_ui"))
 _FRAME = re.compile(r"frame_\d+\.(?:jpg|jpeg|png)", re.IGNORECASE)
 _MAX_FRAMES = 12
 _TIMEOUT = float(os.getenv("VIDEO_MESH_FRAME_TIMEOUT_SEC", "300"))
+_EXPERIMENTAL_OUTPUT_ROOT = Path(os.getenv("EXPERIMENTAL_VIDEO_MESH_OUTPUT_DIR", "outputs/video_meshes"))
 _LOCK = threading.RLock()
 _BATCH_LOCK = threading.Lock()
 _ACTIVE = {}
@@ -377,6 +378,18 @@ def _worker(run_id, engine):
                 target = root / "meshes" / (Path(frame["filename"]).stem + ".obj")
                 with target.open("xb") as dest, Path(result["mesh_path"]).open("rb") as src:
                     shutil.copyfileobj(src, dest)
+                if run.get("mode") == "experimental_whole_frame":
+                    output = _EXPERIMENTAL_OUTPUT_ROOT / run["video_id"]
+                    output.mkdir(parents=True, exist_ok=True)
+                    exported = output / (Path(frame["filename"]).stem + "-" + run_id + ".obj")
+                    dest = exported.open("xb")
+                    try:
+                        with dest, target.open("rb") as src:
+                            shutil.copyfileobj(src, dest)
+                    except Exception:
+                        exported.unlink(missing_ok=True)
+                        raise
+                    frame["export_path"] = str(exported)
                 with _LOCK:
                     frame.update(status="completed", metadata=result.get("metadata", {}),
                                  mesh_url=f"/api/video-mesh/runs/{run_id}/mesh/{frame['filename']}")
@@ -409,6 +422,34 @@ def get_run(run_id):
         run["status"] = "interrupted"
         run["detail"] = "The server stopped before this batch finished."
     return run
+
+
+def list_runs(video_id, review_session_id=None):
+    """Summaries of persisted reviewed-crop runs for a recording (optionally one review session), newest first."""
+    if not valid_uuid(video_id) or (review_session_id is not None and not valid_uuid(review_session_id)):
+        raise ValueError("Invalid recording or review session ID")
+    runs = []
+    if _RUN_ROOT.is_dir():
+        for path in _RUN_ROOT.glob("*/status.json"):
+            if not valid_uuid(path.parent.name):
+                continue
+            try:
+                stored = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if stored.get("video_id") != video_id or stored.get("mode") == "experimental_whole_frame":
+                continue
+            if review_session_id is not None and stored.get("review_session_id") != review_session_id:
+                continue
+            run = get_run(path.parent.name) or stored
+            frames = run.get("frames", [])
+            runs.append({"run_id": run["run_id"], "status": run.get("status"), "created_at": run.get("created_at"),
+                         "review_session_id": run.get("review_session_id"),
+                         "frames": [f.get("filename") for f in frames],
+                         "completed": sum(f.get("status") == "completed" for f in frames),
+                         "failed": sum(f.get("status") == "failed" for f in frames)})
+    runs.sort(key=lambda item: item.get("created_at") or 0, reverse=True)
+    return runs
 
 
 def get_asset(run_id, filename, kind):

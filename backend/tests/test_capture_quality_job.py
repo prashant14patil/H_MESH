@@ -76,7 +76,7 @@ class JobTests(unittest.TestCase):
             with patch.object(jobs, "ROOT", root / "reports"), \
                  patch.object(jobs, "get_capture_engine", return_value=Capture(root)), \
                  patch.object(jobs, "get_pose_engine", return_value=Pose(root)), \
-                 patch.object(jobs, "_hog_observations", return_value={"frame_001.jpg": detections}):
+                 patch.object(jobs, "_keypoint_rcnn_observations", return_value={"frame_001.jpg": detections}):
                 initial = jobs.start_quality(str(uuid.uuid4()))
                 end = time.monotonic() + 5
                 while time.monotonic() < end:

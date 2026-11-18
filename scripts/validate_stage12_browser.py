@@ -20,11 +20,16 @@ quality_frames = [{
     "checks": {"readability": "pass", "person_presence": "pass", "sharpness": "pass",
                "lighting": "pass", "full_body": "pass"},
     "viewpoint": {"label": "unknown"}, "extractor_quality": {"is_blurry": False},
+    "landmark_bbox_normalized": [.2, .2, .7, .8],
     "detector_evidence": BOXES,
     "detector_nms": {"raw_count": 2, "filtered_count": 1, "retained_indices": [0],
                      "suppressed": [{"index": 1, "retained_index": 0, "iou": .82}],
                      "invalid_indices": []},
 } for i, name in enumerate(NAMES)]
+quality_frames[1]["person_count_observed"] = 0
+quality_frames[1]["detector_evidence"] = []
+quality_frames[1]["detector_nms"] = {"raw_count": 0, "filtered_count": 0,
+                                     "retained_indices": [], "suppressed": [], "invalid_indices": []}
 REPORT = {
     "run_id": RUN, "video_id": VIDEO, "frames": quality_frames,
     "summary": {"extracted_frames": 3, "extractor_non_blurry": 3, "extractor_blurry": 0,
@@ -90,13 +95,13 @@ def main():
                         "decisions": saved_decisions, "unavailable_frames": []}
             elif "/suggestions/" in path:
                 name = path.rsplit("/", 1)[-1]
+                candidates = [] if name == NAMES[1] else [{"box": BOXES[0]["box"], "overlap": .8, "center_distance": .1}]
                 data = {"filename": name, "identity_status": "identity_ambiguous",
-                        "suggestion": {"status": "ambiguous", "anchor_frame": NAMES[0],
-                                       "candidates": [{"box": BOXES[0]["box"], "overlap": .8, "center_distance": .1}]}}
+                        "suggestion": {"status": "ambiguous", "anchor_frame": NAMES[0], "candidates": candidates}}
             elif path.endswith("/decisions") and request.method == "POST":
                 payload = request.post_data_json
                 index = NAMES.index(payload["filename"])
-                data = {"session_id": SESSION, "quality_run_id": RUN, "frame_id": payload["filename"],
+                data = {"session_id": SESSION, "recording_id": VIDEO, "quality_run_id": RUN, "frame_id": payload["filename"],
                         "frame_sha256": "hash" + str(index), "reviewer_decision": payload["decision"],
                         "identity_status": "rejected" if payload["decision"] == "reject" else "human_confirmed_not_biometric",
                         "selected_subject_box": payload["bbox"]}
@@ -185,6 +190,24 @@ def main():
             cards.nth(1).get_by_role("button", name="Review this frame and detection boxes").click()
             assert panel.locator("select").input_value() == NAMES[1]
             assert panel.locator("p").filter(has_text="Subject association: WARNING").count() == 1
+            assert panel.get_by_text("HOG-returned candidates: 0", exact=False).count() == 1
+            image = panel.locator("img")
+            image.scroll_into_view_if_needed()
+            rect = image.bounding_box()
+            page.mouse.move(rect["x"] + rect["width"] * .1, rect["y"] + rect["height"] * .1)
+            page.mouse.down()
+            page.mouse.move(rect["x"] + rect["width"] * .8, rect["y"] + rect["height"] * .9, steps=5)
+            page.mouse.up()
+            panel.get_by_label("Left", exact=True).fill("0.05")
+            assert panel.get_by_role("button", name="Confirm subject").is_enabled()
+            panel.get_by_role("button", name="Confirm subject").click()
+            panel.locator("p").filter(has_text="Subject association: PASS").wait_for()
+            panel.get_by_role("button", name="Next frame").click()
+            assert panel.locator("select").input_value() == NAMES[2]
+            assert cards.nth(0).locator('input[type="checkbox"]').first.is_checked()
+            panel.get_by_role("button", name="Previous frame").click()
+            assert panel.locator("select").input_value() == NAMES[1]
+            assert cards.nth(0).locator('input[type="checkbox"]').first.is_checked()
             panel.get_by_role("button", name="Reject frame").click()
             panel.locator("p").filter(has_text="Subject association: FAIL").wait_for()
             assert cards.nth(1).locator('input[type="checkbox"]').first.is_disabled()

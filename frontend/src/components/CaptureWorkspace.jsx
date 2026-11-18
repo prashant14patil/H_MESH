@@ -31,6 +31,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import VideoCapture from './VideoCapture.jsx'
 import FrameGallery from './FrameGallery.jsx'
 import VideoMeshPanel from './VideoMeshPanel.jsx'
+import UnifiedReconstructionPanel from './UnifiedReconstructionPanel.jsx'
 import CaptureQualityPanel from './CaptureQualityPanel.jsx'
 import SubjectReviewPanel from './SubjectReviewPanel.jsx'
 import {
@@ -45,9 +46,11 @@ import {
   getViewpointCoverage,
   getPoseResults,
 } from '../services/poseApi.js'
+import { latestQualityReport } from '../services/subjectReviewApi.js'
 
 const POLL_INTERVAL_MS = 2000
 const MAX_POLL_ATTEMPTS = 60 // ~2 min before giving up per stage
+const LAST_CAPTURE_KEY = 'tanita.lastCapture.v1'
 
 export default function CaptureWorkspace() {
   const [videoFile, setVideoFile] = useState(null)
@@ -64,6 +67,8 @@ export default function CaptureWorkspace() {
   const [reviewSession, setReviewSession] = useState(null)
   const [reviewDecisions, setReviewDecisions] = useState({})
   const [reviewFrame, setReviewFrame] = useState(null)
+  const [reviewSelection, setReviewSelection] = useState(null)
+  const [meshRuns, setMeshRuns] = useState([])
   const [savedVideoId, setSavedVideoId] = useState('')
   const [savedRunId, setSavedRunId] = useState('')
   const [restoring, setRestoring] = useState(false)
@@ -76,6 +81,15 @@ export default function CaptureWorkspace() {
   const pollTimerRef = useRef(null)
   const pollAttemptRef = useRef(0)
   const videoIdRef = useRef(null)
+
+  const clearReview = useCallback(() => {
+    setReviewSession(null); setReviewDecisions({}); setReviewFrame(null); setReviewSelection(null); setMeshRuns([])
+  }, [])
+
+  const handleSession = useCallback((session, decisions = {}, selection = null, runs = []) => {
+    setReviewSession(session); setReviewDecisions(decisions || {})
+    setReviewSelection(session ? selection : null); setMeshRuns(session ? runs || [] : [])
+  }, [])
 
   const stopPolling = useCallback(() => {
     if (pollTimerRef.current) {
@@ -194,16 +208,39 @@ export default function CaptureWorkspace() {
 
   useEffect(() => () => stopPolling(), [stopPolling])
 
-  async function reopenSaved(event) {
+  // Remember the open recording + quality report (a per-browser convenience; review state itself is server-side).
+  useEffect(() => {
+    if (!videoId || !qualityReport?.run_id || qualityReport.video_id !== videoId) return
+    try { localStorage.setItem(LAST_CAPTURE_KEY, JSON.stringify({ videoId, runId: qualityReport.run_id })) } catch { /* storage unavailable */ }
+  }, [videoId, qualityReport?.run_id])
+
+  // After a reload, reopen the last capture using its existing server-side authorization (no new attestation).
+  useEffect(() => {
+    let stored = null
+    try { stored = JSON.parse(localStorage.getItem(LAST_CAPTURE_KEY) || 'null') } catch { stored = null }
+    if (!stored?.videoId || !stored?.runId) return
+    setSavedVideoId(stored.videoId); setSavedRunId(stored.runId)
+    reopen(stored.videoId, stored.runId, true, true)
+  }, [])
+
+  function reopenSaved(event, useExistingAuthorization = false) {
     event.preventDefault()
+    return reopen(savedVideoId.trim(), savedRunId.trim(), useExistingAuthorization, false)
+  }
+
+  async function reopen(id, requestedRunId, useExistingAuthorization, automatic) {
     setRestoring(true)
     setError(null)
     try {
-      const id = savedVideoId.trim()
-      const runId = savedRunId.trim()
       const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-      if (!uuid.test(id) || !uuid.test(runId)) throw new Error('Enter valid recording and report IDs')
-      if (!savedAuthorized || !savedConsent) throw new Error('Confirm authorization and consent before opening this recording')
+      if (!uuid.test(id)) throw new Error('Enter a valid recording ID')
+      let runId = requestedRunId
+      if (!runId) {
+        runId = (await latestQualityReport(id)).run_id
+        setSavedRunId(runId)
+      }
+      if (!uuid.test(runId)) throw new Error('Enter a valid quality report ID or leave it blank to use the latest')
+      if (!useExistingAuthorization && (!savedAuthorized || !savedConsent)) throw new Error('Confirm authorization and consent before opening this recording')
       const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
       const [metadata, response] = await Promise.all([
         getFrameMetadata(id),
@@ -215,7 +252,7 @@ export default function CaptureWorkspace() {
           report.video_id !== id || report.run_id !== runId || !Array.isArray(report.frames)) {
         throw new Error('Capture and completed quality report do not match')
       }
-      const confirmation = await fetch(`${base}/api/capture/${encodeURIComponent(id)}/authorization`, {
+      const confirmation = await fetch(`${base}/api/capture/${encodeURIComponent(id)}/authorization`, useExistingAuthorization ? undefined : {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ authorized: savedAuthorized, consent: savedConsent }),
       })
@@ -223,14 +260,28 @@ export default function CaptureWorkspace() {
         const detail = await confirmation.json().catch(() => ({}))
         throw new Error(detail.detail || `Authorization unavailable (HTTP ${confirmation.status})`)
       }
+      const [poseResult, viewpointResult] = await Promise.allSettled([getPoseResults(id), getViewpointCoverage(id)])
+      const poses = poseResult.status === 'fulfilled' ? poseResult.value : null
+      const poseByFrame = new Map((poses?.frames || []).map(frame => [frame.frame, frame]))
+      const poseMatches = poses?.status === 'completed' && report.frames.every(frame => {
+        const pose = poseByFrame.get(frame.filename.replace(/\.[^.]+$/, ''))
+        return frame.source_sha256 && pose?.source_sha256 === frame.source_sha256
+      })
+      const coverage = poseMatches && viewpointResult.status === 'fulfilled' ? viewpointResult.value : null
       stopPolling()
-      setReviewSession(null); setReviewDecisions({}); setReviewFrame(null)
+      clearReview()
       setRestoreVersion(version => version + 1)
       setVideoId(id); setFrameMetadata(metadata); setQualityReport(report)
-      setPoseResults(null); setViewpointData(null); setViewpointError(null)
+      setPoseResults(poseMatches ? poses : null); setViewpointData(coverage)
+      setViewpointError(coverage ? null : 'Saved viewpoint hints are unavailable or stale; re-run pose processing before relying on them.')
       setPhase('completed')
     } catch (err) {
-      setError(`Could not reopen capture: ${err.message}`)
+      if (automatic) {
+        try { localStorage.removeItem(LAST_CAPTURE_KEY) } catch { /* storage unavailable */ }
+        setError(`Could not automatically reopen the last capture (${err.message}). Reopen it below.`)
+      } else {
+        setError(`Could not reopen capture: ${err.message}`)
+      }
     } finally {
       setRestoring(false)
     }
@@ -245,7 +296,7 @@ export default function CaptureWorkspace() {
     setViewpointData(null)
     setPoseResults(null)
     setQualityReport(null)
-    setReviewSession(null); setReviewDecisions({}); setReviewFrame(null)
+    clearReview()
     setAttempt(0)
     setVideoId(null)
     setPhase('uploading')
@@ -278,8 +329,9 @@ export default function CaptureWorkspace() {
     setViewpointError(null)
     setPoseResults(null)
     setQualityReport(null)
-    setReviewSession(null); setReviewDecisions({}); setReviewFrame(null)
-  }, [stopPolling])
+    clearReview()
+    try { localStorage.removeItem(LAST_CAPTURE_KEY) } catch { /* storage unavailable */ }
+  }, [stopPolling, clearReview])
 
   const isProcessing = ['uploading', 'uploaded', 'extracting', 'pose_processing'].includes(phase)
   const hasResult = phase === 'completed' && frameMetadata
@@ -324,12 +376,12 @@ export default function CaptureWorkspace() {
 
         <form onSubmit={reopenSaved} className="bg-white rounded-xl border p-4 space-y-2">
           <h3 className="font-semibold text-sm">Reopen saved capture</h3>
-          <p className="text-xs text-gray-600">Enter the existing recording and quality-report IDs. This does not approve frames.</p>
+          <p className="text-xs text-gray-600">Enter the recording ID. Leave the quality report ID blank to use the latest completed report. The last opened capture reopens automatically after a page reload. This does not approve frames.</p>
           <label className="block text-xs">Recording ID
             <input required disabled={restoring || isProcessing} value={savedVideoId} onChange={e => { setSavedVideoId(e.target.value); setSavedAuthorized(false); setSavedConsent(false) }} className="block w-full border rounded p-1" />
           </label>
-          <label className="block text-xs">Quality report ID
-            <input required disabled={restoring || isProcessing} value={savedRunId} onChange={e => setSavedRunId(e.target.value)} className="block w-full border rounded p-1" />
+          <label className="block text-xs">Quality report ID (optional)
+            <input disabled={restoring || isProcessing} value={savedRunId} placeholder="latest completed report" onChange={e => setSavedRunId(e.target.value)} className="block w-full border rounded p-1" />
           </label>
           <p className="text-xs">Operator assertion only; the application cannot verify consent or identity. Confirm for this specific recording.</p>
           <label className="flex gap-2 text-xs"><input type="checkbox" checked={savedAuthorized} onChange={e => setSavedAuthorized(e.target.checked)} disabled={restoring || isProcessing} /> I am authorized to process this recording and generate meshes.</label>
@@ -337,6 +389,10 @@ export default function CaptureWorkspace() {
           <button disabled={restoring || isProcessing || !savedAuthorized || !savedConsent} className="border rounded px-3 py-2 text-sm disabled:text-gray-400">
             {restoring ? 'Opening…' : 'Open saved capture'}
           </button>
+          <button type="button" onClick={e => reopenSaved(e, true)} disabled={restoring || isProcessing || !savedVideoId.trim()} className="border rounded px-3 py-2 text-sm disabled:text-gray-400">
+            Open using existing authorization
+          </button>
+          <p className="text-xs text-gray-600">The server verifies the existing recording-bound authorization and consent without creating a new attestation.</p>
         </form>
 
         {/* Status */}
@@ -399,12 +455,19 @@ export default function CaptureWorkspace() {
             )}
           </div>
         </div>
+        {hasResult && <UnifiedReconstructionPanel key={`unified-${videoId}`} videoId={videoId} />}
+        {hasResult && (
+          <details className="bg-white rounded-2xl border border-gray-200 shadow-sm" open={reviewSession ? true : undefined}>
+            <summary className="px-5 py-3 cursor-pointer text-sm font-medium text-gray-600">
+              Advanced: legacy frame-by-frame quality review and single-frame meshes (diagnostic only)
+            </summary>
+            <div className="p-3 space-y-3">
         {hasResult && <CaptureQualityPanel key={`quality-${videoId}`} videoId={videoId} onReport={setQualityReport} restoredReport={qualityReport}
           reviewSession={reviewSession?.quality_run_id === qualityReport?.run_id ? reviewSession : null} reviewDecisions={reviewDecisions} />}
         {hasResult && qualityReport && (
           <SubjectReviewPanel key={`${qualityReport.run_id}-${restoreVersion}`} videoId={videoId} report={qualityReport}
             requestedFrame={reviewFrame} decisions={reviewDecisions}
-            onSession={(session, restoredDecisions = {}) => { setReviewSession(session); setReviewDecisions(restoredDecisions) }}
+            onSession={handleSession}
             onDecision={decision => setReviewDecisions(old => ({ ...old, [decision.frame_id]: decision }))} />
         )}
         {hasResult && (
@@ -417,11 +480,16 @@ export default function CaptureWorkspace() {
             qualityReport={qualityReport}
             reviewSession={reviewSession?.quality_run_id === qualityReport?.run_id ? reviewSession : null}
             reviewDecisions={reviewDecisions}
+            restoredSelection={reviewSelection}
+            meshRuns={meshRuns}
             onReviewFrame={name => {
               setReviewFrame({ name })
               document.getElementById('subject-review')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
             }}
           />
+        )}
+            </div>
+          </details>
         )}
       </div>
     </div>

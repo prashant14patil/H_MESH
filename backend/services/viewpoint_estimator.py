@@ -16,9 +16,8 @@ pose_processor.py's PoseLandmarker gives us 2D (x, y, normalized) plus
 a relative z (depth) and a visibility score for each of the 33
 BlazePose landmarks, per frame. From the shoulder/hip landmarks alone:
 
-  - Shoulder horizontal separation reliably distinguishes a
-    "side" profile (near-zero separation) from a "front_or_back" pose
-    (wide separation). This is a solid signal.
+  - Small shoulder separation can suggest a side profile, but depends on
+    framing, pose, occlusion and landmark accuracy; it is not validated.
 
   - Front vs. back CANNOT be reliably distinguished from 2D (x, y)
     landmark positions alone, because a person facing the camera and
@@ -49,6 +48,7 @@ Public surface:
 from __future__ import annotations
 
 import logging
+import math
 from typing import Any
 
 from backend.services.pose_processor import get_pose_engine
@@ -68,13 +68,51 @@ _SIDE_SHOULDER_WIDTH_THRESHOLD = 0.08
 _DEPTH_NUDGE_THRESHOLD = 0.03
 
 
+# Left/right cues for profile frames (any one suffices if none conflict).
+_SIDE_VISIBILITY_GAP = 0.05
+# left_shoulder.z - right_shoulder.z; profile frames typically show ~0.5+.
+_SIDE_DEPTH_GAP = 0.15
+# Nose x offset from shoulder midpoint (normalized image width).
+_SIDE_NOSE_OFFSET = 0.03
+
+# Intermediate: shoulder width / torso height below this (a frontal pose
+# is ~1.1-1.3) together with a clear shoulder depth asymmetry.
+_INTERMEDIATE_WIDTH_RATIO = 0.85
+_INTERMEDIATE_DEPTH_GAP = 0.2
+
+
+def _finite(value) -> bool:
+    return not isinstance(value, bool) and isinstance(value, (int, float)) and math.isfinite(value)
+
+
+def _shoulder_depth_gap(left_shoulder: dict[str, Any], right_shoulder: dict[str, Any]):
+    """left z - right z (negative => left shoulder nearer the camera)."""
+    lz, rz = left_shoulder.get("z"), right_shoulder.get("z")
+    if not (_finite(lz) and _finite(rz)):
+        return None
+    return lz - rz
+
+
+def _torso_height(landmarks: dict[str, Any]):
+    """Vertical shoulder-mid to hip-mid distance, or None if unavailable."""
+    points = [landmarks.get(n) for n in ("left_shoulder", "right_shoulder", "left_hip", "right_hip")]
+    if not all(isinstance(p, dict) and p.get("visible") and _finite(p.get("y")) for p in points):
+        return None
+    ls, rs, lh, rh = points
+    height = abs((lh["y"] + rh["y"]) / 2.0 - (ls["y"] + rs["y"]) / 2.0)
+    return height if height > 0.02 else None
+
+
 class ViewpointEstimationError(RuntimeError):
     """Raised when viewpoint estimation cannot run (e.g. no pose data yet)."""
 
 
 def _landmark(landmarks: dict[str, Any], name: str):
     data = landmarks.get(name)
-    if not data or not data.get("visible"):
+    if not isinstance(data, dict) or not data.get("visible"):
+        return None
+    x = data.get("x")
+    if isinstance(x, bool) or not isinstance(x, (int, float)) or not math.isfinite(x) or not 0 <= x <= 1:
         return None
     return data
 
@@ -93,7 +131,9 @@ def _classify_frame(frame_result: dict[str, Any]) -> dict[str, Any]:
             "signals": {},
         }
 
-    landmarks = frame_result.get("landmarks", {})
+    landmarks = frame_result.get("landmarks") or {}
+    if not isinstance(landmarks, dict):
+        landmarks = {}
     left_shoulder = _landmark(landmarks, "left_shoulder")
     right_shoulder = _landmark(landmarks, "right_shoulder")
     left_hip = _landmark(landmarks, "left_hip")
@@ -120,36 +160,82 @@ def _classify_frame(frame_result: dict[str, Any]) -> dict[str, Any]:
         # Profile view. Determine left vs right by comparing which
         # shoulder landmark had higher visibility (near-side shoulder
         # is less occluded than the far-side one in a true profile).
-        left_vis = landmarks.get("left_shoulder", {}).get("visibility", 0.0)
-        right_vis = landmarks.get("right_shoulder", {}).get("visibility", 0.0)
-        signals["left_shoulder_visibility"] = left_vis
-        signals["right_shoulder_visibility"] = right_vis
+        left_vis = left_shoulder.get("visibility")
+        right_vis = right_shoulder.get("visibility")
+        valid_visibility = all(not isinstance(v, bool) and isinstance(v, (int, float))
+                               and math.isfinite(v) and 0 <= v <= 1 for v in (left_vis, right_vis))
+        if valid_visibility:
+            signals["left_visibility"] = left_vis
+            signals["right_visibility"] = right_vis
+        vis_gap = abs(left_vis - right_vis) if valid_visibility else None
 
-        vis_gap = abs(left_vis - right_vis)
-        if vis_gap < 0.05:
-            # Too ambiguous to call left vs right confidently.
+        # MediaPipe usually reports ~1.0 visibility for BOTH shoulders,
+        # so visibility alone almost never separates left from right.
+        # Combine it with two geometric cues and require agreement:
+        #   1. shoulder depth: the near-camera shoulder has the smaller z;
+        #   2. nose offset: the face points toward the visible side's
+        #      direction (nose left of shoulder midpoint => left side).
+        votes: list[str] = []
+        if vis_gap is not None and vis_gap >= _SIDE_VISIBILITY_GAP:
+            votes.append("right_side" if right_vis > left_vis else "left_side")
+
+        depth_gap = _shoulder_depth_gap(left_shoulder, right_shoulder)
+        if depth_gap is not None:
+            signals["shoulder_depth_gap"] = round(depth_gap, 4)
+            if abs(depth_gap) >= _SIDE_DEPTH_GAP:
+                votes.append("left_side" if depth_gap < 0 else "right_side")
+
+        if nose:
+            shoulder_mid_x = (left_shoulder["x"] + right_shoulder["x"]) / 2.0
+            nose_offset = nose["x"] - shoulder_mid_x
+            signals["nose_offset_x"] = round(nose_offset, 4)
+            if abs(nose_offset) >= _SIDE_NOSE_OFFSET:
+                votes.append("left_side" if nose_offset < 0 else "right_side")
+
+        signals["side_votes"] = votes
+        if not votes or len(set(votes)) > 1:
+            # No cue, or cues disagree -- too ambiguous to call.
             return {
-                "viewpoint": "intermediate",
-                "confidence": round(0.4 + min(vis_gap, 0.1), 2),
-                "reason": "side_view_but_left_right_ambiguous",
+                "viewpoint": "side_ambiguous",
+                "confidence": round(0.4 + min(vis_gap or 0, 0.1), 2),
+                "reason": ("side_view_but_left_right_ambiguous" if not votes
+                           else "side_view_left_right_cues_conflict"),
                 "signals": signals,
             }
 
-        side = "right_side" if right_vis > left_vis else "left_side"
-        confidence = round(min(0.55 + vis_gap, 0.9), 2)
+        side = votes[0]
+        confidence = round(min(0.45 + 0.12 * len(votes), 0.8), 2)
         return {
             "viewpoint": side,
             "confidence": confidence,
-            "reason": None,
+            "reason": "side_cues_agree",
             "signals": signals,
         }
+
+    # --- Intermediate (roughly 30-60 degrees off front/back) ---
+    # Shoulders are foreshortened relative to torso height AND clearly
+    # at different depths. Torso height normalizes for subject distance.
+    depth_gap = _shoulder_depth_gap(left_shoulder, right_shoulder)
+    torso_height = _torso_height(landmarks)
+    if depth_gap is not None and torso_height:
+        width_ratio = shoulder_width / torso_height
+        signals["shoulder_width_to_torso"] = round(width_ratio, 4)
+        signals["shoulder_depth_gap"] = round(depth_gap, 4)
+        if width_ratio < _INTERMEDIATE_WIDTH_RATIO and abs(depth_gap) >= _INTERMEDIATE_DEPTH_GAP:
+            return {
+                "viewpoint": "intermediate",
+                "confidence": 0.45,
+                "reason": "foreshortened_shoulders_with_depth_asymmetry",
+                "signals": signals,
+            }
 
     # --- Front or back: use nose depth relative to shoulder midpoint as a
     # secondary, low-confidence nudge. If unavailable/ambiguous, we
     # explicitly report "front_or_back" rather than guessing. ---
     base_confidence = round(min(0.4 + (shoulder_width - _SIDE_SHOULDER_WIDTH_THRESHOLD), 0.6), 2)
 
-    if nose:
+    depths = [nose.get("z") if nose else None, left_shoulder.get("z"), right_shoulder.get("z")]
+    if all(not isinstance(z, bool) and isinstance(z, (int, float)) and math.isfinite(z) for z in depths):
         shoulder_mid_z = (left_shoulder["z"] + right_shoulder["z"]) / 2.0
         depth_delta = shoulder_mid_z - nose["z"]  # positive => nose closer to camera
         signals["nose_z"] = round(nose["z"], 4)
@@ -207,6 +293,7 @@ def estimate_viewpoints(video_id: str) -> dict[str, Any]:
     per_frame: list[dict[str, Any]] = []
     coverage_counts: dict[str, int] = {b: 0 for b in _VIEWPOINT_BUCKETS}
     coverage_counts["front_or_back"] = 0
+    coverage_counts["side_ambiguous"] = 0
     coverage_counts["unknown"] = 0
 
     for frame_result in frames:
@@ -244,7 +331,9 @@ def estimate_viewpoints(video_id: str) -> dict[str, Any]:
         "distinct_sides_observed": distinct_sides,
         "front_or_back_observations": front_back_observations,
         "sufficient_rotation_coverage": sufficient_rotation_coverage,
+        "status": "unconfirmed",
         "notes": (
+            "All viewpoint labels are unvalidated heuristics; scores are not probabilities. "
             "Front/back cannot be reliably distinguished from pose "
             "landmarks alone; 'front_or_back' entries are counted "
             "toward general rotation coverage, not a confirmed "

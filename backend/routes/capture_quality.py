@@ -5,9 +5,20 @@ from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.services.capture_quality import QualityConfig
-from backend.services.capture_quality_job import get_job, get_report, start_quality
+from backend.services.capture_quality_job import get_job, get_report, latest_report_summary, start_quality
 
 router = APIRouter()
+
+
+@router.get("/latest")
+def latest_for_video(video_id: str):
+    try:
+        summary = latest_report_summary(video_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if summary is None:
+        raise HTTPException(status_code=404, detail="No completed quality report for this recording")
+    return summary
 
 
 class QualityRequest(BaseModel):

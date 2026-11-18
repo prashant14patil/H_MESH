@@ -1,2 +1,420 @@
 WARNING: You are using a SMPL model, with only 10 shape coefficients.
-INFO:     127.0.0.1:51095 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62011 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62023 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56948 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56971 - "POST /api/reconstruction/runs HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:56973 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50429 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50440 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50452 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64856 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64857 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56213 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56215 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329 HTTP/1.1" 200 OK
+downsampling_factor=4.332841396331787
+downsampling_factor=4.317363739013672
+downsampling_factor=4.317930221557617
+downsampling_factor=4.32148551940918
+downsampling_factor=4.332100868225098
+downsampling_factor=4.330538749694824
+downsampling_factor=4.356814384460449
+downsampling_factor=4.3483757972717285
+downsampling_factor=4.360562324523926
+downsampling_factor=4.376015663146973
+downsampling_factor=4.307281017303467
+downsampling_factor=4.403120994567871
+INFO:     127.0.0.1:56228 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329 HTTP/1.1" 200 OK
+downsampling_factor=4.402351379394531
+downsampling_factor=4.4608988761901855
+downsampling_factor=4.494196891784668
+downsampling_factor=4.520203113555908
+downsampling_factor=4.478088855743408
+downsampling_factor=4.438549518585205
+downsampling_factor=4.411076068878174
+downsampling_factor=4.407259464263916
+downsampling_factor=4.404445648193359
+downsampling_factor=4.3905134201049805
+downsampling_factor=4.385197162628174
+downsampling_factor=4.382096290588379
+downsampling_factor=4.390240669250488
+downsampling_factor=4.498651504516602
+downsampling_factor=4.477462291717529
+downsampling_factor=4.391036033630371
+downsampling_factor=4.505875110626221
+downsampling_factor=4.467528343200684
+downsampling_factor=4.371198654174805
+downsampling_factor=4.201188087463379
+downsampling_factor=4.2613043785095215
+downsampling_factor=4.34391975402832
+downsampling_factor=4.28314208984375
+downsampling_factor=4.336580276489258
+downsampling_factor=4.309301376342773
+downsampling_factor=4.296165466308594
+downsampling_factor=4.291122913360596
+downsampling_factor=4.351386070251465
+downsampling_factor=4.347986221313477
+downsampling_factor=4.284308433532715
+downsampling_factor=4.293310165405273
+downsampling_factor=4.256259441375732
+downsampling_factor=4.365693092346191
+downsampling_factor=4.348577499389648
+INFO:     127.0.0.1:56246 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329 HTTP/1.1" 200 OK
+downsampling_factor=4.3607096672058105
+downsampling_factor=4.3824052810668945
+downsampling_factor=4.341619491577148
+downsampling_factor=4.360328674316406
+downsampling_factor=4.356231689453125
+downsampling_factor=4.3055925369262695
+downsampling_factor=4.273698806762695
+downsampling_factor=4.275547504425049
+downsampling_factor=4.259390830993652
+downsampling_factor=4.281491279602051
+downsampling_factor=4.358215808868408
+downsampling_factor=4.359030723571777
+downsampling_factor=4.285426139831543
+downsampling_factor=4.270796298980713
+downsampling_factor=4.339057445526123
+downsampling_factor=4.353446960449219
+downsampling_factor=4.349562644958496
+downsampling_factor=4.3601579666137695
+downsampling_factor=4.375324726104736
+downsampling_factor=4.251091480255127
+downsampling_factor=4.236759185791016
+downsampling_factor=4.189303398132324
+downsampling_factor=4.291046142578125
+downsampling_factor=4.170241832733154
+downsampling_factor=4.1993408203125
+downsampling_factor=4.288761138916016
+downsampling_factor=4.339292526245117
+downsampling_factor=4.3272833824157715
+downsampling_factor=4.325511932373047
+downsampling_factor=4.348992347717285
+downsampling_factor=4.301370620727539
+downsampling_factor=4.3005805015563965
+downsampling_factor=4.279767036437988
+downsampling_factor=4.275635242462158
+INFO:     127.0.0.1:56259 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329 HTTP/1.1" 200 OK
+downsampling_factor=4.324721813201904
+downsampling_factor=4.3293867111206055
+downsampling_factor=4.306046009063721
+downsampling_factor=4.302248477935791
+downsampling_factor=4.28283166885376
+downsampling_factor=4.262777805328369
+downsampling_factor=4.288066864013672
+INFO:     127.0.0.1:57370 - "GET /health HTTP/1.1" 200 OK
+downsampling_factor=4.3296613693237305
+downsampling_factor=4.36260461807251
+downsampling_factor=4.370352745056152
+downsampling_factor=4.436766147613525
+downsampling_factor=4.384827136993408
+downsampling_factor=4.468549728393555
+downsampling_factor=4.342400550842285
+downsampling_factor=4.50347900390625
+downsampling_factor=4.293440818786621
+downsampling_factor=4.319496154785156
+downsampling_factor=4.3026628494262695
+downsampling_factor=4.3075971603393555
+downsampling_factor=4.3131794929504395
+downsampling_factor=4.277372360229492
+downsampling_factor=4.296591758728027
+downsampling_factor=4.308591365814209
+downsampling_factor=4.320026874542236
+downsampling_factor=4.4208664894104
+downsampling_factor=4.420065879821777
+downsampling_factor=4.490796089172363
+downsampling_factor=4.641234874725342
+downsampling_factor=4.617213249206543
+downsampling_factor=4.66050386428833
+downsampling_factor=4.504951477050781
+downsampling_factor=4.5986833572387695
+downsampling_factor=4.627137660980225
+downsampling_factor=4.6069159507751465
+INFO:     127.0.0.1:57382 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329 HTTP/1.1" 200 OK
+downsampling_factor=4.555694580078125
+downsampling_factor=4.5333757400512695
+downsampling_factor=4.519359111785889
+downsampling_factor=4.545037269592285
+downsampling_factor=4.542216777801514
+downsampling_factor=4.565918445587158
+downsampling_factor=4.559674263000488
+downsampling_factor=4.550828456878662
+downsampling_factor=4.568822860717773
+downsampling_factor=4.513790130615234
+downsampling_factor=4.52393913269043
+downsampling_factor=4.499459266662598
+downsampling_factor=4.515649795532227
+downsampling_factor=4.497507572174072
+downsampling_factor=4.504671573638916
+downsampling_factor=4.561178684234619
+INFO:     127.0.0.1:57396 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57410 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57427 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57441 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53981 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53983 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53999 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54001 - "GET /api/reconstruction/runs/9300b60e-10d2-4d3b-a134-25a04b3ea329/files/final_body_mesh.obj HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54024 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56514 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56515 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49202 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49205 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49206 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49207 - "GET /api/capture/frames/f03b74b0-ba65-456a-8730-f9711a8d79cb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49208 - "GET /api/capture-quality/runs/f57c2abc-e7ba-4a3c-9895-7b1ce7cda51e/report HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49209 - "GET /api/capture/f03b74b0-ba65-456a-8730-f9711a8d79cb/authorization HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49212 - "GET /api/pose/results/f03b74b0-ba65-456a-8730-f9711a8d79cb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49213 - "GET /api/pose/viewpoints/f03b74b0-ba65-456a-8730-f9711a8d79cb HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49216 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_001.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49220 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_002.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49225 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_006.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49222 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_003.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49223 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_004.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49224 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_005.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49227 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_007.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49231 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_012.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49234 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_022.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49236 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_016.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49237 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_011.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49238 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_020.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49239 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_028.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49241 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_010.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49246 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_026.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49249 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_008.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49250 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_021.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49251 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_024.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49252 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_009.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49253 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_018.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49256 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_019.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49261 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_015.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49262 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_027.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49263 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_030.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49264 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_025.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49267 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_023.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49269 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_017.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49274 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_029.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49275 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_014.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49276 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_013.jpg HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49279 - "GET /api/capture/frame/f03b74b0-ba65-456a-8730-f9711a8d79cb/frame_001.jpg?sha256=f444a3fa249cf65da97f7c5318fdfb0bddc84c8bc2bc15cbcd94f2ce34ed8d69 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49265 - "GET /api/capture/f03b74b0-ba65-456a-8730-f9711a8d79cb/authorization HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49277 - "POST /api/reconstruction/runs HTTP/1.1" 202 Accepted
+INFO:     127.0.0.1:49283 - "GET /api/capture/f03b74b0-ba65-456a-8730-f9711a8d79cb/authorization HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49297 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49301 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49306 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49312 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49320 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49327 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49331 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49338 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49344 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49347 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62984 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62988 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62993 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52774 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52782 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.332841396331787
+downsampling_factor=4.317363739013672
+downsampling_factor=4.317930221557617
+downsampling_factor=4.32148551940918
+downsampling_factor=4.332100868225098
+downsampling_factor=4.330538749694824
+downsampling_factor=4.356814384460449
+downsampling_factor=4.3483757972717285
+INFO:     127.0.0.1:52785 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.360562324523926
+downsampling_factor=4.376015663146973
+downsampling_factor=4.307281017303467
+downsampling_factor=4.403120994567871
+downsampling_factor=4.402351379394531
+downsampling_factor=4.4608988761901855
+downsampling_factor=4.494196891784668
+downsampling_factor=4.520203113555908
+downsampling_factor=4.478088855743408
+INFO:     127.0.0.1:52792 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.438549518585205
+downsampling_factor=4.411076068878174
+downsampling_factor=4.407259464263916
+downsampling_factor=4.404445648193359
+downsampling_factor=4.3905134201049805
+downsampling_factor=4.385197162628174
+downsampling_factor=4.382096290588379
+downsampling_factor=4.390240669250488
+INFO:     127.0.0.1:52796 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.498651504516602
+downsampling_factor=4.477462291717529
+downsampling_factor=4.391036033630371
+downsampling_factor=4.505875110626221
+downsampling_factor=4.467528343200684
+downsampling_factor=4.371198654174805
+downsampling_factor=4.201188087463379
+INFO:     127.0.0.1:55393 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.2613043785095215
+downsampling_factor=4.34391975402832
+downsampling_factor=4.28314208984375
+downsampling_factor=4.336580276489258
+downsampling_factor=4.309301376342773
+downsampling_factor=4.296165466308594
+downsampling_factor=4.291122913360596
+downsampling_factor=4.351386070251465
+INFO:     127.0.0.1:55397 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.347986221313477
+downsampling_factor=4.284308433532715
+downsampling_factor=4.293310165405273
+downsampling_factor=4.256259441375732
+downsampling_factor=4.365693092346191
+downsampling_factor=4.348577499389648
+downsampling_factor=4.3607096672058105
+downsampling_factor=4.3824052810668945
+INFO:     127.0.0.1:55403 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.341619491577148
+downsampling_factor=4.360328674316406
+downsampling_factor=4.356231689453125
+downsampling_factor=4.3055925369262695
+INFO:     127.0.0.1:55410 - "GET /health HTTP/1.1" 200 OK
+downsampling_factor=4.273698806762695
+downsampling_factor=4.275547504425049
+downsampling_factor=4.259390830993652
+INFO:     127.0.0.1:55414 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.281491279602051
+downsampling_factor=4.358215808868408
+downsampling_factor=4.359030723571777
+downsampling_factor=4.285426139831543
+downsampling_factor=4.270796298980713
+downsampling_factor=4.339057445526123
+downsampling_factor=4.353446960449219
+downsampling_factor=4.349562644958496
+INFO:     127.0.0.1:55418 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.3601579666137695
+downsampling_factor=4.375324726104736
+downsampling_factor=4.251091480255127
+downsampling_factor=4.236759185791016
+downsampling_factor=4.189303398132324
+downsampling_factor=4.291046142578125
+downsampling_factor=4.170241832733154
+INFO:     127.0.0.1:55424 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.1993408203125
+downsampling_factor=4.288761138916016
+downsampling_factor=4.339292526245117
+downsampling_factor=4.3272833824157715
+downsampling_factor=4.325511932373047
+downsampling_factor=4.348992347717285
+downsampling_factor=4.301370620727539
+INFO:     127.0.0.1:55430 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.3005805015563965
+downsampling_factor=4.279767036437988
+downsampling_factor=4.275635242462158
+downsampling_factor=4.324721813201904
+downsampling_factor=4.3293867111206055
+downsampling_factor=4.306046009063721
+downsampling_factor=4.302248477935791
+INFO:     127.0.0.1:55435 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.28283166885376
+downsampling_factor=4.262777805328369
+downsampling_factor=4.288066864013672
+downsampling_factor=4.3296613693237305
+downsampling_factor=4.36260461807251
+downsampling_factor=4.370352745056152
+downsampling_factor=4.436766147613525
+INFO:     127.0.0.1:55443 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.384827136993408
+downsampling_factor=4.468549728393555
+downsampling_factor=4.342400550842285
+downsampling_factor=4.50347900390625
+downsampling_factor=4.293440818786621
+downsampling_factor=4.319496154785156
+downsampling_factor=4.3026628494262695
+INFO:     127.0.0.1:55448 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.3075971603393555
+downsampling_factor=4.3131794929504395
+downsampling_factor=4.277372360229492
+downsampling_factor=4.296591758728027
+downsampling_factor=4.308591365814209
+downsampling_factor=4.320026874542236
+downsampling_factor=4.4208664894104
+INFO:     127.0.0.1:55454 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.420065879821777
+downsampling_factor=4.490796089172363
+downsampling_factor=4.641234874725342
+downsampling_factor=4.617213249206543
+downsampling_factor=4.66050386428833
+downsampling_factor=4.504951477050781
+downsampling_factor=4.5986833572387695
+INFO:     127.0.0.1:55459 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.627137660980225
+downsampling_factor=4.6069159507751465
+downsampling_factor=4.555694580078125
+downsampling_factor=4.5333757400512695
+downsampling_factor=4.519359111785889
+downsampling_factor=4.545037269592285
+downsampling_factor=4.542216777801514
+INFO:     127.0.0.1:55466 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.565918445587158
+downsampling_factor=4.559674263000488
+downsampling_factor=4.550828456878662
+downsampling_factor=4.568822860717773
+downsampling_factor=4.513790130615234
+downsampling_factor=4.52393913269043
+downsampling_factor=4.499459266662598
+INFO:     127.0.0.1:55468 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+downsampling_factor=4.515649795532227
+downsampling_factor=4.497507572174072
+downsampling_factor=4.504671573638916
+downsampling_factor=4.561178684234619
+INFO:     127.0.0.1:61561 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61563 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61570 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61409 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61413 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61418 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61422 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61429 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61433 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55072 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55076 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53382 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63444 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63446 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63450 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63456 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63459 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63466 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63472 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63476 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63486 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63491 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63497 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63501 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63506 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207/files/final_body_mesh.obj HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56001 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65222 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65227 - "GET /api/reconstruction/runs/fdf94fd2-2be2-42e6-8abf-1f67b9957207/files/final_body_mesh.obj HTTP/1.1" 200 OK
+INFO:     127.0.0.1:65322 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     127.0.0.1:63043 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56861 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56862 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54588 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53723 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58576 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61070 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61071 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52721 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55843 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55483 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59163 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59164 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59486 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52945 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52662 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52789 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58658 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58659 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:62646 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59042 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51888 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51889 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61748 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56909 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56926 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56928 - "GET /health HTTP/1.1" 200 OK

@@ -86,7 +86,7 @@ class QualityTests(unittest.TestCase):
                 poses.append(pose)
             report = analyze_frames({"frames": frames}, {"frames": poses}, folder)
             self.assertEqual(report["frames"][0]["viewpoint"]["label"], "unknown")
-            self.assertEqual(report["frames"][0]["viewpoint"]["raw_label"], "intermediate")
+            self.assertEqual(report["frames"][0]["viewpoint"]["raw_label"], "side_ambiguous")
             self.assertIn("subject_continuity_uncertain", report["frames"][1]["warnings"])
             self.assertFalse(report["frames"][1]["recommended_for_reconstruction"])
 

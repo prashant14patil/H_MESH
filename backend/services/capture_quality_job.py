@@ -56,6 +56,53 @@ def _hog_observations(frame_paths):
     return observations
 
 
+RCNN_METHOD = "torchvision_keypoint_rcnn"
+HOG_METHOD = "opencv_hog_uncalibrated"
+
+
+def _keypoint_rcnn_observations(frame_paths):
+    """Person boxes + COCO keypoints from Keypoint R-CNN (already NMS-filtered by the model)."""
+    from backend.services.person_tracking import get_shared_detector, keypoint_confidence01
+
+    detector = get_shared_detector()
+    observations = {}
+    for name, path in frame_paths.items():
+        image = cv2.imread(str(path))
+        if image is None:
+            continue
+        height, width = image.shape[:2]
+        records = []
+        for det in detector.detect(image):
+            x0, y0, x1, y1 = det.box
+            box = [min(max(x0 / width, 0.0), 1.0), min(max(y0 / height, 0.0), 1.0),
+                   min(max(x1 / width, 0.0), 1.0), min(max(y1 / height, 0.0), 1.0)]
+            if not (box[0] < box[2] and box[1] < box[3]):
+                continue
+            records.append({
+                "box": [float(v) for v in box], "score": float(det.score), "method": RCNN_METHOD,
+                "keypoints": [[float(x / width), float(y / height)] for x, y in det.keypoints],
+                "keypoint_confidence": [float(c) for c in keypoint_confidence01(det.keypoint_scores)],
+            })
+        observations[name] = records
+    return observations
+
+
+def _person_observations(paths, enabled):
+    """Prefer Keypoint R-CNN; fall back to HOG only if it is unavailable, and say so."""
+    if not enabled:
+        return None, "disabled", None
+    try:
+        return _keypoint_rcnn_observations(paths), "keypoint_rcnn_unvalidated", RCNN_METHOD
+    except Exception as exc:  # noqa: BLE001 - model download/GPU failure must not fake a pass
+        logger.warning("Keypoint R-CNN unavailable for quality analysis (%s); falling back to HOG", exc)
+        fallback_reason = f"keypoint_rcnn_unavailable: {exc}"
+    try:
+        return _hog_observations(paths), f"opencv_hog_unvalidated ({fallback_reason})", HOG_METHOD
+    except (cv2.error, ValueError, OSError) as exc:
+        logger.warning("HOG quality check failed: %s", exc)
+        return None, f"unavailable ({fallback_reason}; hog: {exc})", None
+
+
 def _nms_diagnostics(detections, iou_threshold=NMS_IOU_THRESHOLD):
     """Conservative IoU NMS for diagnostics only; input remains gate evidence.
 
@@ -149,14 +196,10 @@ def start_quality(video_id, config=None, use_hog=True):
             for name, digest in before.items():
                 if pose_by_name[Path(name).stem].get("source_sha256") != digest:
                     raise ValueError(f"Pose data for {name} changed before quality analysis; rerun pose processing")
-            try:
-                observations = _hog_observations(paths) if use_hog else None
-                detector_status = "opencv_hog_unvalidated" if use_hog else "disabled"
-            except (cv2.error, ValueError, OSError) as exc:
-                logger.warning("HOG quality check failed: %s", exc)
-                observations, detector_status = None, "unavailable"
+            observations, detector_status, detector_method = _person_observations(paths, use_hog)
             frame_dir = next(iter(paths.values())).parent
-            report = analyze_frames(metadata, poses, frame_dir, detections=observations, config=policy)
+            report = analyze_frames(metadata, poses, frame_dir, detections=observations, config=policy,
+                                    detector_method=detector_method)
             for item in report["frames"]:
                 name = item["filename"]
                 if item.get("source_sha256") != before[name] or hashlib.sha256(paths[name].read_bytes()).hexdigest() != before[name]:
@@ -164,12 +207,20 @@ def start_quality(video_id, config=None, use_hog=True):
                 item["detector_nms"] = _nms_diagnostics(observations.get(name) if observations is not None else None)
             report["run_id"] = run_id
             report["detector_status"] = detector_status
-            report["limitations"].append(
-                "OpenCV HOG may miss small, occluded or partial bystanders; observed count is not a verified person count."
-            )
+            report["detector_method"] = detector_method
+            if detector_method == RCNN_METHOD:
+                report["limitations"].append(
+                    "Person count comes from torchvision Keypoint R-CNN (COCO-trained, score >= 0.6). It can still miss "
+                    "heavily occluded or very small people; one detection is evidence, not identity verification."
+                )
+            elif detector_method == HOG_METHOD:
+                report["limitations"].append(
+                    "Keypoint R-CNN was unavailable, so legacy OpenCV HOG was used. HOG returns overlapping windows for one "
+                    "person and misses others; its counts are unreliable and can block subject review."
+                )
             report["limitations"].append(
                 "NMS is diagnostic only: overlapping people can be suppressed and nested duplicates can remain. "
-                "Warnings and crop validation use the original HOG-returned candidates."
+                "Warnings and crop validation use the original detector-returned candidates."
             )
             (output / "report.json").write_text(json.dumps(report, indent=2, allow_nan=False), encoding="utf-8")
             with _lock:
@@ -189,6 +240,27 @@ def get_job(run_id):
     with _lock:
         job = _jobs.get(run_id)
         return dict(job) if job else None
+
+
+def latest_report_summary(video_id):
+    """Newest completed report for a recording, so operators need not copy report IDs by hand."""
+    if not _uuid(video_id):
+        raise ValueError("Invalid video ID")
+    best = None
+    if ROOT.is_dir():
+        for path in ROOT.glob("*/report.json"):
+            if not _uuid(path.parent.name):
+                continue
+            try:
+                report = json.loads(path.read_text(encoding="utf-8"))
+                mtime = path.stat().st_mtime
+            except (OSError, ValueError):
+                continue
+            if report.get("video_id") != video_id or report.get("run_id") != path.parent.name:
+                continue
+            if best is None or mtime > best["completed_at"]:
+                best = {"run_id": path.parent.name, "video_id": video_id, "completed_at": mtime}
+    return best
 
 
 def get_report(run_id):

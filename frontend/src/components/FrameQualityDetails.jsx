@@ -5,6 +5,8 @@ const colors = {
   WARNING: 'text-amber-800',
   FAIL: 'text-red-700',
   UNKNOWN: 'text-gray-600',
+  HINT: 'text-sky-700',
+  'NOT RUN': 'text-gray-400',
 }
 
 export function QualityChecks({ frame, session, decision }) {
@@ -36,8 +38,9 @@ export function DetectionSummary({ frame }) {
   const nms = frame?.detector_nms
   const raw = nms?.raw_count ?? frame?.person_count_observed
   const filtered = nms?.invalid_indices?.length ? 'incomplete' : (nms?.filtered_count ?? 'unavailable')
+  const detector = frame?.detector_method === 'torchvision_keypoint_rcnn' ? 'Keypoint R-CNN' : frame ? 'HOG (legacy)' : 'Detector'
   return <div className="space-y-1">
-    <p>HOG-returned candidates: {raw ?? 'unknown'} · After NMS: {filtered} (unverified estimates)</p>
+    <p>{detector} person detections: {raw ?? 'unknown'} · After NMS: {filtered} (unverified estimates)</p>
     {nms?.invalid_indices?.length > 0 && <p>Some candidates could not be filtered; inspect raw evidence.</p>}
     <p>NMS is diagnostic only; suppressed boxes still count for warnings and crop validation. People may overlap or be missed.</p>
   </div>

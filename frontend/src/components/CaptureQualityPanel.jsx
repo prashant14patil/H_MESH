@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { DetectionSummary, QualityChecks, QualityReasons } from './FrameQualityDetails.jsx'
+import { statusCounts } from './frameQuality.js'
 
 const base = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
 
@@ -57,9 +58,10 @@ export default function CaptureQualityPanel({ videoId, onReport, restoredReport:
 
   const detail = report?.frames?.find(item => item.filename === frame)
   return (
-    <section className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
+    <section id="capture-quality" className="rounded-xl border border-gray-200 bg-white p-4 space-y-3">
       <h3 className="font-semibold text-gray-800">Capture quality diagnostics</h3>
       <p className="text-xs text-gray-500">Screening only. Person identity, bystanders and 360° coverage cannot be confirmed by these heuristics.</p>
+      {report && <p className="text-xs text-gray-500">Report {report.run_id}. Re-running analysis creates a new report; subject review sessions are bound to one report, so a new reference subject is needed afterwards.</p>}
       <button type="button" onClick={start} disabled={starting || job?.status === 'processing'}
         className="rounded-lg bg-teal-600 px-3 py-2 text-white text-sm disabled:bg-gray-300">
         {starting || job?.status === 'processing' ? 'Analyzing…' : 'Analyze capture quality'}
@@ -67,11 +69,25 @@ export default function CaptureQualityPanel({ videoId, onReport, restoredReport:
       {error && <p role="alert" className="text-red-700 text-xs">{error}</p>}
       {report && <>
         <p className="text-xs text-gray-600">
-          {report.summary.extracted_frames} frames · {report.summary.extractor_non_blurry} not flagged blurry · {report.summary.extractor_blurry} blurry · {report.summary.rejected_duplicates} duplicate candidates rejected · {report.summary.full_body_visible} full-body hints · {report.summary.possible_multiple_people} multi-person flags (HOG can miss people)
+          {report.summary.extracted_frames} frames · {report.summary.extractor_non_blurry} not flagged blurry · {report.summary.extractor_blurry} blurry · {report.summary.rejected_duplicates} duplicate candidates rejected · {report.frames.filter(f => f.checks?.full_body === 'pass').length} full body in frame · {report.summary.possible_multiple_people} multi-person flags · {report.summary.single_person_detected ?? 0} single-person detections · detector: {report.detector_method === 'torchvision_keypoint_rcnn' ? 'Keypoint R-CNN' : (report.detector_status || 'unknown')}
         </p>
         <p className="text-xs text-amber-700">Viewpoint coverage: {report.viewpoint_coverage.status}. {report.viewpoint_coverage.note}</p>
         <p className="text-xs text-gray-600">Unvalidated hints: {Object.entries(report.viewpoint_coverage.counts).map(([label, count]) => `${label}: ${count}`).join(' · ') || 'none'}</p>
-        <p className="text-xs text-amber-700">Recommended frames: {report.summary.recommended_frames.length ? report.summary.recommended_frames.join(', ') : 'none — subject identity is unverified'}</p>
+        <p className="text-xs text-gray-700">
+          Server auto-approved frames: {report.summary.recommended_frames.length ? report.summary.recommended_frames.join(', ') : 'none'}.
+          {' '}By design the server never approves frames on its own, because subject association needs human confirmation.
+          {' '}Advisory review candidates (suggestions only) are listed in the individual-frame section below.
+        </p>
+        {(() => {
+          const counts = statusCounts(report.frames, reviewSession, reviewDecisions)
+          return <p className="text-xs font-semibold" aria-label="Subject review status">
+            Subject review: {reviewSession ? `session ${reviewSession.session_id.slice(0, 8)} active` : 'no reference subject yet'} ·{' '}
+            <span className="text-green-800">{counts.confirmed} subject confirmed — eligible</span> ·{' '}
+            <span className="text-amber-800">{counts.review_pending} quality passed — subject review pending</span> ·{' '}
+            <span className="text-red-700">{counts.rejected} rejected by reviewer</span> · {counts.quality_failed} quality failed · {counts.quality_unknown} quality unknown
+            {!reviewSession && <span className="block font-normal text-amber-800">Next: in “Subject-targeted manual review” below, draw a box around the person on a clear frame and click “Select reference subject”.</span>}
+          </p>
+        })()}
         {report.rejected_candidates.length > 0 && <details className="text-xs text-gray-600">
           <summary>Rejected extraction candidates ({report.rejected_candidates.length})</summary>
           <ul>{report.rejected_candidates.map((item, index) => <li key={index}>{item.timestamp_sec ?? 'unknown'}s: {item.reason || 'unknown'}</li>)}</ul>

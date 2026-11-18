@@ -72,6 +72,56 @@ def _iou(a, b):
     return intersection / union if union > 0 else 0.0
 
 
+RCNN_METHOD = "torchvision_keypoint_rcnn"
+# COCO-17 keypoint indices used for the detector full-body evidence.
+_HEAD, _SHOULDERS, _HIPS, _ANKLES = (0, 1, 2, 3, 4), (5, 6), (11, 12), (15, 16)
+
+
+def _paired(name):
+    if name.startswith("left_"):
+        return "right_" + name[5:]
+    if name.startswith("right_"):
+        return "left_" + name[6:]
+    return None
+
+
+def _one_sided_self_occlusion(landmarks, detection, config):
+    """Full body inside the frame although some landmarks are hidden behind the body.
+
+    MediaPipe 'visibility' means 'not occluded', so a profile view (far arm/leg
+    behind the torso) fails the strict all-landmarks-visible rule even when the
+    whole body is in frame. Accept it only when ALL of these hold:
+      * every tracked landmark position lies inside the frame margins;
+      * each low-visibility limb landmark has its opposite-side partner visible
+        (only one side is hidden, i.e. self-occlusion, not truncation);
+      * an independent Keypoint R-CNN detection of the same person has its box
+        inside the frame and confident head, shoulder, hip and ankle keypoints.
+    """
+    margin = config.boundary_margin
+    for name in _TRACKED_LANDMARKS:
+        lm = landmarks.get(name)
+        try:
+            x, y, vis = (float(lm[k]) for k in ("x", "y", "visibility"))
+        except (KeyError, TypeError, ValueError):
+            return False
+        if not all(math.isfinite(v) for v in (x, y, vis)) or not (margin <= x <= 1 - margin and margin <= y <= 1 - margin):
+            return False
+        if vis < config.min_landmark_visibility or lm.get("visible") is not True:
+            partner = landmarks.get(_paired(name) or "")
+            try:
+                if partner is None or float(partner["visibility"]) < config.min_landmark_visibility:
+                    return False
+            except (KeyError, TypeError, ValueError):
+                return False
+    box = detection.get("box")
+    conf = detection.get("keypoint_confidence")
+    if not isinstance(box, (list, tuple)) or len(box) != 4 or not isinstance(conf, list) or len(conf) != 17:
+        return False
+    if not (box[0] >= margin / 2 and box[1] >= margin / 2 and box[2] <= 1 - margin / 2 and box[3] <= 1 - margin / 2):
+        return False
+    return all(max(conf[i] for i in group) >= 0.5 for group in (_HEAD, _SHOULDERS, _HIPS, _ANKLES))
+
+
 def _features(image, box):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     h, w = gray.shape
@@ -93,7 +143,7 @@ def _features(image, box):
     }
 
 
-def analyze_frames(metadata, poses, frame_dir, *, detections=None, config=None):
+def analyze_frames(metadata, poses, frame_dir, *, detections=None, config=None, detector_method=None):
     """Analyze all extracted frames; optional detections keyed by filename.
 
     Detection records contain normalized ``box`` [x1,y1,x2,y2] and optional
@@ -145,7 +195,18 @@ def analyze_frames(metadata, poses, frame_dir, *, detections=None, config=None):
             if not valid:
                 required_in_bounds = False
                 break
-        if pose.get("full_body_visible") is not True or box is None or not required_in_bounds:
+        modern = detector_method == RCNN_METHOD
+        evidence_list = detections.get(name) if isinstance(detections.get(name), list) else []
+        full_body_basis = None
+        if pose.get("full_body_visible") is True and box is not None and required_in_bounds:
+            full_body_basis = "pose_all_required_landmarks_visible"
+        elif box is not None and modern and evidence_list:
+            matched = max(evidence_list, key=lambda d: _iou(box, d.get("box") or [0, 0, 0, 0]))
+            if (_iou(box, matched.get("box") or [0, 0, 0, 0]) >= config.min_identity_iou
+                    and _one_sided_self_occlusion(landmarks, matched, config)):
+                full_body_basis = "in_frame_one_sided_self_occlusion_detector_confirmed"
+                warnings.append("full_body_self_occlusion_one_side")
+        if full_body_basis is None:
             warnings.append("full_body_visibility_unconfirmed")
         if frame.get("is_blurry") is not False:
             (rejections if config.reject_blurry else warnings).append("extractor_blur_warning")
@@ -204,11 +265,13 @@ def analyze_frames(metadata, poses, frame_dir, *, detections=None, config=None):
             "checks": {
                 "readability": "pass" if image is not None else "fail",
                 "person_presence": "pass" if pose.get("person_detected") is True else ("fail" if pose.get("person_detected") is False else "unknown"),
-                "multiple_people": "fail" if count is not None and count > 1 else "unknown",
+                # Only the keypoint detector can support "one person"; HOG counts stay unknown.
+                "multiple_people": ("fail" if count is not None and count > 1
+                                    else "pass" if modern and count == 1 else "unknown"),
                 "identity": "unknown",
                 "sharpness": "unknown" if not features or frame.get("is_blurry") is None else ("warning" if frame.get("is_blurry") or "frame_sharpness_review" in warnings or "roi_sharpness_review" in warnings else "pass"),
                 "lighting": "unknown" if not features else ("warning" if "lighting_review" in warnings else "pass"),
-                "full_body": "pass" if pose.get("full_body_visible") is True and box is not None and required_in_bounds else "unknown",
+                "full_body": "pass" if full_body_basis else "unknown",
                 "duplicate": "unknown" if frame.get("diff_score") is None else "warning",
                 "continuity": "unknown" if continuity is None else ("warning" if "subject_continuity_uncertain" in warnings else "unknown"),
                 "viewpoint": "unknown",
@@ -217,7 +280,9 @@ def analyze_frames(metadata, poses, frame_dir, *, detections=None, config=None):
             "extractor_quality": {"is_blurry": frame.get("is_blurry"), "blur_score": frame.get("blur_score"),
                                   "duplicate_difference": frame.get("diff_score")},
             "image_metrics": features, "person_detected": pose.get("person_detected"),
-            "person_detection_confidence": None,
+            "person_detection_confidence": (max(float(d.get("score", 0)) for d in evidence_list)
+                                            if modern and evidence_list else None),
+            "detector_method": detector_method, "full_body_basis": full_body_basis,
             "mean_landmark_visibility": pose.get("detection_confidence"),
             "landmarks": landmarks, "full_body_visible": pose.get("full_body_visible"),
             "missing_regions": pose.get("missing_regions"), "landmark_bbox_normalized": box,
@@ -240,6 +305,8 @@ def analyze_frames(metadata, poses, frame_dir, *, detections=None, config=None):
             "rejected_duplicates": sum(r.get("reason") == "duplicate" for r in rejected),
             "full_body_visible": sum(f["full_body_visible"] is True for f in results),
             "possible_multiple_people": sum("possible_multiple_people" in f["warnings"] for f in results),
+            "single_person_detected": sum(f["checks"]["multiple_people"] == "pass" for f in results),
+            "detector_method": detector_method,
             "recommended_frames": [f["filename"] for f in results if f["recommended_for_reconstruction"]],
             "status_counts": {s: sum(f["status"] == s for f in results) for s in ("acceptable", "review", "rejected")},
         },

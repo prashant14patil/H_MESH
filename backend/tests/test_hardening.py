@@ -124,3 +124,70 @@ def test_orphaned_runs_are_marked_interrupted_at_startup(tmp_path, monkeypatch):
     read = lambda rid: json.loads((tmp_path / rid / "status.json").read_text())  # noqa: E731
     assert read(orphan)["status"] == "failed" and read(orphan)["error"]["code"] == "interrupted_by_backend_restart"
     assert read(live)["status"] == "running" and read(done)["status"] == "completed"
+
+
+# ------------------------------------------------- Phase B: remaining items
+def test_filenames_in_errors_are_sanitised_and_bounded():
+    nasty = "../../etc/" + "\x00\x1b[31m" + "x" * 500 + ".exe"
+    with pytest.raises(ValidationError) as err:
+        validate_image(nasty, b"data")
+    msg = str(err.value)
+    assert "\x00" not in msg and "\x1b" not in msg and len(msg) < 300
+
+
+def test_gpu_slot_serialises_forward_passes(monkeypatch):
+    sem = threading.BoundedSemaphore(1)
+    monkeypatch.setattr(ie, "_GPU_SLOTS", sem)
+    active, peak = [0], [0]
+    lock = threading.Lock()
+
+    def work():
+        with ie.gpu_slot():
+            with lock:
+                active[0] += 1
+                peak[0] = max(peak[0], active[0])
+            time.sleep(0.05)
+            with lock:
+                active[0] -= 1
+    threads = [threading.Thread(target=work) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert peak[0] == 1
+
+
+def test_finished_job_records_expire_but_running_jobs_and_files_stay(monkeypatch, tmp_path):
+    monkeypatch.setattr(ie, "_JOB_RETENTION_SEC", 60)
+    monkeypatch.setattr(ie, "_OUTPUT_DIR", tmp_path)
+    monkeypatch.setattr(ie, "_DELETE_EXPIRED_FILES", False)
+    eng = _engine()
+    old = time.time() - 3600
+    eng.jobs = {"done": {"status": "completed", "updated_at": old},
+                "busy": {"status": "processing", "updated_at": old, "started_at": time.time()},
+                "new": {"status": "failed", "updated_at": time.time()}}
+    (tmp_path / "done.obj").write_text("v 0 0 0\n")
+    assert eng._evict_expired(time.time()) == ["done"]
+    assert set(eng.jobs) == {"busy", "new"} and (tmp_path / "done.obj").exists()
+    eng.jobs["done2"] = {"status": "completed", "updated_at": old}
+    (tmp_path / "done2.obj").write_text("v 0 0 0\n")
+    monkeypatch.setattr(ie, "_DELETE_EXPIRED_FILES", True)
+    eng._evict_expired(time.time())
+    assert not (tmp_path / "done2.obj").exists()
+
+
+def test_upload_route_rejects_declared_oversize_before_reading(monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from backend.routes import inference as route
+    app = FastAPI()
+    app.include_router(route.router, prefix="/api/inference")
+    client = TestClient(app)
+    monkeypatch.setattr(route, "MAX_UPLOAD_BYTES", 1000)
+    big = b"\xff\xd8\xff" + b"0" * 200_000
+    r = client.post("/api/inference/submit", files={"image": ("big.jpg", big, "image/jpeg")})
+    assert r.status_code == 413
+    # An understated header cannot bypass the limit: at most limit+1 bytes are read and then refused.
+    monkeypatch.setattr(route, "_MULTIPART_OVERHEAD", 10_000_000)
+    r = client.post("/api/inference/submit", files={"image": ("big.jpg", big, "image/jpeg")})
+    assert r.status_code == 413 and "limit" in r.json()["detail"]

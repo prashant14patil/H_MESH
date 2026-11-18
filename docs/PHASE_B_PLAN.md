@@ -4,6 +4,25 @@
 **Status:** Planning document only — no code modified as part of producing this plan.
 **Context:** SMPL model file is still being transferred; no inference has been run yet. This plan is based on static code review of the existing local HMR2 pipeline.
 
+> **Implementation status (2026-11-18).** The plan below is the original review; this box records what was built
+> afterwards. Tests: `backend/tests/test_hardening.py`.
+>
+> | Item | Status |
+> |---|---|
+> | 1.2 Upload size limits | Done — `Content-Length` refused early (413); reads capped at limit + 1 byte, then refused. |
+> | 1.3 Corrupted images | Done — full decode at validation; truncated/corrupt files rejected with 400. |
+> | 1.4 EXIF orientation | Done — `decode_upright_rgb()` applies EXIF orientation before inference. |
+> | 1.5 Decompression bombs | Done — header dimensions checked before any pixel decode (`MAX_IMAGE_SIDE_PX`, `MAX_IMAGE_MEGAPIXELS`). |
+> | 1.6 Safe filenames | Done — control characters stripped and length capped in error messages. |
+> | 2.4 Small images | Done for photo uploads (`MIN_IMAGE_SIDE_PX`, 200); frame/crop paths keep their own rules. |
+> | 3.1 Job timestamps | Done — `created_at` / `started_at` / `updated_at`. |
+> | 3.2 Timeouts | Done — jobs processing longer than `INFERENCE_TIMEOUT_SEC` (300) are reported failed; late results discarded. |
+> | 3.3 Cleanup | Records of finished jobs expire after `JOB_RETENTION_HOURS` (24). Mesh files are deleted only if `JOB_RETENTION_DELETE_FILES=true` (off by default). |
+> | 3.4 Duplicate jobs | Deferred, as recommended below. |
+> | 3.5 GPU concurrency | Done — `gpu_slot()` (`MAX_CONCURRENT_JOBS`, 1) around every HMR2 forward pass, shared by photo jobs and reconstruction frames. |
+> | 2.1–2.3, 2.5 Detection | Superseded for the video path by the unified reconstruction (Keypoint R-CNN tracking, subject confirmation); single-photo path unchanged. |
+> | — Interrupted runs | Added — reconstruction runs orphaned by a restart are marked interrupted at startup. |
+
 **Constraints honored:**
 - Read-only review — no code changes made while producing this plan.
 - Preserves the existing local HMR2 inference architecture (no Colab/ngrok/external services reintroduced).

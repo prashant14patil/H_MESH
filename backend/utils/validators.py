@@ -39,6 +39,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 _MAX_SIZE_MB: float = float(os.getenv("MAX_UPLOAD_SIZE_MB", "10"))
 _MAX_SIZE_BYTES: int = int(_MAX_SIZE_MB * 1024 * 1024)
+MAX_UPLOAD_BYTES: int = _MAX_SIZE_BYTES  # public: routes cap reads with it
 # Decoded-dimension limits (a small compressed file can declare a huge resolution).
 _MAX_SIDE_PX: int = int(os.getenv("MAX_IMAGE_SIDE_PX", "8000"))
 _MAX_PIXELS: int = int(os.getenv("MAX_IMAGE_MEGAPIXELS", "40")) * 1_000_000
@@ -112,7 +113,7 @@ def _check_extension(filename: str) -> None:
     if ext not in _ALLOWED_EXTENSIONS:
         allowed = ", ".join(_ALLOWED_EXTENSIONS)
         raise ValidationError(
-            f"File '{filename}' has unsupported extension '{ext}'. "
+            f"File '{_safe_name(filename)}' has unsupported extension '{_safe_name(ext, 16)}'. "
             f"Allowed extensions: {allowed}."
         )
 
@@ -129,7 +130,7 @@ def _check_magic_bytes(filename: str, data: bytes) -> None:
     expected_type = _ALLOWED_EXTENSIONS[ext]
 
     if not data:
-        raise ValidationError(f"File '{filename}' is empty.")
+        raise ValidationError(f"File '{_safe_name(filename)}' is empty.")
 
     # Detect the actual format from the file header.
     detected_type: str | None = None
@@ -140,13 +141,13 @@ def _check_magic_bytes(filename: str, data: bytes) -> None:
 
     if detected_type is None:
         raise ValidationError(
-            f"File '{filename}' does not appear to be a valid image. "
+            f"File '{_safe_name(filename)}' does not appear to be a valid image. "
             "The file header could not be recognised as JPEG or PNG."
         )
 
     if detected_type != expected_type:
         raise ValidationError(
-            f"File '{filename}' has extension '{ext}' but its content "
+            f"File '{_safe_name(filename)}' has extension '{_safe_name(ext, 16)}' but its content "
             f"looks like '{detected_type}'. Upload a genuine JPEG or PNG."
         )
 
@@ -155,12 +156,12 @@ def _check_size(filename: str, data: bytes) -> None:
     """Reject files that exceed the configured size limit."""
     size_bytes = len(data)
     if size_bytes == 0:
-        raise ValidationError(f"File '{filename}' is empty.")
+        raise ValidationError(f"File '{_safe_name(filename)}' is empty.")
 
     if size_bytes > _MAX_SIZE_BYTES:
         size_mb = size_bytes / (1024 * 1024)
         raise ValidationError(
-            f"File '{filename}' is {size_mb:.1f} MB, which exceeds the "
+            f"File '{_safe_name(filename)}' is {size_mb:.1f} MB, which exceeds the "
             f"maximum allowed size of {_MAX_SIZE_MB} MB."
         )
 
@@ -184,11 +185,11 @@ def _check_decodes(filename: str, data: bytes, min_side_px: int | None = None) -
                 width, height = img.size
                 if max(width, height) > _MAX_SIDE_PX or width * height > _MAX_PIXELS:
                     raise ValidationError(
-                        f"File '{filename}' is {width}x{height} px; the maximum is {_MAX_SIDE_PX} px per side "
+                        f"File '{_safe_name(filename)}' is {width}x{height} px; the maximum is {_MAX_SIDE_PX} px per side "
                         f"and {_MAX_PIXELS // 1_000_000} megapixels.")
                 if min_side_px and min(width, height) < min_side_px:
                     raise ValidationError(
-                        f"File '{filename}' is {width}x{height} px; at least {min_side_px} px per side is needed "
+                        f"File '{_safe_name(filename)}' is {width}x{height} px; at least {min_side_px} px per side is needed "
                         "to reconstruct a body.")
                 img.verify()
             with Image.open(io.BytesIO(data)) as img:
@@ -196,9 +197,15 @@ def _check_decodes(filename: str, data: bytes, min_side_px: int | None = None) -
     except ValidationError:
         raise
     except (Image.DecompressionBombError, Image.DecompressionBombWarning) as exc:
-        raise ValidationError(f"File '{filename}' declares an unsafe image size.") from exc
+        raise ValidationError(f"File '{_safe_name(filename)}' declares an unsafe image size.") from exc
     except Exception as exc:  # noqa: BLE001 - any decoder failure means the file is unusable
-        raise ValidationError(f"File '{filename}' is corrupt or truncated and cannot be decoded.") from exc
+        raise ValidationError(f"File '{_safe_name(filename)}' is corrupt or truncated and cannot be decoded.") from exc
+
+
+def _safe_name(filename: str, limit: int = 80) -> str:
+    """Filename for error messages: control characters removed, length bounded (never used as a path)."""
+    cleaned = "".join(ch if ch.isprintable() else "?" for ch in str(filename or ""))
+    return cleaned if len(cleaned) <= limit else cleaned[: limit - 1] + "…"
 
 
 def _get_extension(filename: str) -> str:

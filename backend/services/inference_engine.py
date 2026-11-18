@@ -42,6 +42,7 @@ import os
 import sys
 import threading
 import time
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -56,6 +57,14 @@ _DEVICE_PREF = os.getenv("DEVICE", "auto").lower()
 _OUTPUT_DIR = Path(os.getenv("MESH_OUTPUT_DIR", "outputs/meshes"))
 # A job still processing after this many seconds is reported as failed (hung GPU/driver, deadlock).
 _INFERENCE_TIMEOUT_SEC = float(os.getenv("INFERENCE_TIMEOUT_SEC", "300"))
+# GPU forward passes allowed at once (single-photo jobs and reconstruction frames share it): more than one
+# HMR2 ViT-H pass at a time risks CUDA out-of-memory. Extra work waits instead of failing.
+_MAX_CONCURRENT_JOBS = max(1, int(os.getenv("MAX_CONCURRENT_JOBS", "1")))
+_GPU_SLOTS = threading.BoundedSemaphore(_MAX_CONCURRENT_JOBS)
+# Finished single-photo job records are dropped from memory after this long (mesh files are kept unless
+# JOB_RETENTION_DELETE_FILES is true - deleting generated meshes is an explicit opt-in).
+_JOB_RETENTION_SEC = float(os.getenv("JOB_RETENTION_HOURS", "24")) * 3600
+_DELETE_EXPIRED_FILES = os.getenv("JOB_RETENTION_DELETE_FILES", "false").lower() in ("1", "true", "yes")
 _USE_DETECTRON2 = os.getenv("USE_DETECTRON2", "true").lower() in ("1", "true", "yes")
 
 _OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -352,7 +361,7 @@ class InferenceEngine:
         verts = faces = None
         for batch in dl:
             batch = recursive_to(batch, self.device)
-            with torch.no_grad():
+            with torch.no_grad(), gpu_slot():
                 out = self.model(batch)
             verts = out["pred_vertices"][0].cpu().numpy()  # (6890, 3)
             faces = self.smpl_faces.astype(np.int64)        # (13776, 3)
@@ -401,6 +410,7 @@ class InferenceEngine:
             )
 
         now = time.time()
+        self._evict_expired(now)
         self.jobs[job_id] = {"status": "queued", "created_at": now, "updated_at": now}
 
         def _finish(update: dict[str, Any]) -> None:
@@ -436,7 +446,35 @@ class InferenceEngine:
                     job.update(status="failed", timed_out=True, updated_at=time.time(),
                                detail=f"Inference did not finish within {_INFERENCE_TIMEOUT_SEC:.0f} s and was abandoned.")
                     logger.error("Job %s timed out", job_id)
-            return dict(job) if job else None
+            result = dict(job) if job else None
+        self._evict_expired(time.time())
+        return result
+
+    def _evict_expired(self, now: float) -> list[str]:
+        """Drop finished job records older than JOB_RETENTION_HOURS; never touches queued/processing jobs."""
+        with self._jobs_lock:
+            expired = [jid for jid, job in self.jobs.items()
+                       if job.get("status") in ("completed", "failed")
+                       and now - job.get("updated_at", now) > _JOB_RETENTION_SEC]
+            for jid in expired:
+                del self.jobs[jid]
+        if _DELETE_EXPIRED_FILES:
+            for jid in expired:
+                try:
+                    (_OUTPUT_DIR / f"{jid}.obj").unlink(missing_ok=True)
+                except OSError:
+                    logger.warning("Could not delete expired mesh for job %s", jid)
+        return expired
+
+
+@contextmanager
+def gpu_slot():
+    """Hold one of MAX_CONCURRENT_JOBS GPU slots for the duration of a model forward pass."""
+    _GPU_SLOTS.acquire()
+    try:
+        yield
+    finally:
+        _GPU_SLOTS.release()
 
 
 def decode_upright_rgb(image_bytes: bytes):

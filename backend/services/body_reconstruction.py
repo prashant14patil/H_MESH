@@ -595,7 +595,8 @@ def run_hmr2_on_frame(engine, bgr, det: Detection) -> dict:
     center = batch["box_center"][0].numpy().astype(np.float64)
     size = float(batch["box_size"][0])
     batch = recursive_to(batch, engine.device)
-    with torch.no_grad():
+    from backend.services.inference_engine import gpu_slot
+    with torch.no_grad(), gpu_slot():  # shares the GPU with single-photo jobs one forward pass at a time
         out = engine.model(batch)
     params = out["pred_smpl_params"]
     data = {

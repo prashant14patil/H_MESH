@@ -25,11 +25,11 @@ import os
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse, JSONResponse
 
 from backend.services.inference_engine import EngineNotReadyError, get_engine
-from backend.utils.validators import MIN_PHOTO_SIDE_PX, ValidationError, validate_image
+from backend.utils.validators import MAX_UPLOAD_BYTES, MIN_PHOTO_SIDE_PX, ValidationError, validate_image
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +38,8 @@ router = APIRouter()
 # Local directory where generated meshes are written by the engine.
 _MESH_DIR = Path(os.getenv("MESH_OUTPUT_DIR", "outputs/meshes"))
 _MESH_DIR.mkdir(parents=True, exist_ok=True)
+# Multipart framing and headers around the file part; generous so honest uploads near the limit pass.
+_MULTIPART_OVERHEAD = 64 * 1024
 
 
 # ---------------------------------------------------------------------------
@@ -49,6 +51,7 @@ _MESH_DIR.mkdir(parents=True, exist_ok=True)
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def submit_inference(
+    request: Request,
     image: UploadFile = File(..., description="Full-body RGB photograph (JPEG or PNG)"),
 ) -> JSONResponse:
     """
@@ -65,7 +68,16 @@ async def submit_inference(
     400  – Image failed validation (wrong type, too large, etc.)
     503  – The inference engine failed to load (missing checkpoint, etc.)
     """
-    image_bytes = await image.read()
+    # Defence in depth: refuse an honestly-declared oversized body before reading it, and never read more
+    # than the limit + 1 byte even if the header understates the size (the size check then rejects it).
+    declared = request.headers.get("content-length")
+    if declared and declared.isdigit() and int(declared) > MAX_UPLOAD_BYTES + _MULTIPART_OVERHEAD:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                            detail=f"Upload is larger than the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit.")
+    image_bytes = await image.read(MAX_UPLOAD_BYTES + 1)
+    if len(image_bytes) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                            detail=f"Upload is larger than the {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit.")
 
     try:
         validate_image(filename=image.filename, data=image_bytes, min_side_px=MIN_PHOTO_SIDE_PX)

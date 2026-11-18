@@ -17,6 +17,8 @@ import {
 } from '../services/reconstructionApi.js'
 import { parseHeightCm } from './heightScale.js'
 import { CLOTHING_OPTIONS, hasTapeValues, parseTapeInputs } from './tapeValidation.js'
+import { ModelSwitch, ShapyView } from './MeasurementModels.jsx'
+import { loadView, saveView } from './measurementModels.js'
 
 const POLL_MS = 1500
 
@@ -52,6 +54,8 @@ export default function UnifiedReconstructionPanel({ videoId }) {
   const [tapeText, setTapeText] = useState({})
   const [clothing, setClothing] = useState('unknown')
   const [tapeNote, setTapeNote] = useState('')
+  const [modelView, setModelViewState] = useState(loadView)
+  const setModelView = (v) => { setModelViewState(v); saveView(v) }
   const timer = useRef(null)
   const height = parseHeightCm(heightText)
   // Previously saved tape values pre-fill the inputs and are resent with any edits.
@@ -268,6 +272,16 @@ export default function UnifiedReconstructionPanel({ videoId }) {
             )}
             {result.measurements && (
               <div className="text-xs space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-gray-600">Measurement model</span>
+                  <ModelSwitch view={modelView} onChange={setModelView} />
+                </div>
+                {modelView !== 'pipeline' ? (
+                  <ShapyView runId={run.run_id} view={modelView} labels={MEASUREMENT_LABELS}
+                    pipeline={{ measurements: result.measurements, measurements_cm: metric?.measurements_cm }}
+                    pipelineMeshUrl={file(result.mesh_obj)} heightCm={metric?.height_cm}
+                    onError={(m) => setError(`Mesh viewer could not load the result: ${m}`)} />
+                ) : (<>
                 <p className="font-medium text-gray-800">
                   Predicted body measurements {metric ? `(cm, from ${fmt(metric.height_cm, 1)} cm height)` : ''} · {result.measurements_valid} valid
                 </p>
@@ -295,6 +309,7 @@ export default function UnifiedReconstructionPanel({ videoId }) {
                     ))}
                   </tbody>
                 </table>
+                </>)}
                 <div className="flex flex-wrap items-center gap-2">
                   {heightField}
                   <button onClick={applyScale} disabled={busy || height.value == null}

@@ -47,6 +47,7 @@ from backend.routes.video_mesh import router as video_mesh_router
 from backend.routes.capture_quality import router as capture_quality_router
 from backend.routes.subject_review import router as subject_review_router
 from backend.routes.reconstruction import router as reconstruction_router
+from backend.routes.shapy import router as shapy_router
 from backend.services.inference_engine import get_engine
 
 # ---------------------------------------------------------------------------
@@ -100,6 +101,7 @@ app.include_router(video_mesh_router, prefix="/api/video-mesh", tags=["Video mes
 app.include_router(capture_quality_router, prefix="/api/capture-quality", tags=["Capture quality"])
 app.include_router(subject_review_router, prefix="/api/subject-review", tags=["Subject review"])
 app.include_router(reconstruction_router, prefix="/api/reconstruction", tags=["Unified reconstruction"])
+app.include_router(shapy_router, prefix="/api/reconstruction", tags=["SHAPY measurement model"])
 
 
 # ---------------------------------------------------------------------------

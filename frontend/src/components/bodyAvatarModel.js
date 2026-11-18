@@ -30,14 +30,15 @@ export const SITE_FULL_LABELS = {
 }
 
 /**
- * Run-to-run repeatability of each girth as a percentage (1 SD), measured with
- * scripts/measurement_accuracy_study.py on two independent recordings of the same subject
- * (docs/MEASUREMENT_ACCURACY_REPEATABILITY_REPORT.md), fit setting RECON_BETA_PRIOR=0.2. One subject, two
- * recordings: a first estimate, not an established figure. Used to decide whether a change between scans is larger than noise.
+ * Recording-to-recording repeatability of each girth as a percentage (1 SD), measured with
+ * scripts/measurement_accuracy_study.py on THREE independent recordings of one subject with identical fit
+ * settings (shape prior 0.2, non-saturating outside term); see docs/MEASUREMENT_ACCURACY_REPEATABILITY_REPORT.md.
+ * One subject: a first estimate, not an established figure. Used to judge whether a change between scans is
+ * larger than noise. Replace with the validation report's values as more recordings are added.
  */
 export const REPEATABILITY_SD_PCT = {
-  chest: 1.5, waist: 2.8, abdomen: 2.8, hip: 2.0, upper_arm_left: 3.4, upper_arm_right: 3.2,
-  forearm_left: 1.4, forearm_right: 1.3, thigh_left: 2.5, thigh_right: 2.7, calf_left: 1.6, calf_right: 1.6,
+  chest: 1.0, waist: 2.0, abdomen: 2.0, hip: 1.5, upper_arm_left: 2.4, upper_arm_right: 2.3,
+  forearm_left: 1.0, forearm_right: 0.9, thigh_left: 1.8, thigh_right: 1.9, calf_left: 1.1, calf_right: 1.1,
 }
 
 /** 95% repeatability coefficient (Bland-Altman): two scans of an unchanged body differ by less than this. */

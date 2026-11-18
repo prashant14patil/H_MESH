@@ -74,7 +74,10 @@ POP_PRIOR_WEIGHT = float(os.getenv("RECON_POP_PRIOR", "0.05"))
 # Whether stage B may bend each view's joints to match that view's silhouette (see FitConfig.fit_body_pose).
 FIT_BODY_POSE = os.getenv("RECON_FIT_BODY_POSE", "1") == "1"
 PROTRUSION_WARN = 0.03       # mean share of the rendered body outside the clothed outline
-FIT_HELD_GAP_WARN = 0.05     # fit IoU minus held-out IoU
+# Fit IoU minus held-out IoU. ~0.06 is typical: per-view joints absorb part of each view's silhouette (the
+# exported mesh uses only the shared shape, so this does not change it). Locking pose closes the gap but makes
+# the shape absorb keypoint-pose errors instead (coefficients up to 3.8 SD), so only abnormal gaps are flagged.
+FIT_HELD_GAP_WARN = 0.08
 # Weight of the silhouette "fill the outline" term (1 = symmetric). Kept at 1: with the shape prior on, lowering it
 # changed girths by < 1% in the study; exposed for further experiments.
 SIL_COVERAGE_WEIGHT = float(os.getenv("RECON_SIL_COVERAGE", "1.0"))

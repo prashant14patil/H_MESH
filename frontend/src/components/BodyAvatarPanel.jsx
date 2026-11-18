@@ -19,7 +19,7 @@ import {
   decodeLabels, scanValues, comparableValues, interpolateValues, uncertaintyCm, formatValue, formatDelta,
   siteStatus, changeStatus, segmentStatus, legendFor, hexToRgb, formatDate, formatDateTime, repeatabilityCoefficient,
 } from './bodyAvatarModel.js'
-import { listReconstructions, reconstructionFileUrl } from '../services/reconstructionApi.js'
+import { listReconstructions, reconstructionFileUrl, getConditions, recordConditions } from '../services/reconstructionApi.js'
 
 const LABELS = decodeLabels(segmentsJson)
 const VIEWS = [['front', 'Front', 0], ['side', 'Side', Math.PI / 2], ['back', 'Back', Math.PI]]
@@ -166,6 +166,7 @@ export default function BodyAvatarPanel({ run }) {
       <Collapsible title="Accuracy & method" badge={heightCm ? 'CM' : 'RELATIVE'} hint="How sure each number is"
         open={showAccuracy} onToggle={() => setShowAccuracy((s) => !s)}>
         <AccuracyTable result={result} scan={scan} tapeSites={tapeSites} />
+        <CaptureConditions runId={runId} />
       </Collapsible>
     </section>
   )
@@ -501,6 +502,71 @@ function AccuracyTable({ result, scan, tapeSites }) {
         fit follows the clothed outline, so loose clothing can still overstate girths. External geometry only; nothing
         here measures body fat or muscle.
       </p>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------- capture conditions
+const CLOTHING = [['minimal', 'Minimal'], ['tight', 'Tight'], ['loose', 'Loose'], ['unknown', 'Not recorded']]
+const POSTURES = [['a_pose_standard', 'Standard A-pose'], ['arms_lower', 'Arms lower'], ['arms_higher', 'Arms higher'],
+  ['relaxed_slouch', 'Relaxed / slouched'], ['other', 'Other']]
+
+/** Tags this recording for the validation report (repeatability per condition, effect of each condition). */
+function CaptureConditions({ runId }) {
+  const [form, setForm] = useState({ subject_id: '', clothing: 'unknown', distance_m: '', posture: 'a_pose_standard' })
+  const [saved, setSaved] = useState(null)
+  const [msg, setMsg] = useState(null)
+  useEffect(() => {
+    let alive = true
+    getConditions(runId).then((c) => {
+      if (!alive || !c?.subject_id) return
+      setSaved(c)
+      setForm({ subject_id: c.subject_id, clothing: c.clothing, distance_m: c.distance_m ?? '', posture: c.posture })
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [runId])
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
+  const save = async () => {
+    setMsg(null)
+    const distance = form.distance_m === '' ? null : Number(form.distance_m)
+    try {
+      const rec = await recordConditions(runId, { ...form, subject_id: form.subject_id.trim(), distance_m: distance })
+      setSaved(rec)
+      setMsg('Saved — included in scripts/validation_report.py')
+    } catch (e) {
+      setMsg(e.message)
+    }
+  }
+  const field = 'rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-800'
+  return (
+    <div className="mt-4 border-t border-slate-100 pt-3">
+      <p className="text-sm font-medium text-slate-700">Capture conditions of this recording</p>
+      <p className="text-xs text-slate-500">
+        Used to measure repeatability and the effect of clothing, camera distance and posture. Use a subject code, not a name.
+      </p>
+      <div className="mt-2 flex flex-wrap items-end gap-2 text-xs text-slate-600">
+        <label className="flex flex-col gap-1">Subject code
+          <input value={form.subject_id} onChange={set('subject_id')} placeholder="S01" maxLength={40} className={`${field} w-24`} />
+        </label>
+        <label className="flex flex-col gap-1">Clothing
+          <select value={form.clothing} onChange={set('clothing')} className={field}>
+            {CLOTHING.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </label>
+        <label className="flex flex-col gap-1">Camera distance (m)
+          <input type="number" min="0.5" max="10" step="0.1" value={form.distance_m} onChange={set('distance_m')} className={`${field} w-24`} />
+        </label>
+        <label className="flex flex-col gap-1">Posture
+          <select value={form.posture} onChange={set('posture')} className={field}>
+            {POSTURES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </label>
+        <button type="button" onClick={save} disabled={!form.subject_id.trim()}
+          className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm text-white disabled:bg-slate-300">
+          {saved ? 'Update' : 'Save'}
+        </button>
+      </div>
+      {msg && <p className="mt-1 text-xs text-slate-500" role="status">{msg}</p>}
     </div>
   )
 }

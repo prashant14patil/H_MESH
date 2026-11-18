@@ -103,3 +103,43 @@ The completed-run panel now opens with a **Body Avatar** view (`frontend/src/com
 - An accuracy table shows each girth, its ±1 SD (height scale combined with repeatability), the 95% repeatability, and the tape error where one was recorded.
 
 Colours describe measurement status or change, never body composition. Nothing in this pipeline measures fat or muscle.
+
+## 8. Update: three recordings, outside term, validation tooling (18 Nov 2026, afternoon)
+
+### 8.1 Data hygiene
+- The tape records in runs `44c10580` and `2e0b075f` were **test entries** (confirmed by the user), not real tape measurements. They are now marked `excluded` and are ignored by every report and by the avatar. **No real tape data exists yet.**
+- A third distinct recording was found: C, video `f304bffd`, run `2e0b075f`.
+
+### 8.2 Repeatability across three recordings (identical settings, offline refits)
+Settings: shape prior 0.2 and coverage weight 1.0, with the "outside" term in either form. Cm values are at 176 cm.
+
+| Site | Mean (cm) | Range A/B/C (cm) | CV % |
+|---|---|---|---|
+| Chest | 101.1 | 2.1 | 1.0 |
+| Waist | 84.5 | 3.4 | 2.0 |
+| Abdomen | 87.2 | 3.5 | 2.0 |
+| Hip | 99.8 | 2.8 | 1.5 |
+| Upper arm L / R | 28.6 / 28.6 | 1.4 / 1.3 | 2.4 / 2.3 |
+| Forearm L / R | 26.4 / 26.7 | 0.5 / 0.5 | 1.0 / 0.9 |
+| Thigh L / R | 50.3 / 49.7 | 1.8 / 1.8 | 1.8 / 1.9 |
+| Calf L / R | 36.7 / 36.7 | 0.8 / 0.8 | 1.1 / 1.1 |
+
+Mean CV is 1.6%. The avatar's repeatability figures (`REPEATABILITY_SD_PCT`) now use these values.
+
+### 8.3 "Stay inside the outline" term
+The fit-code session (poc-mesh-81) replaced the saturating, diluted outside penalty with a non-saturating one (`RECON_SIL_OUTSIDE=charbonnier`). On all three recordings, with prior 0.2, protrusion falls from **3.4–4.1% to 1.3–1.4%**, girths change by at most 0.2 cm, and repeatability is unchanged (CV 1.58% vs 1.59%). That is an objective improvement.
+
+### 8.4 Open question: how strongly to hold the shape to HMR2
+poc-mesh-81 chose new defaults by held-out IoU: shape prior off, a population prior of 0.05, and per-view body pose fitted. That raises the hip to about 0.656 × height (about 115 cm at 176 cm), against 0.574 (about 101 cm) with prior 0.2. Held-out IoU is scored against the clothed outline, so it favours a body that fills loose clothing. In profile views the new setting fills 96% of the clothed depth; prior 0.2 fills 80%. Both are physically possible under a loose T-shirt. **None of the image-based metrics can decide which girths are correct; only real tape measurements can.** Each run records its exact fit settings (`multiview_optimisation.fit_config`), so tape values can be compared against each setting.
+
+### 8.5 Validation tooling (steps: repeatability, clothing / distance / posture, tape)
+- `POST /api/reconstruction/runs/{id}/conditions` (and a form under "Accuracy & method" in the avatar) tags a recording with a subject code, clothing, camera distance and posture.
+- `GET /api/reconstruction/validation/report` and `scripts/validation_report.py` produce a full report:
+  - one row per distinct recording, with re-uploads and re-runs collapsed by file content;
+  - only runs made with the same fit settings;
+  - repeatability computed only between recordings with the same conditions;
+  - each condition's effect compared with the repeatability coefficient;
+  - tape accuracy (bias, SD, MAE, worst error) excluding test entries.
+- `scripts/validation_report.py --exclude-tape RUN …` marks test tape records; `--tag RUN --subject S01 …` tags old runs.
+
+**Agreed between the two working sessions (18 Nov 2026):** the corrected outside term is an objective fix (2–4× less protrusion). The shape-prior setting is **not** settled and neither girth set is claimed as more accurate. When real tape values exist, compare `RECON_SIL_OUTSIDE=charbonnier`, `RECON_POP_PRIOR=0.05`, with `RECON_BETA_PRIOR` = 0 and 0.2 on the same recordings, and keep whichever is closer to tape (`scripts/validation_report.py`; runs are told apart by their recorded `fit_config`).

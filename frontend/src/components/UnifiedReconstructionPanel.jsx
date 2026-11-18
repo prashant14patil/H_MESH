@@ -137,7 +137,7 @@ export default function UnifiedReconstructionPanel({ videoId }) {
   const tapeResult = result?.tape_validation
   const heightField = (
     <label className="flex flex-wrap items-center gap-2 text-xs text-gray-700">
-      <span>Subject’s barefoot height (cm, optional)</span>
+      <span>Subject’s barefoot height (cm) — needed for cm measurements</span>
       <input type="number" inputMode="decimal" min="100" max="250" step="0.5" value={heightText}
         onChange={(e) => setHeightText(e.target.value)} aria-invalid={height.error ? 'true' : 'false'}
         aria-label="Subject barefoot height in centimetres"
@@ -262,95 +262,114 @@ export default function UnifiedReconstructionPanel({ videoId }) {
               </figure>
             )}
             {result.measurements && (
-              <div className="text-xs space-y-1">
-                <p className="font-medium text-gray-800">Circumferences from mesh cross-sections ({result.measurements_valid} valid)</p>
-                {metric ? (
+              <div className="text-xs space-y-2">
+                <p className="font-medium text-gray-800">
+                  Predicted body measurements {metric ? `(cm, from ${fmt(metric.height_cm, 1)} cm height)` : ''} · {result.measurements_valid} valid
+                </p>
+                {!metric && (
                   <p className="text-amber-800">
-                    Centimetres are scaled from the height you entered ({fmt(metric.height_cm, 1)} cm); every value shares its
-                    error (±1 cm of height ≈ ±{fmt(metric.relative_scale_uncertainty * 100, 1)}%). Girths follow the clothed outline
-                    and have not been validated against tape measurements.
+                    Enter the subject’s barefoot height to get the measurements in centimetres. Until then the model can only
+                    give them relative to height, because one camera cannot recover absolute size.
                   </p>
-                ) : (
-                  <p className="text-amber-800">Relative values: tape circumference ÷ mesh height. No calibration or known-size reference exists, so these are not centimetres, and they follow the clothed outline. Enter the subject’s height below to convert them.</p>
                 )}
                 <table className="min-w-[16rem] border-collapse">
                   <thead>
                     <tr className="text-left text-gray-500">
-                      <th className="pr-4 py-0.5 font-normal">Site</th>
-                      <th className="pr-4 py-0.5 font-normal">× height</th>
-                      {metric && <th className="pr-4 py-0.5 font-normal">model cm</th>}
-                      {metric && <th className="pr-4 py-0.5 font-normal">tape cm</th>}
-                      {tapeResult && <th className="py-0.5 font-normal">model − tape</th>}
+                      <th className="pr-4 py-0.5 font-normal">Measurement</th>
+                      {metric && <th className="pr-4 py-0.5 font-normal">Predicted (cm)</th>}
+                      <th className="py-0.5 font-normal">× height</th>
                     </tr>
                   </thead>
                   <tbody>
                     {Object.entries(result.measurements).map(([key, value]) => (
                       <tr key={key} className="border-b border-gray-100">
                         <td className="pr-4 py-0.5 text-gray-600">{MEASUREMENT_LABELS[key] || key}</td>
-                        <td className="pr-4 py-0.5 font-mono">{value == null ? 'invalid section' : fmt(value)}</td>
-                        {metric && <td className="pr-4 py-0.5 font-mono">{fmt(metric.measurements_cm?.[key], 1)}</td>}
-                        {metric && (
-                          <td className="pr-4 py-0.5">
-                            <input type="number" inputMode="decimal" step="0.1" min="10" max="250"
-                              aria-label={`Tape measurement for ${MEASUREMENT_LABELS[key] || key} in centimetres`}
-                              value={tapeInputs[key] ?? ''}
-                              onChange={(e) => setTapeText((t) => ({ ...t, [key]: e.target.value }))}
-                              aria-invalid={tape.errors[key] ? 'true' : 'false'}
-                              className={`w-20 rounded border px-1 py-0.5 font-mono ${tape.errors[key] ? 'border-red-500' : 'border-gray-300'}`} />
-                            {tape.errors[key] && <span className="ml-1 text-red-700">{tape.errors[key]}</span>}
-                          </td>
-                        )}
-                        {tapeResult && (
-                          <td className="py-0.5 font-mono">
-                            {tapeResult.sites?.[key]?.error_cm != null
-                              ? `${tapeResult.sites[key].error_cm > 0 ? '+' : ''}${fmt(tapeResult.sites[key].error_cm, 1)} (${fmt(tapeResult.sites[key].error_pct, 1)}%)`
-                              : '—'}
-                          </td>
-                        )}
+                        {metric && <td className="pr-4 py-0.5 font-mono font-medium text-gray-900">{fmt(metric.measurements_cm?.[key], 1)}</td>}
+                        <td className="py-0.5 font-mono text-gray-500">{value == null ? 'invalid section' : fmt(value)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <div className="flex flex-wrap items-center gap-2 pt-1">
+                <div className="flex flex-wrap items-center gap-2">
                   {heightField}
                   <button onClick={applyScale} disabled={busy || height.value == null}
                     className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 text-white text-xs">
-                    {metric ? 'Update cm values' : 'Convert to cm'}
+                    {metric ? 'Update height' : 'Predict in cm'}
                   </button>
                 </div>
                 {metric && (
-                  <div className="rounded border border-gray-200 p-2 space-y-2" aria-label="Tape-measure validation">
-                    <p className="font-medium text-gray-800">Validate against a tape measure (optional)</p>
-                    <p className="text-gray-600">
-                      Enter independent tape circumferences for this subject in the “tape cm” column, measured on skin or
-                      tight clothing at the same sites (natural waist, fullest hip, mid-thigh…). Leave unmeasured sites blank.
-                      Only enter measurements taken with the subject’s consent.
-                    </p>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <label className="flex items-center gap-1">
-                        <span>Clothing in the video</span>
-                        <select value={clothing} onChange={(e) => setClothing(e.target.value)}
-                          className="rounded border border-gray-300 px-1 py-0.5">
-                          {CLOTHING_OPTIONS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-                        </select>
-                      </label>
-                      <input value={tapeNote} onChange={(e) => setTapeNote(e.target.value)} maxLength={500}
-                        placeholder="Note (optional, no names)" aria-label="Tape measurement note"
-                        className="flex-1 min-w-[10rem] rounded border border-gray-300 px-2 py-0.5" />
-                      <button onClick={submitTape} disabled={busy || !hasTapeValues(tape)}
-                        className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 text-white text-xs">
-                        {tapeResult ? 'Update comparison' : 'Compare with model'}
-                      </button>
-                    </div>
-                    {tapeResult?.summary?.sites_compared > 0 && (
-                      <p className="text-gray-700">
-                        {tapeResult.summary.sites_compared} site(s) compared · mean abs error {fmt(tapeResult.summary.mean_abs_error_cm, 1)} cm
-                        ({fmt(tapeResult.summary.mean_abs_error_pct, 1)}%) · mean bias {fmt(tapeResult.summary.mean_error_cm, 1)} cm
-                        · worst {fmt(tapeResult.summary.max_abs_error_cm, 1)} cm. One subject is not an accuracy result —
-                        pool several with <code>scripts/tape_validation_report.py</code>.
+                  <p className="text-gray-500">
+                    Each value shares the height’s error (±1 cm of height ≈ ±{fmt(metric.relative_scale_uncertainty * 100, 1)}%).
+                    The fitted shape follows the clothed outline, so loose clothing can make girths read larger.
+                  </p>
+                )}
+                {metric && (
+                  <details className="rounded border border-gray-200 p-2" aria-label="Tape-measure accuracy check">
+                    <summary className="cursor-pointer text-gray-700">Accuracy check against a tape measure (optional, for validation only)</summary>
+                    <div className="mt-2 space-y-2">
+                      <p className="text-gray-600">
+                        Not needed for the prediction. To measure how accurate the model is, enter tape values taken on the same
+                        person (with consent) and compare. Leave unmeasured sites blank.
                       </p>
-                    )}
-                  </div>
+                      <table className="border-collapse">
+                        <thead>
+                          <tr className="text-left text-gray-500">
+                            <th className="pr-4 py-0.5 font-normal">Measurement</th>
+                            <th className="pr-4 py-0.5 font-normal">Predicted</th>
+                            <th className="pr-4 py-0.5 font-normal">Tape (cm)</th>
+                            {tapeResult && <th className="py-0.5 font-normal">Predicted − tape</th>}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.keys(result.measurements).map((key) => (
+                            <tr key={key} className="border-b border-gray-100">
+                              <td className="pr-4 py-0.5 text-gray-600">{MEASUREMENT_LABELS[key] || key}</td>
+                              <td className="pr-4 py-0.5 font-mono">{fmt(metric.measurements_cm?.[key], 1)}</td>
+                              <td className="pr-4 py-0.5">
+                                <input type="number" inputMode="decimal" step="0.1" min="10" max="250"
+                                  aria-label={`Tape measurement for ${MEASUREMENT_LABELS[key] || key} in centimetres`}
+                                  value={tapeInputs[key] ?? ''}
+                                  onChange={(e) => setTapeText((t) => ({ ...t, [key]: e.target.value }))}
+                                  aria-invalid={tape.errors[key] ? 'true' : 'false'}
+                                  className={`w-20 rounded border px-1 py-0.5 font-mono ${tape.errors[key] ? 'border-red-500' : 'border-gray-300'}`} />
+                                {tape.errors[key] && <span className="ml-1 text-red-700">{tape.errors[key]}</span>}
+                              </td>
+                              {tapeResult && (
+                                <td className="py-0.5 font-mono">
+                                  {tapeResult.sites?.[key]?.error_cm != null
+                                    ? `${tapeResult.sites[key].error_cm > 0 ? '+' : ''}${fmt(tapeResult.sites[key].error_cm, 1)} (${fmt(tapeResult.sites[key].error_pct, 1)}%)`
+                                    : '—'}
+                                </td>
+                              )}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <label className="flex items-center gap-1">
+                          <span>Clothing in the video</span>
+                          <select value={clothing} onChange={(e) => setClothing(e.target.value)}
+                            className="rounded border border-gray-300 px-1 py-0.5">
+                            {CLOTHING_OPTIONS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                          </select>
+                        </label>
+                        <input value={tapeNote} onChange={(e) => setTapeNote(e.target.value)} maxLength={500}
+                          placeholder="Note (optional, no names)" aria-label="Tape measurement note"
+                          className="flex-1 min-w-[10rem] rounded border border-gray-300 px-2 py-0.5" />
+                        <button onClick={submitTape} disabled={busy || !hasTapeValues(tape)}
+                          className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 text-white text-xs">
+                          {tapeResult ? 'Update comparison' : 'Compare'}
+                        </button>
+                      </div>
+                      {tapeResult?.summary?.sites_compared > 0 && (
+                        <p className="text-gray-700">
+                          {tapeResult.summary.sites_compared} site(s) · mean abs error {fmt(tapeResult.summary.mean_abs_error_cm, 1)} cm
+                          ({fmt(tapeResult.summary.mean_abs_error_pct, 1)}%) · bias {fmt(tapeResult.summary.mean_error_cm, 1)} cm
+                          · worst {fmt(tapeResult.summary.max_abs_error_cm, 1)} cm.
+                        </p>
+                      )}
+                    </div>
+                  </details>
                 )}
               </div>
             )}

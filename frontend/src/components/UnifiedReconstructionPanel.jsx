@@ -10,6 +10,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import MeshViewer from './MeshViewer.jsx'
+import BodyAvatarPanel from './BodyAvatarPanel.jsx'
 import {
   startReconstruction, getReconstruction, confirmPerson, reconstructionFileUrl, applyHeightScale,
   recordTapeMeasurements,
@@ -228,8 +229,12 @@ export default function UnifiedReconstructionPanel({ videoId }) {
 
         {done && result && (
           <div className="space-y-3">
-            <MeshViewer meshUrl={file(result.mesh_obj)} upright onLoad={setMeshInfo}
-              onError={(m) => setError(`Mesh viewer could not load the result: ${m}`)} />
+            <BodyAvatarPanel run={run} />
+            <details className="rounded-lg border border-gray-200">
+              <summary className="cursor-pointer px-3 py-2 text-xs text-gray-600">Technical mesh viewer (free orbit / zoom / pan)</summary>
+              <MeshViewer meshUrl={file(result.mesh_obj)} upright onLoad={setMeshInfo}
+                onError={(m) => setError(`Mesh viewer could not load the result: ${m}`)} />
+            </details>
             <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               {/* OBJLoader de-indexes geometry, so its position count is 3x faces; report the file's vertex count. */}
               <Stat label="Vertices" value={result.vertex_count} />

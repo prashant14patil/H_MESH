@@ -30,10 +30,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import VideoCapture from './VideoCapture.jsx'
 import FrameGallery from './FrameGallery.jsx'
-import VideoMeshPanel from './VideoMeshPanel.jsx'
 import UnifiedReconstructionPanel from './UnifiedReconstructionPanel.jsx'
-import CaptureQualityPanel from './CaptureQualityPanel.jsx'
-import SubjectReviewPanel from './SubjectReviewPanel.jsx'
 import {
   uploadVideo,
   processVideo,
@@ -456,41 +453,6 @@ export default function CaptureWorkspace() {
           </div>
         </div>
         {hasResult && <UnifiedReconstructionPanel key={`unified-${videoId}`} videoId={videoId} />}
-        {hasResult && (
-          <details className="bg-white rounded-2xl border border-gray-200 shadow-sm" open={reviewSession ? true : undefined}>
-            <summary className="px-5 py-3 cursor-pointer text-sm font-medium text-gray-600">
-              Advanced: legacy frame-by-frame quality review and single-frame meshes (diagnostic only)
-            </summary>
-            <div className="p-3 space-y-3">
-        {hasResult && <CaptureQualityPanel key={`quality-${videoId}`} videoId={videoId} onReport={setQualityReport} restoredReport={qualityReport}
-          reviewSession={reviewSession?.quality_run_id === qualityReport?.run_id ? reviewSession : null} reviewDecisions={reviewDecisions} />}
-        {hasResult && qualityReport && (
-          <SubjectReviewPanel key={`${qualityReport.run_id}-${restoreVersion}`} videoId={videoId} report={qualityReport}
-            requestedFrame={reviewFrame} decisions={reviewDecisions}
-            onSession={handleSession}
-            onDecision={decision => setReviewDecisions(old => ({ ...old, [decision.frame_id]: decision }))} />
-        )}
-        {hasResult && (
-          <VideoMeshPanel
-            key={`${videoId}-${restoreVersion}`}
-            videoId={videoId}
-            metadata={frameMetadata}
-            viewpointData={viewpointData}
-            poseResults={poseResults}
-            qualityReport={qualityReport}
-            reviewSession={reviewSession?.quality_run_id === qualityReport?.run_id ? reviewSession : null}
-            reviewDecisions={reviewDecisions}
-            restoredSelection={reviewSelection}
-            meshRuns={meshRuns}
-            onReviewFrame={name => {
-              setReviewFrame({ name })
-              document.getElementById('subject-review')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-            }}
-          />
-        )}
-            </div>
-          </details>
-        )}
       </div>
     </div>
   )

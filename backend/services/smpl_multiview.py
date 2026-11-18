@@ -146,6 +146,10 @@ class FitConfig:
     w_depth: float = 2.0          # people rotating in place keep ~constant distance
     w_silhouette: float = 0.0
     sil_tau_frac: float = 0.01    # silhouette robust scale as a fraction of box height
+    # Weight of the "fill the outline" (coverage) term relative to the "stay inside" term. Clothing only
+    # ever ADDS to the outline, so the body may lie inside it but should not protrude: < 1 stops loose
+    # garments from inflating girths. 1.0 = symmetric (previous behaviour).
+    sil_coverage_weight: float = 1.0
     beta_sigma: np.ndarray | None = None  # per-coefficient scale for the pull to betas_init (Mahalanobis)
     seed: int = 0
 
@@ -207,7 +211,8 @@ class _SilhouetteTargets:
                                "dist": dm, "weight": weight})
 
 
-def _silhouette_loss(vertices, cam, views: FitViews, device, tau_frac: float = 0.01, targets=None):
+def _silhouette_loss(vertices, cam, views: FitViews, device, tau_frac: float = 0.01, targets=None,
+                     coverage_weight: float = 1.0):
     """Symmetric silhouette agreement using projected SMPL vertices.
 
     * outside term: projected vertices that fall outside the observed mask are penalised by
@@ -231,7 +236,7 @@ def _silhouette_loss(vertices, cam, views: FitViews, device, tau_frac: float = 0
             continue
         tau = tau_frac * float(views.box_height[i])
         d = torch.cdist(item["contour"], uv[i]).min(dim=1).values
-        loss = (item["cw"] * _robust(d / tau)).sum() / item["cw"].sum().clamp(min=1e-6)
+        loss = coverage_weight * (item["cw"] * _robust(d / tau)).sum() / item["cw"].sum().clamp(min=1e-6)
         if item["dist"] is not None:
             dm, (ox, oy, s) = item["dist"]
             h, w = dm.shape
@@ -314,7 +319,8 @@ def fit_multiview(smpl, views: FitViews, betas_init: np.ndarray, cfg: FitConfig 
                 + cfg.w_beta_init * l_beta_init + cfg.w_depth * l_depth)
         l_sil = None
         if use_sil:
-            l_sil = _silhouette_loss(verts, cam, views, device, cfg.sil_tau_frac, sil_targets)
+            l_sil = _silhouette_loss(verts, cam, views, device, cfg.sil_tau_frac, sil_targets,
+                                     cfg.sil_coverage_weight)
             loss = loss + cfg.w_silhouette * l_sil
         if not torch.isfinite(loss):
             raise FitError("Optimisation diverged (non-finite loss)")

@@ -66,6 +66,11 @@ export function recordTapeMeasurements(runId, tapeCm, clothing, note = '') {
   })
 }
 
+/** Completed runs with measurements, newest first. */
+export async function listReconstructions(limit = 50) {
+  return (await request(`/api/reconstruction/runs?limit=${limit}`)).runs
+}
+
 export function reconstructionFileUrl(runId, name) {
   return `${BASE_URL}/api/reconstruction/runs/${encodeURIComponent(runId)}/files/${encodeURIComponent(name)}`
 }

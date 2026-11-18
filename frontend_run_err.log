@@ -1,0 +1,387 @@
+[2m12:16:43 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:43 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:45 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:45 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:45 pm[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?
+[2m12:16:46 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:46 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:46 pm[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?
+[2m12:16:47 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:47 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:47 pm[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?
+[2m12:16:47 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:47 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:47 pm[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?
+[2m12:16:48 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:48 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:48 pm[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?
+[2m12:16:49 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:49 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:49 pm[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?
+[2m12:16:50 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:50 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:50 pm[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?
+[2m12:16:51 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:51 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:51 pm[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?
+[2m12:16:51 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:51 pm[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mC:/Users/icroc/Desktop/texti/POC-MESH/frontend/src/components/UnifiedReconstructionPanel.jsx[39m:16:30
+[33m  25 |    applyHeightScale
+  26 |  } from "../services/reconstructionApi.js";
+  27 |  import { parseHeightCm } from "./heightScale.js";
+     |                                 ^
+  28 |  const POLL_MS = 1500;
+  29 |  const STAGE_LABELS = {[39m
+      at TransformPluginContext._formatError (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+      at async file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 6)
+      at async TransformPluginContext.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///C:/Users/icroc/Desktop/texti/POC-MESH/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m12:16:51 pm[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "./heightScale.js" from "src/components/UnifiedReconstructionPanel.jsx". Does the file exist?
+[2m2:13:32 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/reconstruction/runs/2e0b075f-4aaa-45cc-b971-6f0337b0bf7d/files/final_body_mesh.obj[39m
+Error: connect ECONNREFUSED 127.0.0.1:8000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)
+[2m2:13:32 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/reconstruction/runs/2e0b075f-4aaa-45cc-b971-6f0337b0bf7d/files/measurement_rings.obj[39m
+Error: connect ECONNREFUSED 127.0.0.1:8000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)
+[2m2:13:32 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/reconstruction/runs?limit=50[39m
+Error: connect ECONNREFUSED 127.0.0.1:8000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)
+[2m2:13:33 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/reconstruction/runs/3a4398a2-976d-4edf-9b77-26d93b328001/files/final_body_mesh.obj[39m
+Error: connect ECONNREFUSED 127.0.0.1:8000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)
+[2m2:13:33 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/reconstruction/runs/3a4398a2-976d-4edf-9b77-26d93b328001/files/measurement_rings.obj[39m
+Error: connect ECONNREFUSED 127.0.0.1:8000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)
+[2m2:13:33 pm[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/reconstruction/runs?limit=50[39m
+Error: connect ECONNREFUSED 127.0.0.1:8000
+    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1555:16)

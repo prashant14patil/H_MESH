@@ -57,10 +57,19 @@ ASSET_FILES = {"final_body_mesh.obj", "final_body_mesh.ply", "reconstruction_rep
                "measurements_cm.json", "final_body_mesh_metric.obj", "tape_validation.json"}
 SIL_WEIGHT = float(os.getenv("RECON_SIL_WEIGHT", "1.0"))
 BETA_SIGMA_FLOOR = 0.25      # minimum per-coefficient spread used by the shape prior
-BETA_PRIOR_WEIGHT = float(os.getenv("RECON_BETA_PRIOR", "0.0"))  # chosen by cross-validation on a separate recording
+# Mahalanobis pull of the shared shape toward the multi-frame HMR2 shape. With 0 the silhouette term inflates
+# girths to fill loose clothing (hip ~0.72 x height, shape coefficients ~2.8 SD, body protruding 7-8% outside its
+# own clothed outline); 0.2 halves the protrusion and keeps girths anatomically plausible at a small cost in
+# clothed-outline IoU. Evidence: docs/MEASUREMENT_ACCURACY_REPEATABILITY_REPORT.md. Set RECON_BETA_PRIOR=0 for
+# the previous behaviour.
+BETA_PRIOR_WEIGHT = float(os.getenv("RECON_BETA_PRIOR", "0.2"))
+# Weight of the silhouette "fill the outline" term (1 = symmetric). Kept at 1: with the shape prior on, lowering it
+# changed girths by < 1% in the study; exposed for further experiments.
+SIL_COVERAGE_WEIGHT = float(os.getenv("RECON_SIL_COVERAGE", "1.0"))
 SIL_EXCLUDE_IOU = 0.75       # a view whose fitted silhouette IoU stays below this is unreliable
 SIL_TAU_FRAC = float(os.getenv("RECON_SIL_TAU", "0.01"))  # robust silhouette scale (fraction of box height)
 CV_FOLDS = 4
+HELD_OUT_IOU_TOLERANCE = 0.03
 
 
 class RunNotFoundError(Exception):
@@ -161,6 +170,49 @@ def get_run(run_id: str):
                 _persist(run)
         return run
     return None
+
+
+def list_completed_runs(limit: int = 50) -> list[dict]:
+    """Completed runs that have measurements, newest first: the history the Body Avatar compares against.
+
+    Runs of byte-identical source videos are flagged with the same ``source_key`` so the UI can tell a
+    re-upload apart from a new recording (a re-upload is not a new measurement).
+    """
+    rows = []
+    if not _ROOT.is_dir():
+        return rows
+    for status_path in _ROOT.glob("*/status.json"):
+        try:
+            run = json.loads(status_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        res = run.get("result") or {}
+        if run.get("status") != "completed" or not res.get("measurements") or not _valid_uuid(run.get("run_id")):
+            continue
+        metric = res.get("metric_scale") or {}
+        rows.append({"run_id": run["run_id"], "video_id": run.get("video_id"), "created_at": run.get("created_at"),
+                     "mesh_obj": res.get("mesh_obj"), "measurements": res.get("measurements"),
+                     "height_cm": metric.get("height_cm"), "measurements_cm": metric.get("measurements_cm"),
+                     "source_key": _source_key(run.get("video_id"))})
+    rows.sort(key=lambda r: r.get("created_at") or 0, reverse=True)
+    return rows[:limit]
+
+
+def _source_key(video_id) -> str | None:
+    """Cheap content fingerprint of the uploaded video (first and last MiB plus file size)."""
+    try:
+        src = next(p for p in video_processor._OUTPUT_ROOT.joinpath(str(video_id)).glob("original.*") if p.is_file())
+    except (StopIteration, OSError):
+        return None
+    import hashlib
+    h = hashlib.sha256()
+    size = src.stat().st_size
+    with open(src, "rb") as fh:
+        h.update(fh.read(1 << 20))
+        fh.seek(max(0, size - (1 << 20)))
+        h.update(fh.read(1 << 20))
+    h.update(str(size).encode())
+    return h.hexdigest()[:16]
 
 
 def get_asset(run_id: str, name: str):
@@ -937,6 +989,7 @@ def _cfg_keypoint_shape():
 
 def _cfg_silhouette(beta_sigma):
     return smv.FitConfig(iterations=300, w_silhouette=SIL_WEIGHT, w_beta_init=BETA_PRIOR_WEIGHT,
+                         sil_coverage_weight=SIL_COVERAGE_WEIGHT,
                          beta_sigma=beta_sigma, sil_tau_frac=SIL_TAU_FRAC)
 
 
@@ -1047,7 +1100,9 @@ def fit_unified(engine, selected, per_frame, records, view_info, image_wh, run, 
         if name in held_kp:
             held_results[name]["keypoint_error_pct_height"] = float(np.mean(held_kp[name]))
     new_iou, old_iou = held_results[new_key].get("iou_mean"), held_results[old_key].get("iou_mean")
-    if new_iou is not None and old_iou is not None and new_iou < old_iou:
+    # Held-out IoU is scored against the CLOTHED outline, which rewards a body that fills loose garments, so a
+    # shape-prior fit may score slightly lower without being less accurate. Warn only on a clear drop.
+    if new_iou is not None and old_iou is not None and new_iou < old_iou - HELD_OUT_IOU_TOLERANCE:
         _warn(run, "silhouette_shape_not_better_on_held_out",
               f"On held-out views the silhouette-fitted shape (IoU {new_iou:.3f}) did not beat the keypoint-only "
               f"shape (IoU {old_iou:.3f}).")

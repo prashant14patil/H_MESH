@@ -41,6 +41,12 @@ def start(request: StartRequest):
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
+@router.get("/runs")
+def list_runs(limit: int = 50):
+    """Completed runs with measurements, newest first (history for the Body Avatar comparison)."""
+    return {"runs": recon.list_completed_runs(max(1, min(limit, 200)))}
+
+
 @router.get("/runs/{run_id}")
 def run_status(run_id: str):
     try:

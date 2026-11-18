@@ -25,3 +25,6 @@ frontend/dist/
 # IDE
 .vscode/
 .idea/
+
+# Runtime logs (written by local backend/frontend runs; never commit)
+*.log

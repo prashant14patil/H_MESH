@@ -1026,13 +1026,6 @@ def _attach_silhouettes(views: smv.FitViews, selected, records, masks) -> None:
     views.contours, views.dist_maps, views.contour_weights = contours, dists, cws
     views.sil_weight = np.array(weights)
 
-    kp = np.asarray(keypoints)
-    hip_y, ankle_y = float(kp[[11, 12], 1].mean()), float(kp[[15, 16], 1].max())
-    legs = (pts[:, 1] > hip_y) & (pts[:, 1] <= ankle_y)
-    cw = np.asarray(cw, dtype=np.float64).copy()
-    cw[legs] *= leg_weight
-    return cw
-
 
 # ---------------------------------------------------------------- metrics
 def silhouette_scores(smpl, faces, betas, go, pose, cam, views: smv.FitViews, mask_list, device) -> list:

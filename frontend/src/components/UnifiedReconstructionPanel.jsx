@@ -232,6 +232,26 @@ export default function UnifiedReconstructionPanel({ videoId }) {
           </ul>
         )}
 
+        {run?.capture_quality && (
+          <div className="text-xs rounded border border-gray-200 p-2 space-y-1" aria-label="Capture quality">
+            <p>
+              <span className="font-medium">Capture quality:</span>{' '}
+              <span className={run.capture_quality.verdict === 'good' ? 'text-teal-700'
+                : run.capture_quality.verdict === 'insufficient' ? 'text-red-700' : 'text-amber-700'}>
+                {run.capture_quality.verdict.replace(/_/g, ' ')}
+              </span>
+              {result?.reconstruction_quality && (
+                <> · <span className="font-medium">Reconstruction:</span> {result.reconstruction_quality.verdict.replace(/_/g, ' ')}</>
+              )}
+            </p>
+            {run.capture_quality.feedback?.length > 0 && (
+              <ul className="list-disc pl-5 space-y-0.5">
+                {run.capture_quality.feedback.map((f, i) => <li key={i}>{f}</li>)}
+              </ul>
+            )}
+          </div>
+        )}
+
         {done && result && (
           <div className="space-y-3">
             <BodyAvatarPanel run={run} />

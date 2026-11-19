@@ -1,0 +1,13 @@
+subject_id,site,reading_1_cm,reading_2_cm,reading_3_cm
+# S01,chest,,,
+# S01,waist,,,
+# S01,abdomen,,,
+# S01,hip,,,
+# S01,upper_arm_left,,,
+# S01,upper_arm_right,,,
+# S01,forearm_left,,,
+# S01,forearm_right,,,
+# S01,thigh_left,,,
+# S01,thigh_right,,,
+# S01,calf_left,,,
+# S01,calf_right,,,

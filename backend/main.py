@@ -108,8 +108,19 @@ app.include_router(bcm_router, prefix="/api/bcm", tags=["BCM integration"])
 
 
 # ---------------------------------------------------------------------------
-# Health check
+# Root / health check
 # ---------------------------------------------------------------------------
+@app.get("/", tags=["Health"])
+async def root() -> dict:
+    """Entry point: describes the service and where to find the API docs."""
+    return {
+        "service": "tanitas-backend",
+        "message": "This is the API server. Open the React UI at http://localhost:5173.",
+        "docs": "/docs",
+        "health": "/health",
+    }
+
+
 @app.get("/health", tags=["Health"])
 async def health_check() -> dict:
     """

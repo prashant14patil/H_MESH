@@ -1,0 +1,2 @@
+subject_id,session_date,stadiometer_height_cm,clothing,measurer,run_ids
+# S01,2026-11-25,176.4,tight,M1,RUN_ID_RECORDED_BEFORE_TAPE;OPTIONAL_SECOND_RUN_ID

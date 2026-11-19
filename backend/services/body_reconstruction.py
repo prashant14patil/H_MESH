@@ -6,8 +6,9 @@ Pipeline (each stage reports progress and records rejections):
   3. confirm  operator picks the subject when several people are present
   4. track    single-subject tracking, identity-switch / loss detection
   5. hmr2     real HMR2 inference on every tracked, usable frame
-  6. views    heading from HMR2 global orientation, cross-checked with 2D cues
-  7. select   sharp, unoccluded, de-duplicated frames spread over the rotation
+  6. views    heading from HMR2 global orientation, cross-checked with 2D cues and the rotation trajectory
+  7. select   sharp, unoccluded, de-duplicated frames spread over the rotation; capture-quality report
+              (scan_quality.assess_capture) written before the fit
   8. fit      shared SMPL shape + per-frame pose/camera multi-view optimisation
   9. export   canonical upright mesh (OBJ/PLY) + reports + diagnostics
 
@@ -27,6 +28,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
+from backend.services import scan_quality as sq
 from backend.services import smpl_multiview as smv
 from backend.services.capture_authorization import require_authorization
 from backend.services.person_tracking import (
@@ -54,7 +56,8 @@ ASSET_FILES = {"final_body_mesh.obj", "final_body_mesh.ply", "reconstruction_rep
                "contact_sheet.jpg", "orientation_check.jpg", "candidates_overview.jpg",
                "measurements.json", "measurement_rings.obj", "measurements_overlay.jpg",
                "view_comparison.jpg", "mesh_turntable.gif", "silhouette_masks.jpg",
-               "measurements_cm.json", "final_body_mesh_metric.obj", "tape_validation.json"}
+               "measurements_cm.json", "final_body_mesh_metric.obj", "tape_validation.json",
+               "capture_quality_report.json", "reconstruction_quality_report.json", "measurement_quality.json"}
 SIL_WEIGHT = float(os.getenv("RECON_SIL_WEIGHT", "1.0"))
 BETA_SIGMA_FLOOR = 0.25      # minimum per-coefficient spread used by the shape prior
 # Silhouette "stay inside the outline" term (see smpl_multiview.FitConfig.sil_outside_form). The legacy term
@@ -737,6 +740,16 @@ def _pipeline(run, source: Path, meta: dict, target_box_norm) -> dict:
         else:
             usable_positions.append(r.index)
 
+    # capture statistics for the quality report: subject lighting + background motion (fixed camera check)
+    t_cs = time.time()
+    lighting, bg_shift = [], []
+    bg = sq.BackgroundMotion()
+    for r in tracked:
+        bgr = cv2.imread(frames[r.index]["path"])
+        lighting.append(sq.lighting_stats(bgr, r.detection.box))
+        bg_shift.append(bg.shift_frac(bgr, r.detection.box))
+    timings["capture_stats"] = time.time() - t_cs
+
     # orientation sanity: head must be above feet in the displayed frames
     upright_votes = []
     for r in tracked:
@@ -791,17 +804,36 @@ def _pipeline(run, source: Path, meta: dict, target_box_norm) -> dict:
                           "verification_note": note, "shoulder_cue": shoulder_cue(records[pos].detection)}
     ordered = sorted(per_frame)
     unwrapped = np.unwrap(np.radians([view_info[p]["yaw_deg"] for p in ordered]))
-    total_rotation = float(abs(np.degrees(unwrapped[-1] - unwrapped[0])))
-    max_step = float(np.degrees(np.max(np.abs(np.diff(unwrapped))))) if len(unwrapped) > 1 else 0.0
+    raw_total_rotation = float(abs(np.degrees(unwrapped[-1] - unwrapped[0])))
+    # Rotation from the temporally consistent heading sequence: a single HMR2 front/back flip can neither
+    # fake nor hide a full turn there.
+    trajectory = sq.rotation_trajectory([frames[p]["time_sec"] for p in ordered],
+                                        [view_info[p]["yaw_deg"] for p in ordered])
+    trajectory["raw_unwrapped_rotation_deg"] = raw_total_rotation
+    total_rotation = trajectory["total_rotation_deg"]
+    max_step = trajectory["max_step_deg"]
+    heading_rejects = {}
+    for p, resid, out in zip(ordered, trajectory["residual_deg"], trajectory["outlier_mask"]):
+        view_info[p]["trajectory_residual_deg"] = resid
+        # Rejected only when two independent cues agree the heading is wrong: it contradicts the steady turn
+        # AND the 2D shoulder ordering. Either cue alone is only reported.
+        if out and view_info[p]["verification"] == "conflict":
+            heading_rejects[p] = f"heading_inconsistent_with_rotation: {resid:+.0f} deg from neighbours"
     n_conflict = sum(v["verification"] == "conflict" for v in view_info.values())
     if n_conflict > 0.25 * len(view_info):
         _warn(run, "viewpoint_conflicts",
               f"{n_conflict}/{len(view_info)} frames have heading estimates that disagree with 2D shoulder cues; "
               "viewpoint labels are unverified estimates.")
+    if heading_rejects:
+        _warn(run, "heading_flips_rejected",
+              f"{len(heading_rejects)} frame(s) had a heading that contradicts both the steady rotation and the 2D "
+              "shoulder ordering (likely front/back flips) and were not used.")
 
     # 7 -------------------------------------------------------------- select
     _progress(run, "select", 0.0, "Selecting frames across the rotation")
-    selected, not_selected = select_frames(per_frame, view_info, med_sharp, records, K_SELECT)
+    candidates = {p: v for p, v in per_frame.items() if p not in heading_rejects}
+    selected, not_selected = select_frames(candidates, view_info, med_sharp, records, K_SELECT)
+    not_selected.update(heading_rejects)
     for pos in not_selected:
         rejected.append({"frame_position": pos, "source_frame_index": frames[pos]["source_frame_index"],
                          "reasons": [not_selected[pos]]})
@@ -829,6 +861,34 @@ def _pipeline(run, source: Path, meta: dict, target_box_norm) -> dict:
               f"Only {usable_masks}/{len(selected)} silhouettes passed the mask checks; the shape is constrained "
               "mostly by keypoints and the HMR2 prior.")
 
+    # capture-quality report (written now, so it exists even if the fit fails)
+    clean_yaw = dict(zip(ordered, trajectory["cleaned_yaw_deg"]))
+    cov_usable = sq.angular_coverage([clean_yaw[p] for p in ordered if p not in heading_rejects])
+    cov_selected = sq.angular_coverage([view_info[p]["yaw_deg"] for p in selected])
+    capture_quality = sq.assess_capture(
+        image_wh=(W, H), frames_decoded=len(frames), tracked_boxes=[r.detection.box.tolist() for r in tracked],
+        tracking={"frames_tracked": len(tracked), "identity_switches": len(switches),
+                  "other_person_detections": other_people},
+        usable_frames=len(usable_positions), lighting=lighting, bg_shift=bg_shift, trajectory=trajectory,
+        coverage_usable=cov_usable, coverage_selected=cov_selected,
+        selected=len(selected), usable_masks=usable_masks,
+        blurry=sum(1 for r in not_selected.values() if r == "blurry"), hmr2_frames=len(per_frame))
+    capture_quality["rotation"] = {k: v for k, v in trajectory.items()
+                                   if k not in ("residual_deg", "outlier_mask", "cleaned_yaw_deg")}
+    capture_quality["rotation"]["heading_outlier_frames"] = [
+        {"frame_position": p, "source_frame_index": frames[p]["source_frame_index"],
+         "residual_deg": view_info[p]["trajectory_residual_deg"], "shoulder_check": view_info[p]["verification"],
+         "rejected": p in heading_rejects}
+        for p, out in zip(ordered, trajectory["outlier_mask"]) if out]
+    capture_quality["coverage_usable_frames"] = cov_usable
+    capture_quality["coverage_selected_frames"] = cov_selected
+    _write_json(root / "capture_quality_report.json", capture_quality)
+    with _STATE_LOCK:
+        run["capture_quality"] = {"verdict": capture_quality["verdict"], "feedback": capture_quality["feedback"]}
+    if capture_quality["verdict"] == "insufficient":
+        _warn(run, "capture_quality_insufficient",
+              "Capture quality is insufficient: " + " ".join(capture_quality["feedback"])[:600])
+
     # 9 ----------------------------------------------------------------- fit
     _progress(run, "fit", 0.0, "Optimising shared body shape")
     t3 = time.time()
@@ -840,7 +900,7 @@ def _pipeline(run, source: Path, meta: dict, target_box_norm) -> dict:
     result = export_outputs(engine, run, root, frames, records, per_frame, view_info, selected, fit_out,
                             rejected, events, orientation, selection, (W, H), counts, coverage_ok,
                             total_rotation, max_step, other_people, timings, t0, hmr2_failures, med_sharp, meta,
-                            masks)
+                            masks, capture_quality)
     # remove bulky decoded frames
     for f in work.glob("*.jpg"):
         f.unlink()
@@ -960,6 +1020,13 @@ def _attach_silhouettes(views: smv.FitViews, selected, records, masks) -> None:
         contours.append(pts), dists.append(dist), cws.append(cw), weights.append(1.0)
     views.contours, views.dist_maps, views.contour_weights = contours, dists, cws
     views.sil_weight = np.array(weights)
+
+    kp = np.asarray(keypoints)
+    hip_y, ankle_y = float(kp[[11, 12], 1].mean()), float(kp[[15, 16], 1].max())
+    legs = (pts[:, 1] > hip_y) & (pts[:, 1] <= ankle_y)
+    cw = np.asarray(cw, dtype=np.float64).copy()
+    cw[legs] *= leg_weight
+    return cw
 
 
 # ---------------------------------------------------------------- metrics
@@ -1173,7 +1240,9 @@ def fit_unified(engine, selected, per_frame, records, view_info, image_wh, run, 
             held_scores[pf_key][j] = s
         folds_info.append({"fold": k, "views_train": [selected[i] for i in train],
                            "views_held_out": [selected[i] for i in held],
-                           "held_out_nearest_train_heading_gap_deg": gaps})
+                           "held_out_nearest_train_heading_gap_deg": gaps,
+                           # shape from 3/4 of the views: its girths give each measurement's view-subset stability
+                           "betas": np.asarray(t_sil.betas).tolist()})
     held_results = {}
     for name, sc in held_scores.items():
         held_results[name] = {**_summary(sc), "per_view_iou": [s["iou"] if s else None for s in sc]}
@@ -1289,7 +1358,8 @@ def render_mesh_views(vertices, faces, size=420):
 
 def export_outputs(engine, run, root, frames, records, per_frame, view_info, selected, fit_out, rejected,
                    events, orientation, selection, image_wh, counts, coverage_ok, total_rotation, max_step,
-                   other_people, timings, t0, hmr2_failures, med_sharp, meta, masks=None):
+                   other_people, timings, t0, hmr2_failures, med_sharp, meta, masks=None,
+                   capture_quality=None):
     from backend.services import body_measurements as bm
     device = engine.device
     smpl = engine.model.smpl
@@ -1413,6 +1483,10 @@ def export_outputs(engine, run, root, frames, records, per_frame, view_info, sel
             "Keypoint R-CNN person detection + single-subject tracker with identity-switch detection",
             "Real HMR2 (ViT-H) inference per frame -> SMPL betas, pose, global orientation, camera",
             "Heading estimation from HMR2 global orientation, cross-checked with 2D shoulder cue",
+            "Rotation trajectory: headings checked against their temporal neighbours; frames contradicting both the "
+            "steady turn and the 2D shoulder ordering (front/back flips) are rejected",
+            "Capture-quality assessment (coverage, resolution, lighting, visibility, camera stability, useful "
+            "frames) with actionable feedback -> capture_quality_report.json",
             "Frame selection: one sharp, unoccluded frame per heading bin",
             "Subject silhouettes: Mask R-CNN instance mask of the tracked subject (GPU), GrabCut and MediaPipe "
             "segmenter, combined by majority vote; source agreement gates each silhouette",
@@ -1526,6 +1600,17 @@ def export_outputs(engine, run, root, frames, records, per_frame, view_info, sel
         "timings_sec": {**timings, "total": time.time() - t0},
         "consent": {"authorization_checked": True, "note": "Operator attestation recorded at upload; not independently verified."},
     }
+    report["capture_quality"] = ({"file": "capture_quality_report.json", "verdict": capture_quality["verdict"],
+                                  "checks": {k: c["status"] for k, c in capture_quality["checks"].items()},
+                                  "feedback": capture_quality["feedback"]} if capture_quality else None)
+    recon_quality = sq.assess_reconstruction(_clean(report))
+    _write_json(root / "reconstruction_quality_report.json", recon_quality)
+    report["reconstruction_quality"] = {"file": "reconstruction_quality_report.json",
+                                        "verdict": recon_quality["verdict"],
+                                        "checks": {k: c["status"] for k, c in recon_quality["checks"].items()}}
+    report["measurement_quality"] = _measurement_quality(run, root, smpl, faces, fit, quality_w, device, fit_out,
+                                                         selected, view_info, measurement_json, report,
+                                                         capture_quality, recon_quality)
     _write_json(root / "reconstruction_report.json", report)
 
     new = fit_out["heldout"]["results"].get("silhouette_keypoint_shared_shape (new)", {})
@@ -1548,7 +1633,45 @@ def export_outputs(engine, run, root, frames, records, per_frame, view_info, sel
             "measurements_valid": f"{measurements['valid_count']}/{measurements['total']}",
             "measurements": {k: m.get("tape_circumference_over_height") for k, m in measurements["measurements"].items()},
             "pose": "measurement_a_pose", "turntable": "mesh_turntable.gif", "comparison": "view_comparison.jpg",
-            "measurements_overlay": "measurements_overlay.jpg", "gpu": gpu.get("device_name")}
+            "measurements_overlay": "measurements_overlay.jpg", "gpu": gpu.get("device_name"),
+            "capture_quality": report["capture_quality"], "reconstruction_quality": report["reconstruction_quality"],
+            "measurement_quality": report["measurement_quality"],
+            "timings_sec": report["timings_sec"]}
+
+
+def _measurement_quality(run, root, smpl, faces, fit, quality_w, device, fit_out, selected, view_info,
+                         measurement_json, report, capture_quality, recon_quality) -> dict | None:
+    """Per-girth grade and +-SD precision (measurement_quality.py), written to measurement_quality.json.
+
+    The cross-validation fold shapes (each fitted on 3/4 of the views) are measured like the final mesh; the spread
+    of a girth across them is its sensitivity to which views the fit saw. A failure here never fails the run.
+    """
+    from backend.services import body_measurements as bm
+    from backend.services import measurement_quality as mq
+    try:
+        fold_girths = []
+        for f in fit_out["heldout"].get("folds", []):
+            if f.get("betas") is None:
+                continue
+            fv, _, _, _ = smv.canonical_mesh(smpl, np.asarray(f["betas"]), fit.body_pose, quality_w, device,
+                                             pose="measurement")
+            fm = bm.measure_body(fv, faces, smv.smpl_joints24(smpl, fv))["measurements"]
+            fold_girths.append({k: (m["tape_circumference_over_height"] if m["valid"] else None) for k, m in fm.items()})
+        sil_w = fit_out["views"].sil_weight
+        usable_yaws = [view_info[p]["yaw_deg"] for i, (p, m) in enumerate(zip(selected, fit_out["mask_list"]))
+                       if m is not None and (sil_w is None or sil_w[i] > 0)]
+        out = mq.assess(measurement_json, report, fold_girths=fold_girths, usable_yaws=usable_yaws,
+                        capture_verdict=(capture_quality or {}).get("verdict"),
+                        reconstruction_verdict=recon_quality.get("verdict"))
+        out["fold_girths_x_height"] = fold_girths
+        _write_json(root / "measurement_quality.json", out)
+        return {"file": "measurement_quality.json", "run_grade": out["run_grade"], "counts": out["counts"],
+                "grades": {s: v["grade"] for s, v in out["sites"].items()},
+                "precision_sd_pct": {s: v.get("precision_sd_pct") for s, v in out["sites"].items()}}
+    except Exception as exc:  # noqa: BLE001 - grading is advisory
+        logger.exception("Measurement quality failed for %s", run["run_id"])
+        _warn(run, "measurement_quality_failed", f"Per-measurement quality could not be computed: {exc}")
+        return None
 
 
 def _count_reasons(rejected):
@@ -1829,6 +1952,32 @@ def _gpu_reset():
         pass
 
 
+def _process_peak_rss_mb():
+    """Peak resident memory of this process (MiB), or None where the OS gives no cheap answer."""
+    try:
+        if os.name == "nt":
+            import ctypes
+            from ctypes import wintypes
+
+            class _PMC(ctypes.Structure):
+                _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
+                            ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
+                            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                            ("QuotaNonPagedPoolUsage", ctypes.c_size_t), ("PagefileUsage", ctypes.c_size_t),
+                            ("PeakPagefileUsage", ctypes.c_size_t)]
+            pmc = _PMC()
+            pmc.cb = ctypes.sizeof(_PMC)
+            proc = ctypes.windll.kernel32.GetCurrentProcess()
+            if ctypes.windll.psapi.GetProcessMemoryInfo(proc, ctypes.byref(pmc), pmc.cb):
+                return round(pmc.PeakWorkingSetSize / 2 ** 20, 1)
+            return None
+        import resource
+        return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0, 1)  # KiB on Linux
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def _gpu_report(engine) -> dict:
     import torch
     from backend.services.person_tracking import get_shared_detector
@@ -1838,6 +1987,8 @@ def _gpu_report(engine) -> dict:
     return {"cuda_available": cuda, "torch": torch.__version__,
             "device_name": torch.cuda.get_device_name(0) if cuda else None,
             "peak_memory_allocated_mb": round(torch.cuda.max_memory_allocated() / 2 ** 20, 1) if cuda else None,
+            "peak_memory_reserved_mb": round(torch.cuda.max_memory_reserved() / 2 ** 20, 1) if cuda else None,
+            "process_peak_rss_mb": _process_peak_rss_mb(),
             "devices": {"hmr2": str(engine.device), "person_detection": str(get_shared_detector()._device),
                         "segmentation_mask_rcnn": str(seg._device), "optimisation": str(engine.device),
                         "segmentation_refinement": "cpu (GrabCut, MediaPipe TFLite)",

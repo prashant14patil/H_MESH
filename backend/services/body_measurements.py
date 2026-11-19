@@ -220,7 +220,7 @@ def measure_body(vertices: np.ndarray, faces: np.ndarray, joints24: np.ndarray) 
     out = {}
     for name, (kind, pick, ts, definition) in specs.items():
         best = _search(v, faces, torso, ts, pick, exclude=arms)
-        out[name] = _entry(best, definition, height, side=None)
+        out[name] = _entry(best, definition, height, side=None, ts=ts)
     other_leg = {"left": [(J[R_HIP], J[R_KNEE]), (J[R_KNEE], J[R_ANKLE])],
                  "right": [(J[L_HIP], J[L_KNEE]), (J[L_KNEE], J[L_ANKLE])]}
     for side, (sh, el, wr, hp, kn, an) in {"left": (L_SHOULDER, L_ELBOW, L_WRIST, L_HIP, L_KNEE, L_ANKLE),
@@ -237,7 +237,8 @@ def measure_body(vertices: np.ndarray, faces: np.ndarray, joints24: np.ndarray) 
         }
         for name, (fn, ts, pick, definition) in limbs.items():
             exclude = spine if name in ("upper_arm", "forearm") else other_leg[side]
-            out[f"{name}_{side}"] = _entry(_search(v, faces, fn, ts, pick, exclude), definition, height, side=side)
+            out[f"{name}_{side}"] = _entry(_search(v, faces, fn, ts, pick, exclude), definition, height, side=side,
+                                           ts=ts)
     valid = sum(1 for m in out.values() if m["valid"])
     return {"units": "mesh units (relative; NOT calibrated centimetres)",
             "mesh_height": height,
@@ -245,11 +246,17 @@ def measure_body(vertices: np.ndarray, faces: np.ndarray, joints24: np.ndarray) 
             "valid_count": valid, "total": len(out), "measurements": out}
 
 
-def _entry(best, definition, height, side):
+def _entry(best, definition, height, side, ts=None):
     if best is None:
         return {"valid": False, "definition": definition, "reason": "no valid closed cross-section in the search range"}
     t, m = best
+    ts = [float(x) for x in (ts if ts is not None else [t])]
+    # A min/max search that ends on the first or last candidate plane found no interior extremum: the value is the
+    # girth at the edge of the anatomical zone, not the intended landmark (e.g. SMPL's forearm has no muscle-belly
+    # maximum, so its "fullest" girth is always the plane nearest the elbow).
+    at_edge = len(ts) > 1 and (abs(float(t) - min(ts)) < 1e-12 or abs(float(t) - max(ts)) < 1e-12)
     return {"valid": True, "definition": definition, "search_parameter": float(t),
+            "search_range": [min(ts), max(ts)], "extremum_at_search_edge": bool(at_edge),
             "tape_circumference": m["tape_perimeter"], "contour_perimeter": m["perimeter"],
             "tape_circumference_over_height": m["tape_perimeter"] / height if height else None,
             "concavity_ratio": m["concavity_ratio"], "plane_origin": m["plane_origin"],

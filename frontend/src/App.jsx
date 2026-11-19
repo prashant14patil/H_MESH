@@ -22,6 +22,7 @@ import ProcessingStatus from './components/ProcessingStatus.jsx'
 import MeshViewer from './components/MeshViewer.jsx'
 import ResultPanel from './components/ResultPanel.jsx'
 import CaptureWorkspace from './components/CaptureWorkspace.jsx'
+import AssessmentsWorkspace from './components/AssessmentsWorkspace.jsx'
 import { checkHealth, submitImage, getJobStatus, getMeshUrl } from './services/api.js'
 
 // ---------------------------------------------------------------------------
@@ -224,9 +225,20 @@ export default function App() {
           >
             360° Video Capture
           </button>
+          <button
+            onClick={() => setActiveTab('assessments')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'assessments'
+                ? 'border-teal-600 text-teal-700'
+                : 'border-transparent text-gray-400 hover:text-gray-600'
+            }`}
+          >
+            Assessments &amp; BCM
+          </button>
         </div>
 
         {activeTab === 'capture' && <CaptureWorkspace />}
+        {activeTab === 'assessments' && <AssessmentsWorkspace />}
 
         {/* Two-column layout on large screens */}
         {activeTab === 'photo' && (

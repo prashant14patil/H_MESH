@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import MeshViewer from './MeshViewer.jsx'
 import BodyAvatarPanel from './BodyAvatarPanel.jsx'
+import { RunBcmSection } from './BcmSection.jsx'
 import {
   startReconstruction, getReconstruction, confirmPerson, reconstructionFileUrl, applyHeightScale,
   recordTapeMeasurements,
@@ -234,6 +235,7 @@ export default function UnifiedReconstructionPanel({ videoId }) {
         {done && result && (
           <div className="space-y-3">
             <BodyAvatarPanel run={run} />
+            <RunBcmSection runId={run.run_id} />
             <details className="rounded-lg border border-gray-200">
               <summary className="cursor-pointer px-3 py-2 text-xs text-gray-600">Technical mesh viewer (free orbit / zoom / pan)</summary>
               <MeshViewer meshUrl={file(result.mesh_obj)} upright onLoad={setMeshInfo}

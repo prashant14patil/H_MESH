@@ -133,3 +133,15 @@ def test_reconstruction_assessment_and_html(tmp_path):
     page = scan_report.write_html(tmp_path).read_text(encoding="utf-8")
     assert "0.588" in page and "relative" in page and "<script" not in page
     assert "Capture quality" in page and "Reconstruction quality" in page
+
+
+def test_drift_uses_anatomical_anchors_not_box_edges():
+    # Arms swing the box from narrow (profile) to wide (frontal) and the lowest foot steps: no real drift.
+    boxes = [[540 - w / 2, 500, 540 + w / 2, 1620 + 40 * (i % 2)] for i, w in enumerate([240, 880] * 30)]
+    still = [(540.0 + (i % 3), 1600.0 + (i % 2) * 8) for i in range(60)]
+    q = _capture(tracked_boxes=boxes, anchors=still)
+    cam = q["checks"]["camera_consistency"]
+    assert cam["status"] == "pass", cam
+    assert cam["value"]["anchor_source"] == "keypoints"
+    walking = [(300.0 + 8 * i, 1600.0) for i in range(60)]  # hips walk ~470 px sideways
+    assert _capture(tracked_boxes=boxes, anchors=walking)["checks"]["camera_consistency"]["status"] == "warn"

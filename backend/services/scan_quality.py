@@ -37,8 +37,10 @@ CONTRAST_WARN = 22.0
 LUMA_CV_WARN = 0.15                 # lighting changes this much as the subject turns
 BG_SHIFT_WARN, BG_SHIFT_FAIL = 0.01, 0.03     # background motion as a fraction of image width
 BOX_HEIGHT_CV_WARN, BOX_HEIGHT_CV_FAIL = 0.04, 0.08
-FEET_DRIFT_WARN, FEET_DRIFT_FAIL = 0.03, 0.06  # foot-line movement as a fraction of image height
-CENTER_DRIFT_WARN = 0.10            # horizontal subject drift as a fraction of image width
+# Drift of anatomical anchors (ankle midpoint height, hip midpoint x) as a fraction of the subject's height.
+# Box edges are NOT used: arms entering/leaving the box and the lowest stepping foot move them without any drift.
+FEET_DRIFT_WARN, FEET_DRIFT_FAIL = 0.05, 0.10
+CENTER_DRIFT_WARN = 0.15
 USABLE_FRAC_WARN, USABLE_FRAC_FAIL = 0.6, 0.35
 SELECTED_GOOD, SELECTED_MIN = 12, 6
 MASKS_GOOD, MASKS_MIN = 8, 4
@@ -234,12 +236,14 @@ class BackgroundMotion:
 
 # ---------------------------------------------------------------- capture assessment
 def assess_capture(*, image_wh, frames_decoded: int, tracked_boxes, tracking: dict, usable_frames: int,
+                   anchors=None,
                    lighting: list, bg_shift: list, trajectory: dict, coverage_usable: dict,
                    coverage_selected: dict, selected: int, usable_masks: int | None, blurry: int,
                    hmr2_frames: int) -> dict:
     """Score the recording and return actionable feedback for each check that is not a pass.
 
-    ``tracked_boxes``: xyxy boxes of the tracked subject in time order. ``tracking``: frames_tracked,
+    ``tracked_boxes``: xyxy boxes of the tracked subject in time order. ``anchors``: optional per tracked frame
+    (hip_mid_x, ankle_mid_y) in pixels (None where the joints are not confident). ``tracking``: frames_tracked,
     identity_switches, other_person_detections. ``lighting``: per tracked frame dicts from
     :func:`lighting_stats`. ``bg_shift``: per-frame background shift fractions (None for the reference).
     """
@@ -369,11 +373,13 @@ def assess_capture(*, image_wh, frames_decoded: int, tracked_boxes, tracking: di
     box_cv = feet_drift = cx_drift = None
     if len(heights) >= 3:
         box_cv = float(heights.std() / max(heights.mean(), 1e-6))
-        b = np.asarray(tracked_boxes, dtype=float)
-        feet = b[:, 3]
-        feet_drift = float((np.percentile(feet, 95) - np.percentile(feet, 5)) / H)
-        cx = (b[:, 0] + b[:, 2]) / 2.0
-        cx_drift = float((np.percentile(cx, 95) - np.percentile(cx, 5)) / W)
+        ref = float(np.median(heights))
+        pts = np.asarray([a for a in (anchors or []) if a is not None and all(np.isfinite(a))], dtype=float)
+        if len(pts) < 3:  # fall back to box edges (over-reports drift)
+            b = np.asarray(tracked_boxes, dtype=float)
+            pts = np.stack([(b[:, 0] + b[:, 2]) / 2.0, b[:, 3]], 1)
+        feet_drift = float((np.percentile(pts[:, 1], 95) - np.percentile(pts[:, 1], 5)) / ref)
+        cx_drift = float((np.percentile(pts[:, 0], 95) - np.percentile(pts[:, 0], 5)) / ref)
         st.append(PASS if box_cv <= BOX_HEIGHT_CV_WARN else WARN if box_cv <= BOX_HEIGHT_CV_FAIL else FAIL)
         if st[-1] != PASS:
             fb.append("The person's apparent size changes during the scan (camera zoom or the person stepping "
@@ -389,8 +395,10 @@ def assess_capture(*, image_wh, frames_decoded: int, tracked_boxes, tracking: di
         _worst(st), {"background_shift_median_frac_width": round(med_shift, 4),
                      "background_shift_p90_frac_width": round(p90_shift, 4),
                      "subject_height_cv": None if box_cv is None else round(box_cv, 4),
-                     "feet_line_drift_frac_height": None if feet_drift is None else round(feet_drift, 4),
-                     "horizontal_drift_frac_width": None if cx_drift is None else round(cx_drift, 4)},
+                     "ankle_line_drift_frac_subject_height": None if feet_drift is None else round(feet_drift, 4),
+                     "hip_horizontal_drift_frac_subject_height": None if cx_drift is None else round(cx_drift, 4),
+                     "anchor_source": "keypoints" if anchors and sum(a is not None for a in anchors) >= 3
+                     else "box_edges"},
         " ".join(fb), thresholds={"bg_shift_warn_fail": [BG_SHIFT_WARN, BG_SHIFT_FAIL],
                                   "subject_height_cv_warn_fail": [BOX_HEIGHT_CV_WARN, BOX_HEIGHT_CV_FAIL],
                                   "feet_drift_warn_fail": [FEET_DRIFT_WARN, FEET_DRIFT_FAIL]})

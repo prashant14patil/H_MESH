@@ -742,9 +742,14 @@ def _pipeline(run, source: Path, meta: dict, target_box_norm) -> dict:
 
     # capture statistics for the quality report: subject lighting + background motion (fixed camera check)
     t_cs = time.time()
-    lighting, bg_shift = [], []
+    lighting, bg_shift, anchors = [], [], []
     bg = sq.BackgroundMotion()
+    _ki = {n: COCO_NAMES.index(n) for n in ("left_hip", "right_hip", "left_ankle", "right_ankle")}
     for r in tracked:
+        kc, kp = keypoint_confidence(r.detection), r.detection.keypoints
+        ok = all(kc[i] > 0.3 for i in _ki.values())
+        anchors.append((float((kp[_ki["left_hip"]][0] + kp[_ki["right_hip"]][0]) / 2),
+                        float((kp[_ki["left_ankle"]][1] + kp[_ki["right_ankle"]][1]) / 2)) if ok else None)
         bgr = cv2.imread(frames[r.index]["path"])
         lighting.append(sq.lighting_stats(bgr, r.detection.box))
         bg_shift.append(bg.shift_frac(bgr, r.detection.box))
@@ -869,7 +874,7 @@ def _pipeline(run, source: Path, meta: dict, target_box_norm) -> dict:
         image_wh=(W, H), frames_decoded=len(frames), tracked_boxes=[r.detection.box.tolist() for r in tracked],
         tracking={"frames_tracked": len(tracked), "identity_switches": len(switches),
                   "other_person_detections": other_people},
-        usable_frames=len(usable_positions), lighting=lighting, bg_shift=bg_shift, trajectory=trajectory,
+        usable_frames=len(usable_positions), anchors=anchors, lighting=lighting, bg_shift=bg_shift, trajectory=trajectory,
         coverage_usable=cov_usable, coverage_selected=cov_selected,
         selected=len(selected), usable_masks=usable_masks,
         blurry=sum(1 for r in not_selected.values() if r == "blurry"), hmr2_frames=len(per_frame))

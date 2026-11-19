@@ -284,3 +284,143 @@ def test_cv_folds_hold_out_every_view_once_and_never_train_on_it():
         assert len(gaps) == len(held) and min(gaps) > 0
         held_all += held
     assert sorted(held_all) == list(range(len(selected)))
+
+
+# ------------------------------------------------------------------ surface offsets (SMPL+D)
+def _smpl_cpu():
+    import importlib.util, os
+    cache = Path(os.environ.get("USERPROFILE", str(Path.home()))) / ".cache" / "4DHumans" / "data"
+    if not (cache / "smpl").exists():
+        pytest.skip("SMPL model files not available")
+    spec = importlib.util.spec_from_file_location("smpl_wrapper", Path("models/4D-Humans/hmr2/models/smpl_wrapper.py"))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.SMPL(model_path=str(cache / "smpl"), gender="neutral", num_body_joints=23,
+                    joint_regressor_extra=str(cache / "SMPL_to_J19.pkl")).eval()
+
+
+def test_posed_vertices_without_offsets_equals_model_forward():
+    smpl = _smpl_cpu()
+    betas = np.linspace(-1, 1, 10)
+    go = np.stack([_rot_y(a) for a in (0, 90)])
+    pose = np.tile(smv.measurement_pose(), (2, 1, 1, 1))
+    ref = smv.posed_output(smpl, betas, go, pose, "cpu").vertices
+    got = smv.posed_vertices(smpl, torch.as_tensor(betas, dtype=torch.float32), torch.as_tensor(go, dtype=torch.float32),
+                             torch.as_tensor(pose, dtype=torch.float32))
+    assert float((ref - got).abs().max()) < 1e-5
+
+
+def test_surface_offsets_recover_a_flank_bulge_that_betas_cannot():
+    """Ground truth: SMPL body + 2.5 cm flank bulge, seen in 8 silhouettes. The offset stage must recover the
+    bulge at the flanks and leave the front of the trunk (no bulge there) essentially unchanged."""
+    torch.manual_seed(0)
+    smpl = _smpl_cpu()
+    faces = np.asarray(smpl.faces, dtype=np.int64)
+    betas = np.zeros(10)
+    T = smpl.v_template.numpy().astype(np.float64)
+    J = smpl.J_regressor.numpy() @ T
+    N = smv.rest_normals(smpl, betas, "cpu")
+    rel = T - J[3]
+    ang = np.degrees(np.arctan2(np.abs(rel[:, 0]), rel[:, 2]))
+    y0 = J[0, 1] + 0.35 * (J[6, 1] - J[0, 1])
+    trunk = (np.abs(rel[:, 0]) < 0.22) & (T[:, 1] > J[0, 1] - 0.05) & (T[:, 1] < J[6, 1] + 0.05)
+    bump_w = trunk * np.exp(-((T[:, 1] - y0) / 0.05) ** 2) * np.exp(-((ang - 120) / 30) ** 2)
+    true_off = 0.025 * bump_w[:, None] * N
+    yaws = np.linspace(0, 315, 8)
+    V = len(yaws)
+    go = np.stack([_rot_y(a) for a in yaws])
+    pose = np.tile(np.eye(3), (V, 23, 1, 1))
+    cam = np.tile([0.0, 0.3, 6.0], (V, 1))
+    focal, size = 2500.0, (700, 1000)
+    center = np.tile([size[0] / 2, size[1] / 2], (V, 1))
+    verts = smv.posed_vertices(smpl, torch.zeros(10), torch.as_tensor(go, dtype=torch.float32),
+                               torch.as_tensor(pose, dtype=torch.float32),
+                               torch.as_tensor(true_off, dtype=torch.float32)).numpy().astype(np.float64)
+    contours, dists = [], []
+    for i in range(V):
+        uv = smv.project_np(verts[i] + cam[i], focal, center[i])
+        mask = smv.rasterize_silhouette(uv, faces, (size[1], size[0]))
+        ys, xs = np.nonzero(mask)
+        pts, _, dist = sm.silhouette_target(mask, [xs.min(), ys.min(), xs.max(), ys.max()])
+        contours.append(pts), dists.append(dist)
+    views = smv.FitViews(keypoints=np.zeros((V, 17, 2)), weights=np.zeros((V, 17)), global_orient=go, body_pose=pose,
+                         cam_t=cam, box_height=np.full(V, 800.0), center=center, focal=focal,
+                         contours=contours, dist_maps=dists)
+    fit = smv.FitResult(betas=betas, global_orient=go, body_pose=pose, cam_t=cam)
+    res = smv.fit_surface_offsets(smpl, views, fit, smv.SurfaceConfig(iterations=200), device="cpu")
+    est = res["offsets_cm"]
+    bulge = bump_w > 0.6
+    front = trunk & (ang < 40) & (np.abs(T[:, 1] - y0) < 0.05)
+    assert est[bulge].mean() > 1.0                    # recovers most of the 2.5 cm flank bulge
+    assert abs(est[front].mean()) < 0.5               # adds nothing where the body had no bulge
+
+
+def test_canonical_detailed_mesh_passes_geometry_validation():
+    smpl = _smpl_cpu()
+    off = np.zeros((6890, 3)); off[:, 2] = 0.005 * smv.surface_region_weights(smpl)   # small trunk offsets
+    v, joints = smv.canonical_detailed_mesh(smpl, np.zeros(10), off, device="cpu")
+    report = smv.validate_mesh(v, np.asarray(smpl.faces, dtype=np.int64), joints)
+    assert report["valid"], report
+
+
+def test_plain_face_flattens_features_but_keeps_height_and_trunk():
+    smpl = _smpl_cpu()
+    faces = np.asarray(smpl.faces, dtype=np.int64)
+    v = smpl.v_template.numpy().astype(np.float64)
+    region = smv.face_region(smpl, v)
+    out = smv.plain_face(v, faces, region)
+    nose = np.argmax(np.where(region, v[:, 2], -np.inf))           # most forward face vertex
+    assert out[nose, 2] < v[nose, 2] - 0.005                        # nose flattened by > 5 mm
+    assert np.allclose(out[~region], v[~region])                    # nothing outside the face moves
+    assert out[:, 1].max() == pytest.approx(v[:, 1].max())          # height (crown) unchanged
+
+
+def test_sex_shape_prior_loads_and_neutral_means_none():
+    for sex in ("male", "female"):
+        mean, prec = smv.sex_shape_prior(sex)
+        assert mean.shape == (10,) and prec.shape == (10, 10)
+        assert np.all(np.linalg.eigvalsh(prec) > 0)              # valid Gaussian precision
+    assert smv.sex_shape_prior(None) == (None, None)
+    m, _ = smv.sex_shape_prior("male"); f, _ = smv.sex_shape_prior("female")
+    assert np.linalg.norm(m - f) > 0.5                              # the two populations really differ
+
+
+def test_validate_sex_accepts_only_known_values():
+    from backend.services.body_reconstruction import _validate_sex
+    assert _validate_sex(None) is None and _validate_sex("") is None and _validate_sex("unspecified") is None
+    assert _validate_sex(" Male ") == "male"
+    with pytest.raises(ValueError):
+        _validate_sex("other")
+
+
+def test_male_prior_pulls_shape_toward_male_mean_when_data_is_silent():
+    """No keypoints/silhouettes: the only shape information is the prior, so the fit lands on its mean."""
+    smpl = _smpl_cpu()
+    mean, prec = smv.sex_shape_prior("male")
+    V = 3
+    views = smv.FitViews(keypoints=np.zeros((V, 17, 2)), weights=np.zeros((V, 17)),
+                         global_orient=np.tile(np.eye(3), (V, 1, 1)), body_pose=np.tile(np.eye(3), (V, 23, 1, 1)),
+                         cam_t=np.tile([0.0, 0.0, 5.0], (V, 1)), box_height=np.full(V, 500.0),
+                         center=np.tile([250.0, 250.0], (V, 1)), focal=1000.0)
+    cfg = smv.FitConfig(iterations=300, w_keypoints=0.0, w_beta_init=0.0, w_beta_prior=1.0, lr_beta=0.05,
+                        beta_pop_mean=mean, beta_pop_precision=prec)
+    r = smv.fit_multiview(smpl, views, np.zeros(10), cfg, device="cpu")
+    assert np.linalg.norm(r.betas - mean) < 0.25 * np.linalg.norm(mean)
+
+
+def test_restate_to_stature_changes_reference_not_girths():
+    from backend.services.body_reconstruction import restate_to_stature
+    m = {"mesh_height": 1.70, "measurements": {"waist": {"tape_circumference": 0.85, "tape_circumference_over_height": 0.5},
+                                               "bad": {"valid": False}}}
+    restate_to_stature(m, 1.72)
+    assert m["mesh_height"] == 1.72 and m["mesh_height_measurement_pose"] == 1.70
+    assert m["measurements"]["waist"]["tape_circumference"] == 0.85
+    assert m["measurements"]["waist"]["tape_circumference_over_height"] == pytest.approx(0.85 / 1.72)
+
+
+def test_stature_height_is_taller_than_measurement_a_pose():
+    from backend.services.body_reconstruction import stature_height
+    smpl = _smpl_cpu()
+    v, *_ = smv.canonical_mesh(smpl, np.zeros(10), np.tile(np.eye(3), (1, 23, 1, 1)), None, "cpu", pose="measurement")
+    s = stature_height(smpl, np.zeros(10), "cpu")
+    assert 1.0 < s / np.ptp(v[:, 1]) < 1.01        # feet together is slightly taller than legs abducted 5 deg

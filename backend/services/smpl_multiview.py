@@ -17,6 +17,8 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
+from pathlib import Path
+
 import numpy as np
 import torch
 
@@ -142,6 +144,10 @@ class FitConfig:
     w_keypoints: float = 1.0
     w_pose_prior: float = 4.0     # keep per-view pose near HMR2's estimate
     w_beta_prior: float = 0.002   # shrink betas toward the mean body
+    # Optional sex-specific population prior (Gaussian over SMPL-neutral betas, e.g. from
+    # data/shape_priors/smpl_neutral_male_prior.npz). None = N(0, I), the mixed male/female population.
+    beta_pop_mean: np.ndarray | None = None
+    beta_pop_precision: np.ndarray | None = None
     w_beta_init: float = 0.02     # weak pull to the multi-frame median
     w_depth: float = 2.0          # people rotating in place keep ~constant distance
     w_silhouette: float = 0.0
@@ -309,6 +315,8 @@ def fit_multiview(smpl, views: FitViews, betas_init: np.ndarray, cfg: FitConfig 
     cam_z_ref = cam0[:, 2].median()
     beta_sigma = (torch.as_tensor(cfg.beta_sigma, **f32) if cfg.beta_sigma is not None
                   else torch.ones_like(beta0))
+    pop_mean = None if cfg.beta_pop_mean is None else torch.as_tensor(cfg.beta_pop_mean, **f32)
+    pop_prec = None if cfg.beta_pop_precision is None else torch.as_tensor(cfg.beta_pop_precision, **f32)
     use_sil = cfg.w_silhouette > 0 and bool(views.contours)
     sil_targets = _SilhouetteTargets(views, device) if use_sil else None
 
@@ -331,7 +339,11 @@ def fit_multiview(smpl, views: FitViews, betas_init: np.ndarray, cfg: FitConfig 
         robust = r ** 2 / (1 + r ** 2)  # Geman-McClure
         l_kp = (w * robust).sum() / w.sum().clamp(min=1e-6)
         l_pose = ((go - go0) ** 2).sum((-1, -2)).mean() + ((pose - pose0) ** 2).sum((-1, -2)).mean()
-        l_beta = (beta ** 2).mean()
+        if pop_mean is None:
+            l_beta = (beta ** 2).mean()
+        else:
+            dlt = beta - pop_mean
+            l_beta = (dlt @ pop_prec @ dlt) / beta.numel()
         l_beta_init = (((beta - beta0) / beta_sigma) ** 2).mean()
         l_depth = (((cam[:, 2] - cam_z_ref) / cam_z_ref) ** 2).mean()
         loss = (cfg.w_keypoints * l_kp + cfg.w_pose_prior * l_pose + cfg.w_beta_prior * l_beta
@@ -358,6 +370,186 @@ def fit_multiview(smpl, views: FitViews, betas_init: np.ndarray, cfg: FitConfig 
                      body_pose=pose.detach().cpu().numpy(), cam_t=cam.detach().cpu().numpy(),
                      loss_history=history, residual_px_before=before.cpu().numpy(),
                      residual_px_after=after.cpu().numpy())
+
+
+# ------------------------------------------------- surface detail (SMPL+D)
+# SMPL's 10 shape coefficients are whole-body modes: they reproduce only ~3% of a localised 2 cm flank bulge
+# ("love handle"), so such detail is smoothed away by construction. This stage adds ONE per-vertex offset along
+# the rest-pose normal, shared by every view (so it is 3D, not per-view), restricted to the trunk and smoothed by
+# a mesh Laplacian. The silhouette inside term still forbids sticking out of the outline. Against a CLOTHED
+# outline the result is the outer surface (body + garment); against tight clothing it is the body.
+SURFACE_JOINTS = (0, 3, 6, 9)  # pelvis (incl. buttocks), spine1-3: the trunk. Legs and arms keep the SMPL
+# shape: in a typical capture their outline is trousers/sleeves (flared cargo trousers added ~2 cm of thigh "girth"
+# when the upper legs were included), while flank/abdomen detail is exactly what SMPL cannot express.
+
+
+@dataclass
+class SurfaceConfig:
+    iterations: int = 200
+    lr_cm: float = 0.05            # Adam step on offsets, centimetres
+    w_silhouette: float = 1.0
+    w_laplacian: float = 1.0       # smoothness: mean squared uniform-Laplacian of the offsets (cm^2)
+    w_magnitude: float = 0.01      # weak pull of offsets to zero (cm^2)
+    max_offset_cm: float = 6.0     # offsets are bounded smoothly (tanh) to +-max_offset_cm
+    tau_frac: float = 0.01
+
+
+SEX_PRIOR_DIR = Path(__file__).resolve().parents[2] / "data" / "shape_priors"
+
+
+def sex_shape_prior(sex: str | None):
+    """(mean[10], precision[10,10]) of real male/female bodies in SMPL-neutral betas, or (None, None).
+
+    Built by scripts/build_sex_shape_priors.py from SHAPY's CAESAR priors (SMPL-X), with the SMPL-X/SMPL template
+    offset removed. Neutral/unknown -> (None, None): the mixed-population N(0, I) prior is used."""
+    if sex not in ("male", "female"):
+        return None, None
+    z = np.load(SEX_PRIOR_DIR / f"smpl_neutral_{sex}_prior.npz")
+    return np.asarray(z["mean"], dtype=np.float64), np.linalg.inv(np.asarray(z["covariance"], dtype=np.float64))
+
+
+def surface_region_weights(smpl) -> np.ndarray:
+    """Soft [0,1] mask of vertices the offsets may move: skinning weight carried by SURFACE_JOINTS."""
+    w = smpl.lbs_weights.detach().cpu().numpy()
+    return np.clip(w[:, list(SURFACE_JOINTS)].sum(1), 0.0, 1.0)
+
+
+def uniform_laplacian(faces: np.ndarray, n: int):
+    """Sparse (I - D^-1 A) over mesh edges, as a torch sparse tensor (CPU; move with .to(device))."""
+    f = np.asarray(faces, dtype=np.int64)
+    e = np.concatenate([f[:, [0, 1]], f[:, [1, 2]], f[:, [2, 0]]])
+    e = np.unique(np.sort(e, 1), axis=0)
+    i = np.concatenate([e[:, 0], e[:, 1]])
+    j = np.concatenate([e[:, 1], e[:, 0]])
+    deg = np.bincount(i, minlength=n).astype(np.float64)
+    vals = np.concatenate([np.ones(n), -1.0 / deg[i]])
+    rows = np.concatenate([np.arange(n), i])
+    cols = np.concatenate([np.arange(n), j])
+    return torch.sparse_coo_tensor(np.stack([rows, cols]), vals.astype(np.float32), (n, n)).coalesce()
+
+
+def rest_normals(smpl, betas, device) -> np.ndarray:
+    f32 = dict(dtype=torch.float32, device=device)
+    with torch.no_grad():
+        v = smpl(betas=torch.as_tensor(betas, **f32)[None], global_orient=torch.eye(3, **f32)[None, None],
+                 body_pose=torch.eye(3, **f32).expand(1, 23, 3, 3), pose2rot=False).vertices[0]
+    return vertex_normals(v.cpu().numpy().astype(np.float64), np.asarray(smpl.faces, dtype=np.int64))
+
+
+def posed_vertices(smpl, betas, global_orient, body_pose, offsets=None):
+    """SMPL linear blend skinning with an optional rest-space vertex offset field [6890, 3] (torch).
+
+    Identical to ``smpl(...).vertices`` when ``offsets`` is None; offsets are added to the template before
+    shape blend shapes and skinning, so they deform with the pose like the body surface does."""
+    from smplx.lbs import lbs
+    n = global_orient.shape[0]
+    full = torch.cat([global_orient[:, None], body_pose], 1)
+    vt = smpl.v_template if offsets is None else smpl.v_template + offsets
+    b = betas.reshape(1, -1).expand(n, -1)
+    verts, _ = lbs(b, full, vt, smpl.shapedirs, smpl.posedirs, smpl.J_regressor, smpl.parents,
+                   smpl.lbs_weights, pose2rot=False)
+    return verts
+
+
+def offsets_from_cm(d_cm: torch.Tensor, normals: torch.Tensor, region: torch.Tensor, max_cm: float):
+    """Per-vertex scalar offsets (cm, unbounded parameter) -> bounded rest-space vectors in SMPL units (m)."""
+    return (max_cm * torch.tanh(d_cm / max_cm) * region)[:, None] * normals / 100.0
+
+
+def fit_surface_offsets(smpl, views: FitViews, fit: FitResult, cfg: SurfaceConfig | None = None,
+                        device: str = "cuda") -> dict:
+    """Fit the shared surface-offset field with shape, pose and cameras frozen at ``fit``.
+
+    Returns {"offsets_cm": [6890] signed normal offsets (cm, region-weighted), "normals": [6890,3],
+    "loss_history": [...]}. Views without a usable silhouette do not contribute."""
+    cfg = cfg or SurfaceConfig()
+    f32 = dict(dtype=torch.float32, device=device)
+    n_v = smpl.v_template.shape[0]
+    normals = torch.as_tensor(rest_normals(smpl, fit.betas, device), **f32)
+    region = torch.as_tensor(surface_region_weights(smpl), **f32)
+    L = uniform_laplacian(np.asarray(smpl.faces), n_v).to(device)
+    betas = torch.as_tensor(fit.betas, **f32)
+    go = torch.as_tensor(fit.global_orient, **f32)
+    pose = torch.as_tensor(fit.body_pose, **f32)
+    cam = torch.as_tensor(fit.cam_t, **f32)
+    targets = _SilhouetteTargets(views, device)
+    d = torch.zeros(n_v, **f32, requires_grad=True)
+    opt = torch.optim.Adam([d], lr=cfg.lr_cm)
+    history = []
+    for it in range(cfg.iterations):
+        opt.zero_grad()
+        off = offsets_from_cm(d, normals, region, cfg.max_offset_cm)
+        verts = posed_vertices(smpl, betas, go, pose, off)
+        l_sil = _silhouette_loss(verts, cam, views, device, cfg.tau_frac, targets)
+        eff = cfg.max_offset_cm * torch.tanh(d / cfg.max_offset_cm) * region
+        l_lap = (torch.sparse.mm(L, eff[:, None]) ** 2).mean() * n_v / max(float(region.sum()), 1.0)
+        l_mag = (eff ** 2).sum() / max(float(region.sum()), 1.0)
+        loss = cfg.w_silhouette * l_sil + cfg.w_laplacian * l_lap + cfg.w_magnitude * l_mag
+        if not torch.isfinite(loss):
+            raise FitError("Surface-offset optimisation diverged (non-finite loss)")
+        loss.backward()
+        opt.step()
+        if it % 25 == 0 or it == cfg.iterations - 1:
+            history.append({"iteration": it, "loss": float(loss), "silhouette": float(l_sil),
+                            "laplacian": float(l_lap), "magnitude": float(l_mag)})
+    with torch.no_grad():
+        eff = (cfg.max_offset_cm * torch.tanh(d / cfg.max_offset_cm) * region).cpu().numpy().astype(np.float64)
+    return {"offsets_cm": eff, "normals": normals.cpu().numpy().astype(np.float64), "loss_history": history}
+
+
+def offset_vectors(result: dict) -> np.ndarray:
+    """Rest-space offset vectors (SMPL units) from :func:`fit_surface_offsets` output."""
+    return result["offsets_cm"][:, None] * result["normals"] / 100.0
+
+
+def face_region(smpl, vertices: np.ndarray) -> np.ndarray:
+    """Boolean mask of SMPL's template FACE (front of the head below the brow), not fitted from the subject.
+
+    Head vertices are those skinned mainly to the head joint (15); the face is their front half (+z) below
+    the brow line. The crown, which sets body height, is excluded."""
+    w = smpl.lbs_weights.detach().cpu().numpy()
+    head = w[:, 15] > 0.5
+    v = np.asarray(vertices)
+    hv = v[head]
+    top, chin = hv[:, 1].max(), hv[:, 1].min()
+    brow = chin + 0.72 * (top - chin)
+    zc = np.median(hv[:, 2])
+    return head & (v[:, 2] > zc) & (v[:, 1] < brow)
+
+
+def plain_face(vertices: np.ndarray, faces: np.ndarray, region: np.ndarray, iterations: int = 60) -> np.ndarray:
+    """Remove template facial features by Laplacian smoothing inside ``region`` (boundary fixed).
+
+    Display/export clean-up only: the head is not a measured site and the crown (height) is untouched."""
+    v = np.asarray(vertices, dtype=np.float64).copy()
+    f = np.asarray(faces, dtype=np.int64)
+    e = np.concatenate([f[:, [0, 1]], f[:, [1, 2]], f[:, [2, 0]]])
+    e = np.unique(np.sort(e, 1), axis=0)
+    n = len(v)
+    deg = np.bincount(e.ravel(), minlength=n).astype(np.float64)
+    idx = np.nonzero(region)[0]
+    for _ in range(iterations):
+        acc = np.zeros_like(v)
+        np.add.at(acc, e[:, 0], v[e[:, 1]])
+        np.add.at(acc, e[:, 1], v[e[:, 0]])
+        v[idx] = 0.5 * v[idx] + 0.5 * acc[idx] / deg[idx, None]
+    return v
+
+
+def canonical_detailed_mesh(smpl, betas: np.ndarray, offsets: np.ndarray, device: str = "cuda"):
+    """Like :func:`canonical_mesh` (measurement A-pose, identity orientation, feet on y=0, centred in x/z) but
+    with a rest-space offset field applied. Returns (vertices[6890,3], joints[...,3]) where the joints are the
+    model's own (OpenPose-ordered, as :func:`canonical_mesh` returns) for the same betas and pose, shifted with
+    the mesh, so :func:`validate_mesh` can run its head/pelvis/facing checks."""
+    f32 = dict(dtype=torch.float32, device=device)
+    pose = torch.as_tensor(measurement_pose(), **f32)[None]
+    with torch.no_grad():
+        v = posed_vertices(smpl, torch.as_tensor(betas, **f32), torch.eye(3, **f32)[None], pose,
+                           torch.as_tensor(offsets, **f32))[0].cpu().numpy().astype(np.float64)
+        joints = smpl(betas=torch.as_tensor(betas, **f32)[None], global_orient=torch.eye(3, **f32)[None, None],
+                      body_pose=pose, pose2rot=False).joints[0].cpu().numpy().astype(np.float64)
+    shift = np.array([(v[:, 0].min() + v[:, 0].max()) / 2, v[:, 1].min(), (v[:, 2].min() + v[:, 2].max()) / 2])
+    return v - shift, joints - shift
 
 
 # ------------------------------------------------------- shape aggregation

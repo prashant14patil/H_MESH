@@ -15,6 +15,8 @@ class StartRequest(BaseModel):
     target_box_norm: list[float] | None = Field(default=None, min_length=4, max_length=4)
     # Optional barefoot standing height; when given, cm measurements are written on completion.
     height_cm: float | None = None
+    # Optional: "male" / "female" selects a sex-specific body-shape prior (fat distribution); empty = unspecified.
+    sex: str | None = None
 
 
 class PersonRequest(BaseModel):
@@ -35,7 +37,7 @@ class TapeRequest(BaseModel):
 @router.post("/runs", status_code=status.HTTP_202_ACCEPTED)
 def start(request: StartRequest):
     try:
-        return recon.start_run(request.video_id, request.target_box_norm, request.height_cm)
+        return recon.start_run(request.video_id, request.target_box_norm, request.height_cm, request.sex)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:

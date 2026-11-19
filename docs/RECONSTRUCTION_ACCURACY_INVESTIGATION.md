@@ -130,6 +130,36 @@ These ranges are an engineering estimate for planning, not a validation result. 
 
 Per-view images: each run's `view_comparison.jpg` (photo | red observed vs green fitted outline | render; front, left, back, right) and `final_mesh_views.jpg` (0/90/180/270°). Side-by-side composites: `outputs/accuracy_study/regression_fix/` (`scripts/compare_reconstructions.py`).
 
+## 5.5 Local trunk shape (side / flank fat): why it was missing, and the surface-detail stage
+
+**Observation.** The subject's flank ("love handle") fat is visible in real life but absent from the mesh.
+
+**Is it in the data?** Yes. Radial comparison of the multi-view visual hull with the mesh at waist height (+0.06 to +0.10 H above the pelvis): the observed outline extends beyond the mesh by 2.3–3.1 cm at the back-left flank, 0.9–1.2 cm at the back-right flank, 0.8–1.7 cm at the sides, and only 0.1–0.3 cm at the front.
+
+**Is the model removing it?** Yes, by construction. A synthetic, smooth 2 cm flank bulge on the SMPL body is reproduced only **3%** by the best 10-coefficient shape change: it adds 4.3 cm of waist girth, the SMPL version 0.3 cm. SMPL's 10 coefficients are whole-body modes, so localised fat is smoothed away. SHAPY uses the same kind of 10-coefficient model (SMPL-X), so it cannot show it either.
+
+**Fix: shared trunk surface offsets (SMPL+D)** (`smpl_multiview.fit_surface_offsets`, pipeline stage in `body_reconstruction.export_surface_detail`):
+- One per-vertex offset along the rest-pose normal, **shared by all views**, so it is 3D rather than per-view.
+- Restricted to the trunk (pelvis/buttocks to chest). With the upper legs included, flared cargo trousers added about 2 cm of thigh "girth", so legs and arms keep the SMPL shape.
+- Smoothed by a mesh Laplacian and bounded to ±6 cm. Shape, pose and cameras are frozen; the inside-the-outline term still applies.
+- Synthetic ground truth: a 2.5 cm flank bulge is recovered and the front of the trunk stays unchanged (`test_surface_offsets_recover_a_flank_bulge_that_betas_cannot`).
+- Cross-validation on run `268f55fd`: held-out IoU 0.816 → 0.818 (trunk only; 0.824 with legs, rejected for the trouser reason above). Offsets fitted without the held-out views improve the fit on those views, so they describe real 3D shape, not per-view noise.
+
+End-to-end run `6303a2d5` (same video, cm at 179 cm):
+
+| | Body model | + surface detail | Δ |
+|---|---|---|---|
+| Fit IoU / protrusion | 0.885 / 1.6% | 0.890 / 1.6% | — |
+| Chest | 114.3 | 113.5 | −0.7 |
+| Waist | 100.3 | 104.2 | +3.9 |
+| Abdomen | 104.0 | 108.7 | +4.7 |
+| Hip | 117.1 | 118.8 | +1.7 |
+| Thigh / calf / upper arm | 60.5 / 41.6 / 35.7 | 60.8 / 41.6 / 35.8 | ≈ 0 |
+
+Offsets: 5th / 50th / 95th percentile −0.4 / +0.1 / +1.0 cm. The added volume sits as a band across the lower back and flanks at waist height (`outputs/accuracy_study/surface_detail/offset_map_6303a2d5.jpg`).
+
+**Caveat.** Against a loose T-shirt the detail follows the outer surface: fat **and** garment drape. The body-model girths therefore stay the primary measurements, and both sets are exported (`measurements.json`, `measurements_detailed.json`, cm versions after height scaling). Tape on one subject, or a tight-clothing recording, decides which to report. Disable with `RECON_SURFACE_DETAIL=0`.
+
 ## 6. Changes made
 
 | File | Change |

@@ -479,6 +479,13 @@ def assess_reconstruction(report: dict) -> dict:
     ok, tot = meas.get("valid", 0), meas.get("total", 0)
     checks["measurement_sections"] = _check(PASS if tot and ok == tot else WARN if ok >= 0.75 * max(tot, 1) else FAIL,
                                             f"{ok}/{tot}", "Some circumference cross-sections were invalid.")
+    # Internal consistency cannot see what was never observed: an unseen side is filled in by SMPL's (largely
+    # symmetric) shape space and still fits the views it has perfectly. Coverage therefore gates the verdict.
+    cov = ((report.get("capture_quality") or {}).get("checks") or {}).get("angular_coverage")
+    if cov is not None:
+        checks["view_coverage"] = _check(
+            cov, cov, "Part of the body was never observed; its shape is inferred from the body model, not "
+                      "measured. Re-record a full 360-degree turn before trusting the measurements.")
     worst = _worst(c["status"] for c in checks.values())
     return {"verdict": {PASS: "consistent", WARN: "usable_with_warnings", FAIL: "unreliable"}[worst],
             "checks": checks,

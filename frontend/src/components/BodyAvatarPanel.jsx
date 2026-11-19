@@ -32,6 +32,20 @@ async function fetchText(url) {
   return res.text()
 }
 
+const DETAIL_SITES = [['chest', 'chest'], ['waist', 'waist'], ['abdomen', 'abdomen'], ['hip', 'hip']]
+
+/** "chest 113.6 cm, waist 104.2 cm, ..." from the detailed girths (cm when the run was height-scaled). */
+export function detailGirths(detailInfo, result) {
+  const cm = result?.metric_scale?.measurements_cm_detailed
+  const rel = detailInfo?.measurements || {}
+  const parts = DETAIL_SITES.map(([k, label]) => {
+    if (cm && cm[k] != null) return `${label} ${cm[k].toFixed(1)} cm`
+    if (rel[k] != null) return `${label} ${rel[k].toFixed(3)}×height`
+    return null
+  }).filter(Boolean)
+  return parts.length ? parts.join(', ') : null
+}
+
 export default function BodyAvatarPanel({ run }) {
   const runId = run?.run_id
   const result = run?.result
@@ -48,24 +62,29 @@ export default function BodyAvatarPanel({ run }) {
   const [showKey, setShowKey] = useState(true)
   const [showAccuracy, setShowAccuracy] = useState(false)
   const [error, setError] = useState(null)
+  // Surface detail (SMPL+D): same 6890-vertex body plus shared trunk offsets that keep local shape such as flank
+  // fat, which the 10 SMPL shape coefficients smooth away. Shape only: the girth cards stay on the body model.
+  const detailInfo = result?.surface_detail || null
+  const [detail, setDetail] = useState(false)
+  const meshFile = detail && detailInfo ? detailInfo.mesh_obj : (result?.mesh_obj || 'final_body_mesh.obj')
 
   useEffect(() => {
     if (!runId || !result) return
     let alive = true
     setError(null)
-    Promise.all([fetchText(reconstructionFileUrl(runId, result.mesh_obj || 'final_body_mesh.obj')),
+    Promise.all([fetchText(reconstructionFileUrl(runId, meshFile)),
       fetchText(reconstructionFileUrl(runId, 'measurement_rings.obj')).catch(() => '')])
       .then(([objText, ringText]) => {
         if (!alive) return
         const m = parseObj(objText)
         if (m.vertexCount !== LABELS.length) throw new Error(`expected an SMPL mesh (${LABELS.length} vertices), got ${m.vertexCount}`)
         setMesh(m)
-        setRings(parseRings(ringText))
+        setRings(detail ? {} : parseRings(ringText))  // rings were cut on the body-model mesh
       })
       .catch((e) => alive && setError(`Avatar could not load the mesh: ${e.message}`))
     listReconstructions().then((rows) => alive && setHistory(rows)).catch(() => {})
     return () => { alive = false }
-  }, [runId, result])
+  }, [runId, result, meshFile, detail])
 
   const ownSource = history.find((r) => r.run_id === runId)?.source_key
   const choices = history.filter((r) => r.run_id !== runId)
@@ -121,7 +140,19 @@ export default function BodyAvatarPanel({ run }) {
           value={mode} onChange={pickMode} disabled={{ compare: choices.length === 0 }}
           title={{ compare: choices.length === 0 ? 'No earlier completed scan to compare with' : undefined }} />
         <Segmented items={VIEWS.map(([k, l]) => [k, l])} value={view} onChange={turnTo} />
+        {detailInfo && (
+          <Segmented items={[['body', 'Body model'], ['detail', 'Surface detail']]} value={detail ? 'detail' : 'body'}
+            onChange={(k) => setDetail(k === 'detail')} />
+        )}
       </div>
+      {detail && detailInfo && (
+        <p className="mt-2 text-sm text-slate-600">
+          Surface detail keeps local trunk shape (for example side/flank fat) that the body model’s 10 shape numbers
+          smooth away. It follows the outline seen in every view, so under loose clothing it also follows the garment.
+          Girth cards and rings still show the body model.
+          {detailGirths(detailInfo, result) && <> Detailed girths: {detailGirths(detailInfo, result)}.</>}
+        </p>
+      )}
 
       {mode === 'compare' && choices.length > 0 && (
         <label className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-600">

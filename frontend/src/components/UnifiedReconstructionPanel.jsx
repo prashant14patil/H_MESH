@@ -52,6 +52,7 @@ export default function UnifiedReconstructionPanel({ videoId }) {
   const [error, setError] = useState(null)
   const [meshInfo, setMeshInfo] = useState(null)
   const [heightText, setHeightText] = useState('')
+  const [sex, setSex] = useState('')
   const [tapeText, setTapeText] = useState({})
   const [clothing, setClothing] = useState('unknown')
   const [tapeNote, setTapeNote] = useState('')
@@ -89,7 +90,7 @@ export default function UnifiedReconstructionPanel({ videoId }) {
   const start = async () => {
     setBusy(true); setError(null); setMeshInfo(null)
     try {
-      const r = await startReconstruction(videoId, null, height.value)
+      const r = await startReconstruction(videoId, null, height.value, sex || null)
       setRun(r)
       poll(r.run_id)
     } catch (e) {
@@ -149,6 +150,14 @@ export default function UnifiedReconstructionPanel({ videoId }) {
         aria-label="Subject barefoot height in centimetres"
         className="w-24 rounded border border-gray-300 px-2 py-1 text-sm" placeholder="e.g. 172" />
       {height.error && <span className="text-red-700">{height.error}</span>}
+      <span className="ml-3">Sex (body-shape model)</span>
+      <select value={sex} onChange={(e) => setSex(e.target.value)} aria-label="Subject sex for the body-shape model"
+        className="rounded border border-gray-300 px-2 py-1 text-sm">
+        <option value="">Not specified</option>
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+      </select>
+      <span className="text-gray-500">Puts body fat where men or women typically carry it (e.g. no breast shape on a man).</span>
     </label>
   )
 

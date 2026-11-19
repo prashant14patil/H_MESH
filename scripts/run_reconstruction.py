@@ -23,12 +23,14 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("video_id")
     ap.add_argument("--person", type=int, default=None, help="candidate id if several people are detected")
+    ap.add_argument("--sex", choices=["male", "female"], default=None, help="sex-specific body-shape prior")
+    ap.add_argument("--height-cm", type=float, default=None, help="barefoot height for cm measurements")
     args = ap.parse_args()
     engine = get_engine()
     engine._load()
     if not engine.is_ready:
         sys.exit(f"HMR2 not ready: {engine.load_error}")
-    run = br.start_run(args.video_id)
+    run = br.start_run(args.video_id, height_cm=args.height_cm, sex=args.sex)
     run_id, last = run["run_id"], None
     while True:
         r = br.get_run(run_id)

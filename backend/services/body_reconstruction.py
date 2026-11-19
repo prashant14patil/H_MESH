@@ -52,6 +52,7 @@ _STATE_LOCK = threading.RLock()
 STAGES = [("decode", 0.10), ("detect", 0.16), ("confirm", 0.01), ("track", 0.02), ("hmr2", 0.22),
           ("views", 0.02), ("select", 0.02), ("masks", 0.08), ("fit", 0.27), ("export", 0.10)]
 ASSET_FILES = {"final_body_mesh.obj", "final_body_mesh.ply", "reconstruction_report.json",
+               "final_body_mesh_detailed.obj", "measurements_detailed.json", "measurements_detailed_cm.json",
                "selected_frames.json", "tracking_report.json", "final_mesh_views.jpg",
                "contact_sheet.jpg", "orientation_check.jpg", "candidates_overview.jpg",
                "measurements.json", "measurement_rings.obj", "measurements_overlay.jpg",
@@ -84,6 +85,12 @@ FIT_HELD_GAP_WARN = 0.08
 # Weight of the silhouette "fill the outline" term (1 = symmetric). Kept at 1: with the shape prior on, lowering it
 # changed girths by < 1% in the study; exposed for further experiments.
 SIL_COVERAGE_WEIGHT = float(os.getenv("RECON_SIL_COVERAGE", "1.0"))
+# Trunk surface-detail stage (SMPL+D, smpl_multiview.fit_surface_offsets). On run 268f55fd it raised 4-fold
+# held-out IoU 0.816 -> 0.818 (trunk only) and put the added volume on the flanks/lower back. 0 disables it.
+SURFACE_DETAIL = os.getenv("RECON_SURFACE_DETAIL", "1") == "1"
+SURFACE_LAPLACIAN = float(os.getenv("RECON_SURFACE_LAPLACIAN", "1.0"))
+# Export a plain, featureless face: SMPL's template face carries no information about the subject.
+PLAIN_FACE = os.getenv("RECON_PLAIN_FACE", "1") == "1"
 SIL_EXCLUDE_IOU = 0.75       # a view whose fitted silhouette IoU stays below this is unreliable
 SIL_TAU_FRAC = float(os.getenv("RECON_SIL_TAU", "0.01"))  # robust silhouette scale (fraction of box height)
 CV_FOLDS = 4
@@ -277,9 +284,11 @@ def get_asset(run_id: str, name: str):
     return path if path.is_file() else None
 
 
-def start_run(video_id: str, target_box_norm: list | None = None, height_cm: float | None = None) -> dict:
+def start_run(video_id: str, target_box_norm: list | None = None, height_cm: float | None = None,
+              sex: str | None = None) -> dict:
     if not _valid_uuid(video_id):
         raise ValueError("Invalid recording ID")
+    sex = _validate_sex(sex)
     if height_cm is not None:
         from backend.services.body_measurements import validate_height_cm
         height_cm = validate_height_cm(height_cm)
@@ -302,7 +311,8 @@ def start_run(video_id: str, target_box_norm: list | None = None, height_cm: flo
         run_id = str(uuid.uuid4())
         run = {"run_id": run_id, "video_id": video_id, "status": "running", "stage": "decode",
                "progress": 0.0, "message": "Queued", "warnings": [], "candidates": [],
-               "created_at": time.time(), "result": None, "error": None, "requested_height_cm": height_cm}
+               "created_at": time.time(), "result": None, "error": None, "requested_height_cm": height_cm,
+               "sex": sex}
         _RUNS[run_id] = run
         _EVENTS[run_id] = threading.Event()
         _persist(run)
@@ -358,6 +368,12 @@ def _scale_run(run: dict, height_cm) -> dict:
         "relative_scale_uncertainty": scaled["relative_scale_uncertainty"],
         "measurements_cm": {k: m.get("tape_circumference_cm") for k, m in scaled["measurements"].items()},
         "measurements_file": "measurements_cm.json", "mesh_obj": "final_body_mesh_metric.obj"}
+    dpath = root / "measurements_detailed.json"
+    if dpath.is_file():  # surface-detail girths get the same height scale
+        sd = bm.scale_to_height(json.loads(dpath.read_text(encoding="utf-8")), height_cm)
+        _write_json(root / "measurements_detailed_cm.json", sd)
+        run["result"]["metric_scale"]["measurements_cm_detailed"] = {
+            k: m.get("tape_circumference_cm") for k, m in sd["measurements"].items()}
     run["result"]["scale_status"] = "metric_from_supplied_height"
     tape_path = root / "tape_validation.json"
     if tape_path.is_file():  # a corrected height changes every model value: keep the comparison current
@@ -1120,30 +1136,134 @@ def _cfg_keypoint_shape():
     return smv.FitConfig()
 
 
-def _cfg_silhouette(beta_sigma):
+SEXES = ("male", "female")
+
+
+def _validate_sex(sex):
+    """Optional operator input: 'male' / 'female' selects a sex-specific body-shape prior; anything empty means
+    unspecified (mixed-population prior, the previous behaviour)."""
+    if sex in (None, "", "unspecified"):
+        return None
+    sex = str(sex).strip().lower()
+    if sex not in SEXES:
+        raise ValueError("sex must be 'male', 'female' or empty")
+    return sex
+
+
+def _cfg_silhouette(beta_sigma, sex=None):
+    pop_mean, pop_prec = smv.sex_shape_prior(sex)
     return smv.FitConfig(iterations=300, w_silhouette=SIL_WEIGHT, w_beta_init=BETA_PRIOR_WEIGHT,
                          w_beta_prior=POP_PRIOR_WEIGHT, sil_coverage_weight=SIL_COVERAGE_WEIGHT,
+                         beta_pop_mean=pop_mean, beta_pop_precision=pop_prec,
                          sil_outside_form=SIL_OUTSIDE_FORM, fit_body_pose=FIT_BODY_POSE,
                          beta_sigma=beta_sigma, sil_tau_frac=SIL_TAU_FRAC)
 
 
-def fit_config_record() -> dict:
+def stature_height(smpl, betas, device) -> float:
+    """Standing height of the fitted body as stature is measured (ISO 7250: upright, feet together, arms down).
+
+    Girths are cut on the measurement A-pose (legs abducted 5 deg), which is 0.27% shorter; using that as the scale
+    reference inflated every cm value by the same 0.27%. Trunk surface offsets do not touch the crown or soles,
+    so the base body's stature applies to the detailed mesh too."""
+    import torch
+    f32 = dict(dtype=torch.float32, device=device)
+    with torch.no_grad():
+        v = smpl(betas=torch.as_tensor(betas, **f32)[None], global_orient=torch.eye(3, **f32)[None, None],
+                 body_pose=torch.as_tensor(smv.measurement_pose(hip_abduct_deg=0.0), **f32)[None],
+                 pose2rot=False).vertices[0]
+    return float(v[:, 1].max() - v[:, 1].min())
+
+
+def restate_to_stature(measurements: dict, stature: float) -> dict:
+    """Make ``mesh_height`` (the cm scale reference) the stature-pose height and update the girth/height ratios.
+
+    Absolute girths (mesh units) are untouched; only the reference they are divided by changes."""
+    old = float(measurements["mesh_height"])
+    measurements["mesh_height_measurement_pose"] = old
+    measurements["mesh_height"] = float(stature)
+    measurements["mesh_height_definition"] = "stature pose: upright, feet together (ISO 7250), not the A-pose"
+    for m in measurements.get("measurements", {}).values():
+        if m.get("tape_circumference") is not None and m.get("tape_circumference_over_height") is not None:
+            m["tape_circumference_over_height"] = m["tape_circumference"] / stature
+    return measurements
+
+
+def export_surface_detail(smpl, faces, views: smv.FitViews, fit: smv.FitResult, mask_list, root: Path,
+                          device) -> dict:
+    """Fit the shared trunk offset field, export the detailed A-pose mesh and measure it.
+
+    Writes final_body_mesh_detailed.obj, measurements_detailed.json and diagnostics/surface_offsets.npz.
+    The detailed surface follows the observed outline where SMPL cannot (e.g. flank fat), so against loose
+    clothing it also follows the garment; both measurement sets are kept until tape decides."""
+    import torch
+    from backend.services import body_measurements as bm
+    res = smv.fit_surface_offsets(smpl, views, fit, smv.SurfaceConfig(w_laplacian=SURFACE_LAPLACIAN), device)
+    offsets = smv.offset_vectors(res)
+    verts, joints = smv.canonical_detailed_mesh(smpl, fit.betas, offsets, device)
+    if PLAIN_FACE:
+        verts = smv.plain_face(verts, faces, smv.face_region(smpl, verts))
+    path = root / "final_body_mesh_detailed.obj"
+    smv.write_obj(path, verts, faces, "Unified SMPL body + shared trunk surface detail (SMPL+D), measurement A-pose.\n"
+                  "Detail follows the observed outline where SMPL's 10 shape coefficients cannot (e.g. flank fat); "
+                  "against loose clothing it also follows the garment.")
+    rv, rf = smv.read_obj(path)
+    validation = smv.validate_mesh(rv, rf, joints)
+    if not validation["valid"]:
+        failed = [k for k in ("no_degenerate_faces", "winding_consistent", "upright", "volume_positive",
+                              "head_above_pelvis") if validation.get(k) is not True]
+        raise ReconstructionError(f"detailed mesh failed geometry validation ({', '.join(failed) or 'topology'})")
+    meas = bm.measure_body(rv, rf, smv.smpl_joints24(smpl, rv))
+    restate_to_stature(meas, stature_height(smpl, fit.betas, device))
+    mjson = bm.strip_rings(meas)
+    mjson["scale_note"] = "Relative units / fraction of mesh height, like measurements.json; includes surface detail."
+    _write_json(root / "measurements_detailed.json", mjson)
+    np.savez_compressed(root / "diagnostics" / "surface_offsets.npz", offsets_cm=res["offsets_cm"],
+                        normals=res["normals"])
+    # Silhouette agreement of the detailed surface on the fitted views (same cameras/poses as the base fit).
+    f32 = dict(dtype=torch.float32, device=device)
+    with torch.no_grad():
+        pv = smv.posed_vertices(smpl, torch.as_tensor(fit.betas, **f32), torch.as_tensor(fit.global_orient, **f32),
+                                torch.as_tensor(fit.body_pose, **f32),
+                                torch.as_tensor(offsets, **f32)).cpu().numpy().astype(np.float64)
+    scores = []
+    for i, m in enumerate(mask_list):
+        if m is None:
+            continue
+        uv = smv.project_np(pv[i] + fit.cam_t[i], views.focal, views.center[i])
+        scores.append(smv.silhouette_metrics(smv.rasterize_silhouette(uv, faces, m.shape), m,
+                                             float(views.box_height[i])))
+    region = smv.surface_region_weights(smpl) > 0.5
+    oc = res["offsets_cm"][region]
+    return {"mesh_obj": path.name, "measurements_file": "measurements_detailed.json",
+            "measurements": {k: m.get("tape_circumference_over_height") for k, m in meas["measurements"].items()},
+            "measurements_valid": f"{meas['valid_count']}/{meas['total']}", "geometry_valid": validation["valid"],
+            "silhouette_iou_fit": float(np.mean([s["iou"] for s in scores])) if scores else None,
+            "silhouette_protrusion_fit": float(np.mean([s["protrusion_frac"] for s in scores])) if scores else None,
+            "offset_cm_percentiles_5_50_95": np.percentile(oc, [5, 50, 95]).tolist(),
+            "region_joints": list(smv.SURFACE_JOINTS), "laplacian_weight": SURFACE_LAPLACIAN,
+            "note": "Shared per-vertex normal offsets on the trunk (one field for all views), fitted to the "
+                    "multi-view silhouettes with shape/pose/cameras frozen. Captures local detail such as flank "
+                    "fat that SMPL's 10 coefficients cannot; on loose clothing it also follows the garment."}
+
+
+def fit_config_record(sex=None) -> dict:
     """The exact shape-fit settings of this run, saved in the report so any result can be reproduced later."""
-    cfg = _cfg_silhouette(np.ones(10))
+    cfg = _cfg_silhouette(np.ones(10), sex)
     return {"silhouette_weight": cfg.w_silhouette, "outside_term": cfg.sil_outside_form,
             "inside_weight": cfg.sil_inside_weight, "coverage_weight": cfg.sil_coverage_weight,
             "tau_frac_of_box_height": cfg.sil_tau_frac, "hmr2_shape_prior_weight": cfg.w_beta_init,
-            "population_shape_prior_weight": cfg.w_beta_prior, "per_view_body_pose_optimised": cfg.fit_body_pose,
+            "population_shape_prior_weight": cfg.w_beta_prior,
+            "population_shape_prior": f"{sex} bodies (CAESAR via SHAPY)" if sex else "mixed male/female N(0, I)", "per_view_body_pose_optimised": cfg.fit_body_pose,
             "iterations": cfg.iterations, "beta_sigma_floor": BETA_SIGMA_FLOOR,
             "env_overrides": {k: os.environ[k] for k in sorted(os.environ) if k.startswith("RECON_")}}
 
 
-def fit_shared_shape(smpl, views, betas_init, beta_sigma, device):
+def fit_shared_shape(smpl, views, betas_init, beta_sigma, device, sex=None):
     """Two stages: (A) per-view pose/camera with the HMR2 shape frozen, (B) ONE shared shape
     with per-view pose/camera against keypoints + silhouettes under a Mahalanobis shape prior."""
     align = smv.fit_multiview(smpl, views, betas_init, _cfg_align(), device, fit_shape=False)
     aligned = _with_params(views, align)
-    shape = smv.fit_multiview(smpl, aligned, betas_init, _cfg_silhouette(beta_sigma), device)
+    shape = smv.fit_multiview(smpl, aligned, betas_init, _cfg_silhouette(beta_sigma, sex), device)
     return align, aligned, shape
 
 
@@ -1174,7 +1294,7 @@ def fit_unified(engine, selected, per_frame, records, view_info, image_wh, run, 
 
     # --- full fit (all selected views) -------------------------------------------------
     _progress(run, "fit", 0.05, "Aligning per-view pose and camera with the HMR2 shape frozen")
-    align, aligned, full = fit_shared_shape(smpl, views, betas_agg, beta_sigma, device)
+    align, aligned, full = fit_shared_shape(smpl, views, betas_agg, beta_sigma, device, run.get("sex"))
     _progress(run, "fit", 0.3, "Checking silhouette agreement per view")
     full_scores = silhouette_scores(smpl, faces, full.betas, full.global_orient, full.body_pose, full.cam_t,
                                     views, mask_list, device)
@@ -1189,7 +1309,7 @@ def fit_unified(engine, selected, per_frame, records, view_info, image_wh, run, 
                 views.sil_weight[i] = 0.0
     if excluded_after_fit:
         _progress(run, "fit", 0.35, f"Refitting without {len(excluded_after_fit)} unreliable silhouette(s)")
-        align, aligned, full = fit_shared_shape(smpl, views, betas_agg, beta_sigma, device)
+        align, aligned, full = fit_shared_shape(smpl, views, betas_agg, beta_sigma, device, run.get("sex"))
         full_scores = silhouette_scores(smpl, faces, full.betas, full.global_orient, full.body_pose, full.cam_t,
                                         views, mask_list, device)
 
@@ -1224,7 +1344,8 @@ def fit_unified(engine, selected, per_frame, records, view_info, image_wh, run, 
         tv, hv = _subset(views, train), _subset(views, held)
         hv.contours = None  # held-out silhouettes are evaluation-only
         t_agg, t_std, _ = smv.robust_beta_aggregate(betas_each[train], quality[train] / quality.max())
-        _, _, t_sil = fit_shared_shape(smpl, tv, t_agg, np.maximum(t_std, BETA_SIGMA_FLOOR), device)
+        _, _, t_sil = fit_shared_shape(smpl, tv, t_agg, np.maximum(t_std, BETA_SIGMA_FLOOR), device,
+                                       run.get("sex"))
         t_kp = smv.fit_multiview(smpl, tv, np.median(betas_each[train], axis=0), _cfg_keypoint_shape(), device)
         held_masks = [mask_list[i] for i in held]
         for name, b in ((agg_key, t_agg), (old_key, t_kp.betas), (new_key, t_sil.betas)):
@@ -1298,7 +1419,7 @@ def fit_unified(engine, selected, per_frame, records, view_info, image_wh, run, 
             "betas_median": betas_med, "betas_aggregate": betas_agg, "beta_sigma": beta_sigma,
             "beta_outlier_frames": [selected[i] for i in beta_outliers],
             "init_error_pct_height": init_rel * 100, "heldout": heldout, "mask_list": mask_list,
-            "proportions": proportions, "fit_config": fit_config_record(),
+            "proportions": proportions, "fit_config": fit_config_record(run.get("sex")),
             "scores": {"silhouette_keypoint_shared_shape (new)": full_scores,
                        "keypoint_only_shared_shape (previous method)": kp_scores,
                        "hmr2_aggregate_shape": agg_scores,
@@ -1374,6 +1495,8 @@ def export_outputs(engine, run, root, frames, records, per_frame, view_info, sel
     # separated limbs. The mean observed pose is kept as a diagnostic.
     verts, joints, _, spread = smv.canonical_mesh(smpl, fit.betas, fit.body_pose, quality_w, device,
                                                   pose="measurement")
+    if PLAIN_FACE:  # SMPL's template face is not the subject's: export a plain head (crown/height untouched)
+        verts = smv.plain_face(verts, faces, smv.face_region(smpl, verts))
     mean_verts, _, _, _ = smv.canonical_mesh(smpl, fit.betas, fit.body_pose, quality_w, device, pose="mean_observed")
     kp_verts, _, _, _ = smv.canonical_mesh(smpl, fit_out["kp_only"].betas, fit.body_pose, quality_w, device,
                                            pose="measurement")
@@ -1401,6 +1524,8 @@ def export_outputs(engine, run, root, frames, records, per_frame, view_info, sel
     _progress(run, "export", 0.4, "Measuring circumferences on the final mesh")
     j24 = smv.smpl_joints24(smpl, rv)
     measurements = bm.measure_body(rv, rf, j24)
+    stature = stature_height(smpl, fit.betas, device)
+    restate_to_stature(measurements, stature)
     bm.write_rings_obj(root / "measurement_rings.obj", measurements)
     kp_measure = bm.measure_body(kp_verts, faces, smv.smpl_joints24(smpl, kp_verts))
     _write_measurement_overlay(root / "measurements_overlay.jpg", rv, rf, measurements)
@@ -1411,6 +1536,15 @@ def export_outputs(engine, run, root, frames, records, per_frame, view_info, sel
     measurement_json["previous_method_keypoint_only"] = {
         k: m.get("tape_circumference_over_height") for k, m in kp_measure["measurements"].items()}
     _write_json(root / "measurements.json", measurement_json)
+
+    # ----- surface detail (SMPL+D): trunk detail the 10 shape coefficients cannot express -----
+    detail = None
+    if SURFACE_DETAIL and views.contours and any(c is not None for c in views.contours):
+        _progress(run, "export", 0.5, "Fitting trunk surface detail")
+        try:
+            detail = export_surface_detail(smpl, faces, views, fit, fit_out["mask_list"], root, device)
+        except (smv.FitError, ReconstructionError) as exc:
+            _warn(run, "surface_detail_failed", f"Surface-detail stage skipped: {exc}")
 
     # ----- diagnostics: per-frame meshes are NOT the result -----
     _progress(run, "export", 0.6, "Writing comparison images")
@@ -1568,6 +1702,7 @@ def export_outputs(engine, run, root, frames, records, per_frame, view_info, sel
         "scope": "External body geometry only. This is not a Tanita BIA/BCM body-composition measurement and nothing here "
                  "measures internal composition.",
         "geometry_validation": validation,
+        "surface_detail": detail,
         "validation_summary": {
             "frames_extracted": len(frames), "frames_tracked": len(tracked), "frames_selected_for_optimisation":
                 len(fit_out["heldout"]["views_train"]), "frames_held_out_for_validation": len(fit_out["heldout"]["views_held_out"]),
@@ -1632,6 +1767,7 @@ def export_outputs(engine, run, root, frames, records, per_frame, view_info, sel
             "measurements": {k: m.get("tape_circumference_over_height") for k, m in measurements["measurements"].items()},
             "pose": "measurement_a_pose", "turntable": "mesh_turntable.gif", "comparison": "view_comparison.jpg",
             "measurements_overlay": "measurements_overlay.jpg", "gpu": gpu.get("device_name"),
+            "surface_detail": detail,
             "capture_quality": report["capture_quality"], "reconstruction_quality": report["reconstruction_quality"],
             "measurement_quality": report["measurement_quality"],
             "timings_sec": report["timings_sec"]}
@@ -1966,8 +2102,11 @@ def _process_peak_rss_mb():
                             ("PeakPagefileUsage", ctypes.c_size_t)]
             pmc = _PMC()
             pmc.cb = ctypes.sizeof(_PMC)
-            proc = ctypes.windll.kernel32.GetCurrentProcess()
-            if ctypes.windll.psapi.GetProcessMemoryInfo(proc, ctypes.byref(pmc), pmc.cb):
+            k32 = ctypes.WinDLL("kernel32")
+            k32.GetCurrentProcess.restype = wintypes.HANDLE  # 64-bit pseudo-handle; default int truncates it
+            k32.K32GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.POINTER(_PMC), wintypes.DWORD]
+            k32.K32GetProcessMemoryInfo.restype = wintypes.BOOL
+            if k32.K32GetProcessMemoryInfo(k32.GetCurrentProcess(), ctypes.byref(pmc), pmc.cb):
                 return round(pmc.PeakWorkingSetSize / 2 ** 20, 1)
             return None
         import resource

@@ -145,3 +145,17 @@ def test_drift_uses_anatomical_anchors_not_box_edges():
     assert cam["value"]["anchor_source"] == "keypoints"
     walking = [(300.0 + 8 * i, 1600.0) for i in range(60)]  # hips walk ~470 px sideways
     assert _capture(tracked_boxes=boxes, anchors=walking)["checks"]["camera_consistency"]["status"] == "warn"
+
+
+def test_unseen_side_prevents_consistent_reconstruction_verdict():
+    report = {"geometry_validation": {"valid": True, "watertight": True},
+              "validation_summary": {"landmark_reprojection_error_pct_height": 0.6},
+              "silhouette_fitting": {"summary_by_method": {"silhouette_keypoint_shared_shape (new)": {
+                  "protrusion_frac_mean": 0.015}}},
+              "multiview_optimisation": {"held_out_validation": {"results": {
+                  "silhouette_keypoint_shared_shape (new)": {"iou_mean": 0.82}}}},
+              "shared_shape": {"betas": [0.9]}, "measurements": {"valid": 12, "total": 12}}
+    assert sq.assess_reconstruction(report)["verdict"] == "consistent"
+    report["capture_quality"] = {"checks": {"angular_coverage": "fail"}}
+    q = sq.assess_reconstruction(report)
+    assert q["verdict"] == "unreliable" and q["checks"]["view_coverage"]["feedback"]

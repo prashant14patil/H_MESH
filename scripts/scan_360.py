@@ -8,7 +8,7 @@ Stages (all in-process, no web server needed):
   decode -> detect -> track -> HMR2 -> rotation/viewpoints -> frame selection -> capture-quality report
          -> silhouettes -> multi-view shared-shape SMPL fit -> mesh validation -> measurements
   scale    centimetres ONLY if --height-cm (barefoot stature) is given; otherwise relative units
-  shapy    optional SHAPY comparison on the same selected frames (--shapy)
+  shapy    SHAPY body-shape model on the same selected frames (default; --no-shapy skips it)
   report   scan_report.html with the mesh renders, measurements, capture and reconstruction quality
 
 Exit code 0 = mesh produced, 2 = reconstruction blocked (the capture feedback is printed), 1 = usage/setup error.
@@ -80,6 +80,36 @@ def _wait(br, run_id: str, person: int | None) -> dict:
         time.sleep(1)
 
 
+def _run_shapy(run_dir: Path, video_id: str) -> None:
+    """SHAPY on the run's selected frames (a default step). Never fails the scan: the mesh already exists."""
+    from backend.services import shapy_shape, video_processor
+    if not shapy_shape.available():
+        print("[shapy] model files not installed - skipped; only the pipeline's measurements are available")
+        return
+    sources = [p for p in video_processor._OUTPUT_ROOT.joinpath(video_id).glob("original.*") if p.is_file()]
+    if len(sources) != 1:
+        print("[shapy] the run's source video is missing or ambiguous - skipped")
+        return
+    print("[shapy] running SHAPY on the selected frames", flush=True)
+    try:
+        shapy_shape.compute_for_run(run_dir, sources[0])
+    except Exception as exc:  # noqa: BLE001 - second measurement model; the reconstruction itself succeeded
+        print(f"[shapy] failed: {exc}")
+
+
+def _shapy_summary(record: dict | None, height_cm: float | None) -> dict | None:
+    """The app's own SHAPY numbers (same code as the API), or None if absent or stored by an older method."""
+    if not record:
+        return None
+    from backend.services import shapy_shape
+    if record.get("version", 1) < shapy_shape.RESULT_VERSION:
+        return None
+    try:
+        return shapy_shape.summarize(record, height_cm)
+    except (KeyError, ValueError, TypeError):
+        return None
+
+
 def _print_summary(run_dir: Path, run: dict) -> None:
     def load(name):
         p = run_dir / name
@@ -97,14 +127,26 @@ def _print_summary(run_dir: Path, run: dict) -> None:
         for k, c in rq["checks"].items():
             print(f"  {c['status']:>4}  {k}: {c.get('value') if not isinstance(c.get('value'), dict) else ''}")
     if meas:
-        unit = "cm" if scaled else "x height"
-        print(f"\nMeasurements ({unit}):")
+        h = scaled["height_cm"] if scaled else None
+        shapy = _shapy_summary(load("shapy_measurements.json"), h)
+        shapy_vals = ((shapy.get("measurements_cm") if scaled else shapy.get("measurements")) or {}) if shapy else {}
+
+        def cell(v):
+            return ("%7.1f" if scaled else "%7.3f") % v if isinstance(v, (int, float)) else "    n/a"
+
+        print(f"\nMeasurements ({'cm' if scaled else 'x height'}):")
         if scaled:
-            print(f"  {'height':<16} {scaled['height_cm']:7.1f}  (supplied, not measured)")
+            print(f"  {'height':<16} {h:7.1f}  (supplied, not measured)")
+        print(f"  {'site':<16} {'pipeline':>8} {'SHAPY':>7}" if shapy else f"  {'site':<16} {'pipeline':>8}")
         for k, m in meas["measurements"].items():
             v = (scaled["measurements"].get(k) or {}).get("tape_circumference_cm") if scaled else \
                 m.get("tape_circumference_over_height")
-            print(f"  {k:<16} {('%7.1f' if scaled else '%7.3f') % v if isinstance(v, (int, float)) else '   n/a'}")
+            print(f"  {k:<16} {cell(v):>8}{' ' + cell(shapy_vals.get(k)) if shapy else ''}")
+        if shapy:
+            print("  pipeline = one body shape fitted to the outline in every view: specific to this person, but loose\n"
+                  "  clothing reads as body. SHAPY = learned body-shape estimate: repeatable, but it pulls toward an\n"
+                  "  average body. Neither is tape-validated yet:\n"
+                  f"  scripts/shapy_compare.py {run_dir.name} --height-cm H --tape waist=.. hip=.. chest=..")
         if not scaled:
             print("  (relative units: no height/calibration supplied; use --height-cm for centimetres)")
     t = (load("reconstruction_report.json") or {}).get("timings_sec", {})
@@ -112,7 +154,7 @@ def _print_summary(run_dir: Path, run: dict) -> None:
         print("\nTimings (s): " + ", ".join(f"{k} {v:.0f}" for k, v in t.items()))
 
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     src = ap.add_mutually_exclusive_group(required=True)
     src.add_argument("video", nargs="?", type=Path, help="360-degree recording (MP4/MOV)")
@@ -121,9 +163,15 @@ def main():
                     help="operator confirms authorisation and the subject's consent (required for a new video)")
     ap.add_argument("--height-cm", type=float, help="subject's barefoot height; the only source of absolute scale")
     ap.add_argument("--person", type=int, help="candidate id when several people are visible")
-    ap.add_argument("--shapy", action="store_true", help="also run the SHAPY comparison model")
+    ap.add_argument("--no-shapy", action="store_true",
+                    help="skip the SHAPY second measurement model (it runs by default, about 10-30 s)")
+    ap.add_argument("--shapy", action="store_true", help=argparse.SUPPRESS)  # pre-default flag, still accepted
     ap.add_argument("--baseline-run", help="earlier run id to compare against in the HTML report")
-    args = ap.parse_args()
+    return ap
+
+
+def main():
+    args = build_parser().parse_args()
 
     from backend.services import body_reconstruction as br
     from backend.services import scan_report
@@ -148,17 +196,10 @@ def main():
         print(f"\noutputs: {run_dir}")
         sys.exit(2)
 
-    if args.shapy:
-        from backend.services import shapy_shape, video_processor
-        if not shapy_shape.available():
-            print("[shapy] model files not installed - skipped")
-        else:
-            print("[shapy] running SHAPY on the selected frames", flush=True)
-            source = next(video_processor._OUTPUT_ROOT.joinpath(video_id).glob("original.*"))
-            try:
-                shapy_shape.compute_for_run(run_dir, source)
-            except (ValueError, FileNotFoundError, KeyError) as exc:
-                print(f"[shapy] failed: {exc}")
+    if args.no_shapy:
+        print("[shapy] skipped (--no-shapy)")
+    else:
+        _run_shapy(run_dir, video_id)
 
     baseline = None
     if args.baseline_run:

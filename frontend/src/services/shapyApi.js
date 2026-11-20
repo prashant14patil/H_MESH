@@ -28,3 +28,8 @@ export function computeShapy(runId) {
 export function shapyMeshUrl(runId) {
   return `${BASE_URL}/api/reconstruction/runs/${encodeURIComponent(runId)}/shapy/mesh`
 }
+
+/** SHAPY's measurement rings (OBJ polylines in its mesh's frame); 404 until SHAPY ran with result version 3. */
+export function shapyRingsUrl(runId) {
+  return `${BASE_URL}/api/reconstruction/runs/${encodeURIComponent(runId)}/shapy/rings`
+}

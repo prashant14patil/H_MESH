@@ -23,12 +23,11 @@ test('missing or invalid sites give no diff and no flag', () => {
   assert.deepEqual(rows[0], { site: 'calf_left', pipeline: null, shapy: 0.2, diff: null, disagree: false })
 })
 
-test('view preference defaults to SHAPY without browser storage', () => {
-  assert.equal(loadView(), 'shapy')
-  assert.equal(DEFAULT_VIEW, 'shapy')
+test('view preference defaults to comparing both models without browser storage', () => {
+  assert.equal(loadView(), 'compare')
+  assert.equal(DEFAULT_VIEW, 'compare')
 })
 
-test('SHAPY is the first tab and every view id is unique', () => {
-  assert.equal(VIEWS[0][0], 'shapy')
-  assert.deepEqual(VIEWS.map(([id]) => id).sort(), ['compare', 'pipeline', 'shapy'])
+test('Compare both is the first tab, SHAPY before Pipeline, and every view id is unique', () => {
+  assert.deepEqual(VIEWS.map(([id]) => id), ['compare', 'shapy', 'pipeline'])
 })

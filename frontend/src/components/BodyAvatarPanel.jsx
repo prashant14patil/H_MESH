@@ -204,8 +204,10 @@ export default function BodyAvatarPanel({ run }) {
 }
 
 // ---------------------------------------------------------------- stage
-function Stage({ mesh, compareMesh, t, rings, yawTarget, mirror, segStatus, values, unit, statusOf, scan, cmp,
-  heightCm, error, onToggleMirror, onDragTurn }) {
+// Exported for the SHAPY-vs-pipeline compare view. labels: segment index per vertex (default: the SMPL table);
+// a body of another topology passes its own, or gets one colour when none fit.
+export function Stage({ mesh, compareMesh, t, rings, yawTarget, mirror, segStatus, values, unit, statusOf, scan, cmp,
+  heightCm, error, onToggleMirror, onDragTurn, labels = LABELS }) {
   const wrap = useRef(null)
   const cardRefs = useRef({})
   const lineRefs = useRef({})
@@ -245,7 +247,7 @@ function Stage({ mesh, compareMesh, t, rings, yawTarget, mirror, segStatus, valu
             {mesh && (
               <Avatar mesh={mesh} compareMesh={compareMesh} t={t} yawTarget={yawTarget} mirror={mirror}
                 segStatus={segStatus} anchors={anchors} wrap={wrap} cardRefs={cardRefs} lineRefs={lineRefs}
-                dotRefs={dotRefs} onSides={setSides} />
+                dotRefs={dotRefs} onSides={setSides} labels={labels} />
             )}
           </Suspense>
           <RoundedBox args={[0.64, 0.07, 0.44]} radius={0.025} smoothness={4} position={[0, -0.036, 0.02]} receiveShadow castShadow>
@@ -336,7 +338,8 @@ function CalloutCard({ c, side, top, values, unit, status, cmp, scan, innerRef, 
 }
 
 // ---------------------------------------------------------------- 3D avatar
-function Avatar({ mesh, compareMesh, t, yawTarget, mirror, segStatus, anchors, wrap, cardRefs, lineRefs, dotRefs, onSides }) {
+function Avatar({ mesh, compareMesh, t, yawTarget, mirror, segStatus, anchors, wrap, cardRefs, lineRefs, dotRefs, onSides,
+  labels = LABELS }) {
   const group = useRef()
   const inner = useRef()
   const yaw = useRef(yawTarget)
@@ -366,12 +369,14 @@ function Avatar({ mesh, compareMesh, t, yawTarget, mirror, segStatus, anchors, w
   useEffect(() => {
     const col = geometry.attributes.color.array
     const palette = SEGMENTS.map((s) => hexToRgb(s === 'head' ? HEAD_COLOR : STATUS[segStatus[s] || 'measured'].color))
-    for (let i = 0; i < LABELS.length; i++) {
-      const c = palette[LABELS[i]]
+    const own = labels && labels.length === mesh.vertexCount
+    const plain = hexToRgb(STATUS[segStatus.trunk || 'measured'].color)
+    for (let i = 0; i < mesh.vertexCount; i++) {
+      const c = own ? palette[labels[i]] : plain
       col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2]
     }
     geometry.attributes.color.needsUpdate = true
-  }, [geometry, segStatus])
+  }, [geometry, segStatus, labels, mesh])
 
   const v = new THREE.Vector3()
   useFrame((_, dt) => {

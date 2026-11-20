@@ -39,8 +39,16 @@ tape was self-measured, as ranges over repeated readings. All values are in cm a
 
 ## What this changes, and what is next
 
-- **Default:** SHAPY is the measurement panel's default view, and `scripts/scan_360.py` prints it first. The panel
-  remembers each viewer's tab under the key `measurementModelView.v2`, so everyone starts on SHAPY once.
+- **Default:** the measurement panel opens on **Compare both** (`ModelAvatarCompare.jsx`): SHAPY and the pipeline as
+  Body Avatars side by side (stacked on phones), turning together, each with its own girth cards.
+  - With a tape check recorded for the run, each body marks the sites within ±2 cm of the tape, and a table lists
+    both models' errors.
+  - SHAPY's body is a different mesh (SMPL-X, 10,475 vertices). It borrows its segment colours from the pipeline body
+    (nearest vertex, same pose), and its measurement rings come from `shapy_measurement_rings.obj` (SHAPY result
+    version 3).
+  - `scripts/scan_360.py` prints SHAPY first.
+  - The panel remembers each viewer's tab under the key `measurementModelView.v3`, so everyone starts on the
+    comparison once.
 - **Still on the pipeline:** Body Avatar cards, assessment history/BCM and the tape-validation API, which today show
   values 4–14 cm too large in loose clothing.
   - Move them to SHAPY in one change and recompute history. Otherwise the change of method appears as a 10 cm

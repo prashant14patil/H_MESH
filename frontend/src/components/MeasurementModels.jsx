@@ -1,11 +1,12 @@
 /**
  * MeasurementModels.jsx
  * ---------------------
- * Model switch for a completed reconstruction: Pipeline (HMR2 + multi-view fit), SHAPY, or both side by side.
- * The Pipeline view is rendered by the parent; this component renders the SHAPY and Compare views.
+ * Model switch for a completed reconstruction: both models as Body Avatars side by side (the default), SHAPY, or
+ * Pipeline (HMR2 + multi-view fit). The Pipeline view is rendered by the parent; this component renders the others.
  */
 import { useEffect, useState } from 'react'
 import MeshViewer from './MeshViewer.jsx'
+import ModelAvatarCompare from './ModelAvatarCompare.jsx'
 import { computeShapy, shapyMeshUrl } from '../services/shapyApi.js'
 import { VIEWS, compareRows } from './measurementModels.js'
 
@@ -27,8 +28,9 @@ export function ModelSwitch({ view, onChange }) {
 /**
  * view: 'shapy' | 'compare'; pipeline: { measurements, measurements_cm? } from the run;
  * heightCm: current run height (re-fetches so SHAPY cm follow it); labels: site -> label.
+ * The compare view loads the pipeline body itself, so pipelineMeshUrl is no longer needed.
  */
-export function ShapyView({ runId, view, pipeline, pipelineMeshUrl, heightCm, labels, onError }) {
+export function ShapyView({ runId, view, pipeline, heightCm, labels, onError }) {
   const [shapy, setShapy] = useState(null)
   const [loading, setLoading] = useState(false)
   const [failure, setFailure] = useState(null)
@@ -61,18 +63,14 @@ export function ShapyView({ runId, view, pipeline, pipelineMeshUrl, heightCm, la
 
   return (
     <div className="space-y-3 text-xs">
-      <div className={view === 'compare' ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
-        {view === 'compare' && (
-          <figure className="space-y-1">
-            <figcaption className="font-medium text-gray-700">Pipeline (HMR2 + multi-view fit)</figcaption>
-            <MeshViewer meshUrl={pipelineMeshUrl} upright onError={(m) => onError?.(`Pipeline mesh: ${m}`)} />
-          </figure>
-        )}
+      {view === 'compare' ? (
+        <ModelAvatarCompare runId={runId} shapy={shapy} />
+      ) : (
         <figure className="space-y-1">
           <figcaption className="font-medium text-gray-700">SHAPY ({shapy.frames_used} frames)</figcaption>
           <MeshViewer meshUrl={shapyMeshUrl(runId)} upright onError={(m) => onError?.(`SHAPY mesh: ${m}`)} />
         </figure>
-      </div>
+      )}
 
       <p className="font-medium text-gray-800">
         {view === 'compare' ? 'Pipeline vs SHAPY' : 'SHAPY predicted measurements'} ({unit}{unit === 'cm' ? `, from ${fmt(heightCm, 1)} cm height` : ''})

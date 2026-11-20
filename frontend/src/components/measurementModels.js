@@ -1,24 +1,29 @@
 /**
  * measurementModels.js
  * --------------------
- * Pure helpers for choosing and comparing measurement models (Pipeline / SHAPY / Compare).
+ * Pure helpers for choosing and comparing measurement models (Compare both / SHAPY / Pipeline).
+ * The default view shows both models as Body Avatars side by side, SHAPY first. In the first tape check SHAPY was
+ * about 2 cm outside the tape ranges; the pipeline 4-14 cm too large with its old prior 0 and about 3 cm with the
+ * HMR2 prior 0.2 that is the default from 20 Nov (docs/SHAPY_VS_PIPELINE_MEASUREMENTS.md).
  */
 export const VIEWS = [
-  ['pipeline', 'Pipeline'],
+  ['compare', 'Compare both'],
   ['shapy', 'SHAPY'],
-  ['compare', 'Compare side by side'],
+  ['pipeline', 'Pipeline'],
 ]
+export const DEFAULT_VIEW = 'compare'
 export const DISAGREE_CM = 3
 export const DISAGREE_REL = 0.017 // ~3 cm on a 176 cm person, used when no height is set
 
-const STORAGE_KEY = 'measurementModelView'
+// A new key whenever the default changes, so every viewer starts on the new default once ('.v3': Compare both).
+const STORAGE_KEY = 'measurementModelView.v3'
 
 export function loadView() {
   try {
     const v = window.localStorage.getItem(STORAGE_KEY)
-    return VIEWS.some(([id]) => id === v) ? v : 'pipeline'
+    return VIEWS.some(([id]) => id === v) ? v : DEFAULT_VIEW
   } catch {
-    return 'pipeline'
+    return DEFAULT_VIEW
   }
 }
 

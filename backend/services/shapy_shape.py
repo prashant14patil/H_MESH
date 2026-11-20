@@ -38,8 +38,11 @@ HRNET_PY = SHAPY_DIR / "code" / "regressor" / "human_shape" / "models" / "backbo
 RESULT_FILE = "shapy_measurements.json"
 # 2: horizontal-flip test-time augmentation (each crop and its mirror image). On two recordings of the same
 #    person it cut the between-recording waist/hip difference from ~0.6 cm to ~0.2 cm.
-RESULT_VERSION = 2
+# 3: also writes SHAPY's measurement rings (RINGS_FILE), so the avatar compare view can place its callouts on
+#    SHAPY's own body. Same inference and numbers as version 2.
+RESULT_VERSION = 3
 MESH_FILE = "shapy_body_mesh.obj"
+RINGS_FILE = "shapy_measurement_rings.obj"
 CROP = 256
 SCALE = 1.2                       # SHAPY test-time bbox enlargement
 MEAN = np.array([0.485, 0.456, 0.406], np.float32)
@@ -227,13 +230,14 @@ def compute_for_run(run_dir: Path, video: Path) -> dict:
     smv.write_obj(run_dir / MESH_FILE, v, faces,
                   header=("SHAPY SMPL-X neutral shape, measurement A-pose (relative units; y up, +z front, feet on y=0)\n"
                           "External geometry only - not a Tanita BIA/BCM measurement."))
+    bm.write_rings_obj(run_dir / RINGS_FILE, meas, header=f"SHAPY measurement cross-sections (polylines), frame of {MESH_FILE}")
     record = bm.strip_rings(meas)
     record.update({
         "model": "SHAPY (SHAPY_A checkpoint, SMPL-X neutral, 10 betas)", "version": RESULT_VERSION,
         "test_time_augmentation": "horizontal flip (each frame and its mirror image)",
         "frames_used": len(crops), "frame_indices": used, "betas_smplx": betas.tolist(),
         "betas_each": betas_each.tolist(), "beta_robust_std": robust_std.tolist(),
-        "outlier_frames": [int(o) for o in outliers], "mesh_file": MESH_FILE,
+        "outlier_frames": [int(o) for o in outliers], "mesh_file": MESH_FILE, "rings_file": RINGS_FILE,
         "computed_at": time.time(), "seconds": round(time.time() - started, 2),
         "note": "Same A-pose and circumference definitions as the pipeline; SHAPY's shape only.",
     })

@@ -1,11 +1,12 @@
 /**
  * MeasurementModels.jsx
  * ---------------------
- * Model switch for a completed reconstruction: Pipeline (HMR2 + multi-view fit), SHAPY, or both side by side.
- * The Pipeline view is rendered by the parent; this component renders the SHAPY and Compare views.
+ * Model switch for a completed reconstruction: both models as Body Avatars side by side (the default), SHAPY, or
+ * Pipeline (HMR2 + multi-view fit). The Pipeline view is rendered by the parent; this component renders the others.
  */
 import { useEffect, useState } from 'react'
 import MeshViewer from './MeshViewer.jsx'
+import ModelAvatarCompare from './ModelAvatarCompare.jsx'
 import { computeShapy, shapyMeshUrl } from '../services/shapyApi.js'
 import { VIEWS, compareRows } from './measurementModels.js'
 
@@ -27,8 +28,9 @@ export function ModelSwitch({ view, onChange }) {
 /**
  * view: 'shapy' | 'compare'; pipeline: { measurements, measurements_cm? } from the run;
  * heightCm: current run height (re-fetches so SHAPY cm follow it); labels: site -> label.
+ * The compare view loads the pipeline body itself, so pipelineMeshUrl is no longer needed.
  */
-export function ShapyView({ runId, view, pipeline, pipelineMeshUrl, heightCm, labels, onError }) {
+export function ShapyView({ runId, view, pipeline, heightCm, labels, onError }) {
   const [shapy, setShapy] = useState(null)
   const [loading, setLoading] = useState(false)
   const [failure, setFailure] = useState(null)
@@ -61,18 +63,14 @@ export function ShapyView({ runId, view, pipeline, pipelineMeshUrl, heightCm, la
 
   return (
     <div className="space-y-3 text-xs">
-      <div className={view === 'compare' ? 'grid grid-cols-1 sm:grid-cols-2 gap-3' : ''}>
-        {view === 'compare' && (
-          <figure className="space-y-1">
-            <figcaption className="font-medium text-gray-700">Pipeline (HMR2 + multi-view fit)</figcaption>
-            <MeshViewer meshUrl={pipelineMeshUrl} upright onError={(m) => onError?.(`Pipeline mesh: ${m}`)} />
-          </figure>
-        )}
+      {view === 'compare' ? (
+        <ModelAvatarCompare runId={runId} shapy={shapy} />
+      ) : (
         <figure className="space-y-1">
           <figcaption className="font-medium text-gray-700">SHAPY ({shapy.frames_used} frames)</figcaption>
           <MeshViewer meshUrl={shapyMeshUrl(runId)} upright onError={(m) => onError?.(`SHAPY mesh: ${m}`)} />
         </figure>
-      </div>
+      )}
 
       <p className="font-medium text-gray-800">
         {view === 'compare' ? 'Pipeline vs SHAPY' : 'SHAPY predicted measurements'} ({unit}{unit === 'cm' ? `, from ${fmt(heightCm, 1)} cm height` : ''})
@@ -113,8 +111,13 @@ export function ShapyView({ runId, view, pipeline, pipelineMeshUrl, heightCm, la
       )}
       <p className="text-gray-500">
         Both models use the same measurement A-pose and circumference definitions; only the body shape differs.
-        SHAPY estimates shape from each frame and its mirror image independently and takes the robust median,
-        which made repeated recordings of the same person agree within about 0.5 cm.
+        SHAPY is a network trained on photos of people paired with their tape measurements; it
+        estimates shape from each frame and its mirror image and takes the robust median, which made repeated
+        recordings of the same person agree within about 0.5 cm, but like any learned estimate it pulls toward an
+        average body. The pipeline fits one shape to the person’s outline in every view: specific to this person,
+        but loose clothing reads as body. In the first tape check (loose clothing) SHAPY was about 2 cm outside the
+        tape ranges; the pipeline was 4–14 cm too large with its old setting and about 3 cm with the HMR2-prior setting
+        that is the default from 20 November.
       </p>
     </div>
   )

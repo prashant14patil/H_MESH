@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   parseObj, parseRings, centroid, scanValues, comparableValues, interpolateValues, uncertaintyCm,
   siteStatus, changeStatus, segmentStatus, asymmetricSites, formatDelta, CALLOUTS, repeatabilityCoefficient,
+  transferLabels, tapeErrors, meanAbsError,
 } from './bodyAvatarModel.js'
 
 test('parseObj keeps vertex order and triangulates faces', () => {
@@ -76,4 +77,34 @@ test('a segment shows its most notable site status', () => {
 test('deltas carry an explicit sign', () => {
   assert.equal(formatDelta(-1.23, 'cm'), '−1.2')
   assert.equal(formatDelta(0.4, 'cm'), '+0.4')
+})
+
+const meshOf = (pts) => ({ positions: new Float32Array(pts.flat()), vertexCount: pts.length })
+
+test('transferLabels copies the nearest labelled vertex, independent of overall size', () => {
+  // Source: a "head" vertex on top (label 0) and two "arm" vertices left/right (labels 2, 3), plus feet at y=0.
+  const source = meshOf([[0, 1.7, 0], [-0.6, 1.3, 0], [0.6, 1.3, 0], [0, 0, 0]])
+  const labels = [0, 2, 3, 1]
+  // Target: the same layout 10% taller, with extra vertices near each source vertex and a different count.
+  const target = meshOf([[0.02, 1.86, 0], [-0.64, 1.42, 0.01], [0.66, 1.44, 0], [0.01, 0.02, 0], [0, 1.8, 0.03]])
+  assert.deepEqual([...transferLabels(target, source, labels)], [0, 2, 3, 1, 0])
+})
+
+test('transferLabels is exact nearest neighbour across grid cells', () => {
+  const source = meshOf([[0, 0, 0], [0, 1, 0], [0.1, 0.5, 0]])
+  const target = meshOf([[0.05, 0.5, 0], [0, 0.97, 0], [0, 0, 0], [0, 1, 0]]) // same 0..1 height as the source
+  // A tiny cell forces the search across many shells; the answer must not change.
+  assert.deepEqual([...transferLabels(target, source, [7, 8, 9], 0.01)], [9, 8, 7, 8])
+  assert.deepEqual([...transferLabels(target, source, [7, 8, 9])], [9, 8, 7, 8])
+})
+
+test('tapeErrors scores any model against the run tape and meanAbsError averages it', () => {
+  const tape = { waist: { tape_cm: 89, model_cm: 100.3, error_cm: 11.3 }, hip: { tape_cm: 100.5 }, chest: { tape_cm: null } }
+  const shapy = tapeErrors({ waist: 88.5, hip: 105.0, chest: 106.1 }, tape)
+  assert.deepEqual(Object.keys(shapy).sort(), ['hip', 'waist'])
+  assert.ok(Math.abs(shapy.waist.error_cm + 0.5) < 1e-9)
+  assert.ok(Math.abs(meanAbsError(shapy).cm - 2.5) < 1e-9)
+  assert.equal(meanAbsError(shapy).n, 2)
+  assert.equal(meanAbsError({}), null)
+  assert.deepEqual(tapeErrors({ waist: 90 }, null), {})
 })

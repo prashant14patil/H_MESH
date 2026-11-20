@@ -224,3 +224,76 @@ export function formatDate(epochSeconds) {
   if (!Number.isFinite(epochSeconds)) return '—'
   return new Date(epochSeconds * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 }
+
+// ------------------------------------------------------- model comparison (SHAPY vs pipeline)
+function unitHeightPositions(mesh) {
+  const p = mesh.positions
+  let lo = Infinity, hi = -Infinity
+  for (let i = 1; i < p.length; i += 3) { if (p[i] < lo) lo = p[i]; if (p[i] > hi) hi = p[i] }
+  const k = hi > lo ? 1 / (hi - lo) : 1
+  const out = new Float32Array(p.length)
+  for (let i = 0; i < p.length; i += 3) {
+    out[i] = p[i] * k; out[i + 1] = (p[i + 1] - lo) * k; out[i + 2] = p[i + 2] * k // feet at 0, head at 1
+  }
+  return out
+}
+
+/**
+ * Segment labels for a mesh of another topology (SHAPY's SMPL-X body) from the nearest vertex of a labelled SMPL
+ * mesh in the same pose and frame. Both are scaled to unit height first, so a wider or narrower body still lines
+ * up. Exact nearest neighbour through a uniform grid searched in growing shells.
+ */
+export function transferLabels(target, source, labels, cell = 0.03) {
+  const sp = unitHeightPositions(source)
+  const tp = unitHeightPositions(target)
+  const key = (x, y, z) => ((x + 512) * 1024 + (y + 512)) * 1024 + (z + 512)
+  const grid = new Map()
+  for (let j = 0; j < source.vertexCount; j++) {
+    const k = key(Math.floor(sp[j * 3] / cell), Math.floor(sp[j * 3 + 1] / cell), Math.floor(sp[j * 3 + 2] / cell))
+    const bucket = grid.get(k)
+    if (bucket) bucket.push(j); else grid.set(k, [j])
+  }
+  const out = new Uint8Array(target.vertexCount)
+  const maxShell = Math.ceil(2 / cell)
+  for (let i = 0; i < target.vertexCount; i++) {
+    const x = tp[i * 3], y = tp[i * 3 + 1], z = tp[i * 3 + 2]
+    const cx = Math.floor(x / cell), cy = Math.floor(y / cell), cz = Math.floor(z / cell)
+    let best = Infinity, bi = -1
+    for (let r = 0; r <= maxShell; r++) {
+      for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) for (let dz = -r; dz <= r; dz++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy), Math.abs(dz)) !== r) continue // only the shell at distance r
+        const bucket = grid.get(key(cx + dx, cy + dy, cz + dz))
+        if (!bucket) continue
+        for (const j of bucket) {
+          const ex = sp[j * 3] - x, ey = sp[j * 3 + 1] - y, ez = sp[j * 3 + 2] - z
+          const d = ex * ex + ey * ey + ez * ez
+          if (d < best) { best = d; bi = j }
+        }
+      }
+      // Anything in an unsearched shell is at least r cells away, so a closer hit already found is final.
+      if (bi >= 0 && best <= (r * cell) ** 2) break
+    }
+    out[i] = bi >= 0 ? labels[bi] : 0
+  }
+  return out
+}
+
+/**
+ * The same tape check for any model: {site: {tape_cm, model_cm, error_cm}} for every taped site the model has.
+ * tapeSites is a run's result.tape_validation.sites ({site: {tape_cm, ...}}); values are the model's cm girths.
+ */
+export function tapeErrors(values, tapeSites) {
+  const out = {}
+  for (const [site, t] of Object.entries(tapeSites || {})) {
+    const tape = t?.tape_cm
+    const model = values?.[site]
+    if (Number.isFinite(tape) && Number.isFinite(model)) out[site] = { tape_cm: tape, model_cm: model, error_cm: model - tape }
+  }
+  return out
+}
+
+/** Mean absolute error over the given sites (default: every site in errs); null when none. */
+export function meanAbsError(errs, sites = Object.keys(errs || {})) {
+  const e = sites.map((s) => errs?.[s]?.error_cm).filter(Number.isFinite)
+  return e.length ? { cm: e.reduce((a, v) => a + Math.abs(v), 0) / e.length, n: e.length } : null
+}

@@ -80,3 +80,15 @@ def shapy_mesh(run_id: str):
     if not path.is_file():
         raise HTTPException(status_code=404, detail="SHAPY mesh not computed for this run")
     return FileResponse(path, media_type="text/plain", filename="shapy_body_mesh.obj")
+
+
+@router.get("/runs/{run_id}/shapy/rings")
+def shapy_rings(run_id: str):
+    """SHAPY's measurement cross-sections (OBJ polylines in its mesh's frame) for the avatar callouts."""
+    try:
+        path = recon._run_dir(run_id) / shapy_shape.RINGS_FILE
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="SHAPY rings not computed for this run")
+    return FileResponse(path, media_type="text/plain", filename=shapy_shape.RINGS_FILE)

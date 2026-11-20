@@ -113,8 +113,11 @@ export function ShapyView({ runId, view, pipeline, pipelineMeshUrl, heightCm, la
       )}
       <p className="text-gray-500">
         Both models use the same measurement A-pose and circumference definitions; only the body shape differs.
-        SHAPY estimates shape from each frame and its mirror image independently and takes the robust median,
-        which made repeated recordings of the same person agree within about 0.5 cm.
+        SHAPY is a network trained on photos of people paired with their tape measurements; it
+        estimates shape from each frame and its mirror image and takes the robust median, which made repeated
+        recordings of the same person agree within about 0.5 cm, but like any learned estimate it pulls toward an
+        average body. The pipeline fits one shape to the person’s outline in every view: specific to this person,
+        but loose clothing reads as body, so it measures larger. Neither has been checked against a tape measure yet.
       </p>
     </div>
   )

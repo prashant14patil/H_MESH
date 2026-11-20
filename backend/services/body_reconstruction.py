@@ -69,9 +69,14 @@ BETA_SIGMA_FLOOR = 0.25      # minimum per-coefficient spread used by the shape 
 #   committed:          RECON_SIL_OUTSIDE=legacy RECON_BETA_PRIOR=0
 #   pre-fix working:    RECON_SIL_OUTSIDE=legacy RECON_BETA_PRIOR=0.2
 SIL_OUTSIDE_FORM = os.getenv("RECON_SIL_OUTSIDE", "charbonnier")
-# Mahalanobis pull toward the multi-frame HMR2 shape. Its sigma is HMR2's frame-to-frame JITTER, not the
-# uncertainty of HMR2's shape, so even small weights pin the result to HMR2's (average-biased) estimate.
-BETA_PRIOR_WEIGHT = float(os.getenv("RECON_BETA_PRIOR", "0.0"))
+# Mahalanobis pull toward the multi-frame HMR2 shape (sigma = HMR2's frame-to-frame jitter, so 0.2 keeps the shape
+# close to HMR2's estimate). HMR2 was trained on clothed people, so its shape is an estimate of the body UNDER the
+# clothing, whereas the silhouette is the clothed outline. Real tape (subject 777541cd, 20 Nov: waist 88-90,
+# abdomen 95-100, hip 98-103 cm) over 3 recordings (scripts/tape_config_study.py): prior 0.2 -> mean error 2.9 cm;
+# prior 0 -> 8.3 cm, every girth 10-14 cm too large (body inflated to fill loose T-shirt / cargo trousers).
+# Prior 0 had been chosen by held-out silhouette IoU, which is scored against the CLOTHED outline and rewards that
+# inflation: never select fit settings by IoU alone. RECON_BETA_PRIOR=0 restores the inflated behaviour.
+BETA_PRIOR_WEIGHT = float(os.getenv("RECON_BETA_PRIOR", "0.2"))
 # Population prior: SMPL betas are in population standard deviations, so N(0, I) is the statistically
 # meaningful regulariser of how unusual a body shape is.
 POP_PRIOR_WEIGHT = float(os.getenv("RECON_POP_PRIOR", "0.05"))
@@ -91,7 +96,20 @@ SURFACE_DETAIL = os.getenv("RECON_SURFACE_DETAIL", "1") == "1"
 SURFACE_LAPLACIAN = float(os.getenv("RECON_SURFACE_LAPLACIAN", "1.0"))
 # Export a plain, featureless face: SMPL's template face carries no information about the subject.
 PLAIN_FACE = os.getenv("RECON_PLAIN_FACE", "1") == "1"
-SIL_EXCLUDE_IOU = 0.75       # a view whose fitted silhouette IoU stays below this is unreliable
+SIL_EXCLUDE_IOU = 0.75       # previous rule only (RECON_VIEW_EXCLUSION=iou): IoU < max(0.75, median - 0.10)
+# Post-fit view exclusion. "protrusion" (default): a view is excluded when the fitted body sticks out of its mask
+# far more than in the other views (median + 3 MAD, at least 4%), repeated up to 3 rounds; clothing only ever
+# enlarges an outline, so protrusion means the mask is MISSING body (occlusion, under-segmentation). IoU cannot
+# separate such views: after a fit shrunk by occluded masks, clean views fall to IoU 0.69 while occluded ones span
+# 0.46-0.83, so the IoU rule excluded clean views and kept occluded ones (girths -3 to -16%). The iterated
+# protrusion rule found every occluded view with no false exclusion and kept girths within 1% (evidence:
+# docs/MEASUREMENT_RELIABILITY_VALIDATION_REPORT.md section 5). An absolute IoU floor stays as a backstop for
+# unusable masks (no clean view fell below 0.69 in any tested condition).
+VIEW_EXCLUSION = os.getenv("RECON_VIEW_EXCLUSION", "protrusion")
+VIEW_EXCLUDE_ROUNDS = 3
+PROTRUSION_EXCLUDE_FLOOR, PROTRUSION_EXCLUDE_K = 0.04, 3.0
+SIL_FLOOR_IOU = 0.60
+MIN_SILHOUETTE_VIEWS = 6     # never exclude below this many usable silhouettes
 SIL_TAU_FRAC = float(os.getenv("RECON_SIL_TAU", "0.01"))  # robust silhouette scale (fraction of box height)
 CV_FOLDS = 4
 HELD_OUT_IOU_TOLERANCE = 0.03
@@ -184,11 +202,59 @@ def get_run(run_id: str):
     path = _run_dir(run_id) / "status.json"
     if path.is_file():
         run = json.loads(path.read_text(encoding="utf-8"))
-        if run.get("status") in ("running", "awaiting_person_selection"):
-            # Not owned by this process: the backend restarted (e.g. --reload) and the worker thread died.
+        if run.get("status") in ("running", "awaiting_person_selection") and not _owner_alive(run.get("owner")):
+            # Not owned by this process and its owner is gone: the backend restarted (e.g. --reload) and the worker
+            # thread died. A run owned by another live process (e.g. scripts/run_reconstruction.py) is left alone.
             _mark_interrupted(run)
         return run
     return None
+
+
+def _process_created(pid: int) -> float | None:
+    """Process start time (seconds since epoch), or None if the process does not exist. Windows: Win32 API via
+    ctypes (os.kill(pid, 0) would TERMINATE the process there); elsewhere os.kill(pid, 0) + /proc when available."""
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+        k32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        h = k32.OpenProcess(0x1000, False, int(pid))  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return None
+        try:
+            code = wintypes.DWORD()
+            if not k32.GetExitCodeProcess(h, ctypes.byref(code)) or code.value != 259:  # STILL_ACTIVE
+                return None
+            ft = [wintypes.FILETIME() for _ in range(4)]
+            if not k32.GetProcessTimes(h, *[ctypes.byref(x) for x in ft]):
+                return None
+            ticks = (ft[0].dwHighDateTime << 32) | ft[0].dwLowDateTime   # 100 ns since 1601-01-01
+            return ticks / 1e7 - 11644473600.0
+        finally:
+            k32.CloseHandle(h)
+    try:
+        os.kill(int(pid), 0)
+    except (ProcessLookupError, PermissionError, OSError):
+        return None
+    try:
+        return Path(f"/proc/{int(pid)}").stat().st_ctime
+    except OSError:
+        return 0.0
+
+
+def _owner_record() -> dict:
+    return {"pid": os.getpid(), "created": _process_created(os.getpid())}
+
+
+def _owner_alive(owner) -> bool:
+    """True when the process that started the run still runs (same PID AND same start time, so a reused PID of a
+    dead owner does not count). Runs recorded before owners were stored have none and count as dead."""
+    if not owner or owner.get("pid") is None:
+        return False
+    created = _process_created(owner["pid"])
+    if created is None:
+        return False
+    rec = owner.get("created")
+    return rec is None or created == 0.0 or abs(created - float(rec)) < 2.0
 
 
 def _mark_interrupted(run: dict) -> None:
@@ -285,10 +351,11 @@ def get_asset(run_id: str, name: str):
 
 
 def start_run(video_id: str, target_box_norm: list | None = None, height_cm: float | None = None,
-              sex: str | None = None) -> dict:
+              sex: str | None = None, weight_kg: float | None = None) -> dict:
     if not _valid_uuid(video_id):
         raise ValueError("Invalid recording ID")
     sex = _validate_sex(sex)
+    weight_kg = _validate_weight(weight_kg, height_cm)
     if height_cm is not None:
         from backend.services.body_measurements import validate_height_cm
         height_cm = validate_height_cm(height_cm)
@@ -312,7 +379,7 @@ def start_run(video_id: str, target_box_norm: list | None = None, height_cm: flo
         run = {"run_id": run_id, "video_id": video_id, "status": "running", "stage": "decode",
                "progress": 0.0, "message": "Queued", "warnings": [], "candidates": [],
                "created_at": time.time(), "result": None, "error": None, "requested_height_cm": height_cm,
-               "sex": sex}
+               "sex": sex, "weight_kg": weight_kg, "owner": _owner_record()}
         _RUNS[run_id] = run
         _EVENTS[run_id] = threading.Event()
         _persist(run)
@@ -375,6 +442,8 @@ def _scale_run(run: dict, height_cm) -> dict:
         run["result"]["metric_scale"]["measurements_cm_detailed"] = {
             k: m.get("tape_circumference_cm") for k, m in sd["measurements"].items()}
     run["result"]["scale_status"] = "metric_from_supplied_height"
+    _plausibility(run, scaled, height_cm)
+    _mass_check(run, root, height_cm)
     tape_path = root / "tape_validation.json"
     if tape_path.is_file():  # a corrected height changes every model value: keep the comparison current
         previous = json.loads(tape_path.read_text(encoding="utf-8"))
@@ -382,6 +451,50 @@ def _scale_run(run: dict, height_cm) -> dict:
                     previous.get("note", ""), previous.get("recorded_at"))
     _persist(run)
     return run
+
+
+def _mass_check(run: dict, root: Path, height_cm: float) -> None:
+    code = "body_volume_does_not_match_weight"
+    run["warnings"] = [w for w in run.get("warnings", []) if w.get("code") != code]
+    run["result"]["mass_check"] = None
+    fr = root / "diagnostics" / "fit_result.npz"
+    if run.get("weight_kg") is None or not fr.is_file():
+        run["result"]["warnings"] = run["warnings"]
+        return
+    from backend.services.inference_engine import get_engine
+    engine = get_engine()
+    smpl = engine.model.smpl if engine.is_ready else None
+    if smpl is None:
+        return
+    res = mass_check(smpl, np.load(fr)["betas"], run["weight_kg"], height_cm, engine.device)
+    run["result"]["mass_check"] = res
+    if res["significant"]:
+        direction = "more" if res["relative_difference"] > 0 else "less"
+        run["warnings"].append({"code": code, "message": (
+            f"The reconstructed body implies {res['implied_mass_kg']:.0f} kg but the subject weighs "
+            f"{res['weight_kg']:.0f} kg ({res['relative_difference']:+.0%}): the body holds {direction} volume than "
+            f"the mass allows. With loose clothing this means girths are likely overstated by about "
+            f"{res['expected_girth_bias_pct']:.0f}%.")})
+    run["result"]["warnings"] = run["warnings"]
+
+
+def _plausibility(run: dict, scaled: dict, height_cm: float) -> None:
+    """ANSUR II consistency of chest / navel waist / hip (needs sex + height); warns on a girth out of line."""
+    from backend.services import anthropometric_check as ac
+    m = scaled.get("measurements", {})
+    girths = {s: (m.get(s) or {}).get("tape_circumference_cm") for s in ac.SITES}
+    res = ac.check(girths, height_cm, run.get("sex")) if run.get("sex") else None
+    run["result"]["plausibility"] = res
+    code = "girth_out_of_line_with_population"
+    run["warnings"] = [w for w in run.get("warnings", []) if w.get("code") != code]
+    if res:
+        bad = [f"{s} {v['mesh_cm']:.1f} cm vs typical {v['typical_cm']:.1f} +- {v['sd_cm']:.1f} cm ({v['z']:+.1f} SD)"
+               for s, v in res["sites"].items() if v["out_of_line"]]
+        if bad:
+            run["warnings"].append({"code": code, "message": (
+                "Rare combination among ANSUR II " + run["sex"] + " subjects of this height: " + "; ".join(bad)
+                + ". Most often loose clothing at that site; a tape measurement or fitted clothing settles it.")})
+    run["result"]["warnings"] = run["warnings"]
 
 
 def _write_tape(run: dict, root: Path, scaled: dict, tape_cm: dict, clothing: str, note: str,
@@ -1061,6 +1174,32 @@ def silhouette_scores(smpl, faces, betas, go, pose, cam, views: smv.FitViews, ma
     return scores
 
 
+def select_view_exclusions(scores, sil_weight, rule: str | None = None) -> list[tuple[int, str]]:
+    """Views whose silhouette should be dropped from the shape fit: [(index, reason)] among views still in use."""
+    rule = rule or VIEW_EXCLUSION
+    idx = [i for i, s in enumerate(scores) if s and (sil_weight is None or sil_weight[i] > 0)]
+    if not idx:
+        return []
+    if rule == "iou":
+        limit = max(SIL_EXCLUDE_IOU, float(np.median([scores[i]["iou"] for i in idx])) - 0.10)
+        return [(i, f"fitted silhouette IoU {scores[i]['iou']:.2f} < {limit:.2f}") for i in idx
+                if scores[i]["iou"] < limit]
+    prot = np.array([scores[i].get("protrusion_frac", 0.0) for i in idx], dtype=float)
+    med = float(np.median(prot))
+    limit = max(PROTRUSION_EXCLUDE_FLOOR, med + PROTRUSION_EXCLUDE_K * 1.4826 * float(np.median(np.abs(prot - med))))
+    out = []
+    for i, p in zip(idx, prot):
+        if p > limit:
+            out.append((i, f"body {p:.1%} outside this mask (limit {limit:.1%}): the mask is missing body "
+                           "(occlusion or under-segmentation)"))
+        elif scores[i]["iou"] < SIL_FLOOR_IOU:
+            out.append((i, f"fitted silhouette IoU {scores[i]['iou']:.2f} < {SIL_FLOOR_IOU:.2f}: mask unusable"))
+    keep = len(idx) - len(out)
+    if keep < MIN_SILHOUETTE_VIEWS:  # drop only the worst, so the fit keeps enough silhouettes
+        out = sorted(out, key=lambda e: -scores[e[0]].get("protrusion_frac", 0.0))[:max(0, len(idx) - MIN_SILHOUETTE_VIEWS)]
+    return out
+
+
 def proportion_check(scores, yaws) -> dict:
     """Median model/observed torso width per torso level, separately for frontal and profile views.
 
@@ -1150,11 +1289,49 @@ def _validate_sex(sex):
     return sex
 
 
-def _cfg_silhouette(beta_sigma, sex=None):
+MIN_WEIGHT_KG, MAX_WEIGHT_KG = 30.0, 250.0
+
+
+def _validate_weight(weight_kg, height_cm):
+    """Optional body weight (kg). It constrains body VOLUME (weight / density) relative to stature, so it is only
+    usable together with the barefoot height."""
+    if weight_kg in (None, ""):
+        return None
+    if isinstance(weight_kg, bool) or not isinstance(weight_kg, (int, float)) or not math.isfinite(weight_kg):
+        raise ValueError("weight_kg must be a finite number")
+    if not MIN_WEIGHT_KG <= float(weight_kg) <= MAX_WEIGHT_KG:
+        raise ValueError(f"weight_kg must be between {MIN_WEIGHT_KG:.0f} and {MAX_WEIGHT_KG:.0f}")
+    if height_cm is None:
+        raise ValueError("weight_kg needs height_cm: body volume is constrained relative to stature")
+    return float(weight_kg)
+
+
+def mass_check(smpl, betas, weight_kg: float, height_cm: float, device) -> dict:
+    """Compare the body mass the reconstruction implies (rest-body volume x effective density, scaled to the
+    supplied stature) with the supplied weight. Clothing adds outline but no mass, so implied >> real means the
+    body was inflated by clothing; girths then scale roughly with sqrt(volume).
+
+    Used as a CHECK only: as a fit constraint the single mass number put volume where the outline had slack, i.e.
+    into the loose trousers (run 6303a2d5: held-out IoU 0.818 -> 0.806/0.807 at 95/105 kg, hip worse)."""
+    import torch
+    faces_t = torch.as_tensor(np.asarray(smpl.faces, dtype=np.int64), device=device)
+    with torch.no_grad():
+        ratio = float(smv.rest_volume_ratio(smpl, torch.as_tensor(betas, dtype=torch.float32, device=device), faces_t))
+    implied = ratio * (height_cm / 100.0) ** 3 * 1000.0 * smv.EFFECTIVE_BODY_DENSITY
+    rel = implied / weight_kg - 1.0
+    return {"weight_kg": weight_kg, "implied_mass_kg": round(implied, 1), "relative_difference": round(rel, 3),
+            "expected_girth_bias_pct": round(100 * ((1 + rel) ** 0.5 - 1), 1),
+            "density_kg_per_l": smv.EFFECTIVE_BODY_DENSITY, "density_uncertainty": 0.03,
+            "significant": bool(abs(rel) > 0.06),
+            "note": "Implied mass = reconstructed body volume x 1.00 kg/L (tissue incl. lung air, +-3%). A difference "
+                    "beyond ~6% (2 sigma) means the body volume does not match the person's mass."}
+
+
+def _cfg_silhouette(beta_sigma, sex=None, volume_ratio=None):
     pop_mean, pop_prec = smv.sex_shape_prior(sex)
     return smv.FitConfig(iterations=300, w_silhouette=SIL_WEIGHT, w_beta_init=BETA_PRIOR_WEIGHT,
                          w_beta_prior=POP_PRIOR_WEIGHT, sil_coverage_weight=SIL_COVERAGE_WEIGHT,
-                         beta_pop_mean=pop_mean, beta_pop_precision=pop_prec,
+                         beta_pop_mean=pop_mean, beta_pop_precision=pop_prec, target_volume_ratio=volume_ratio,
                          sil_outside_form=SIL_OUTSIDE_FORM, fit_body_pose=FIT_BODY_POSE,
                          beta_sigma=beta_sigma, sil_tau_frac=SIL_TAU_FRAC)
 
@@ -1246,24 +1423,27 @@ def export_surface_detail(smpl, faces, views: smv.FitViews, fit: smv.FitResult, 
                     "fat that SMPL's 10 coefficients cannot; on loose clothing it also follows the garment."}
 
 
-def fit_config_record(sex=None) -> dict:
+def fit_config_record(sex=None, run=None) -> dict:
     """The exact shape-fit settings of this run, saved in the report so any result can be reproduced later."""
     cfg = _cfg_silhouette(np.ones(10), sex)
     return {"silhouette_weight": cfg.w_silhouette, "outside_term": cfg.sil_outside_form,
             "inside_weight": cfg.sil_inside_weight, "coverage_weight": cfg.sil_coverage_weight,
             "tau_frac_of_box_height": cfg.sil_tau_frac, "hmr2_shape_prior_weight": cfg.w_beta_init,
             "population_shape_prior_weight": cfg.w_beta_prior,
+            "body_weight_kg": (run or {}).get("weight_kg"),
+            "body_weight_use": "mass check only (not a fit constraint)",
             "population_shape_prior": f"{sex} bodies (CAESAR via SHAPY)" if sex else "mixed male/female N(0, I)", "per_view_body_pose_optimised": cfg.fit_body_pose,
             "iterations": cfg.iterations, "beta_sigma_floor": BETA_SIGMA_FLOOR,
+            "view_exclusion": VIEW_EXCLUSION,
             "env_overrides": {k: os.environ[k] for k in sorted(os.environ) if k.startswith("RECON_")}}
 
 
-def fit_shared_shape(smpl, views, betas_init, beta_sigma, device, sex=None):
+def fit_shared_shape(smpl, views, betas_init, beta_sigma, device, sex=None, volume_ratio=None):
     """Two stages: (A) per-view pose/camera with the HMR2 shape frozen, (B) ONE shared shape
     with per-view pose/camera against keypoints + silhouettes under a Mahalanobis shape prior."""
     align = smv.fit_multiview(smpl, views, betas_init, _cfg_align(), device, fit_shape=False)
     aligned = _with_params(views, align)
-    shape = smv.fit_multiview(smpl, aligned, betas_init, _cfg_silhouette(beta_sigma, sex), device)
+    shape = smv.fit_multiview(smpl, aligned, betas_init, _cfg_silhouette(beta_sigma, sex, volume_ratio), device)
     return align, aligned, shape
 
 
@@ -1298,16 +1478,15 @@ def fit_unified(engine, selected, per_frame, records, view_info, image_wh, run, 
     _progress(run, "fit", 0.3, "Checking silhouette agreement per view")
     full_scores = silhouette_scores(smpl, faces, full.betas, full.global_orient, full.body_pose, full.cam_t,
                                     views, mask_list, device)
-    ious = np.array([s["iou"] for s in full_scores if s])
     excluded_after_fit = []
-    if len(ious):
-        limit = max(SIL_EXCLUDE_IOU, float(np.median(ious)) - 0.10)
-        for i, s in enumerate(full_scores):
-            if s and s["iou"] < limit:
-                excluded_after_fit.append({"frame_position": selected[i], "iou": s["iou"],
-                                           "reason": f"fitted silhouette IoU {s['iou']:.2f} < {limit:.2f}"})
-                views.sil_weight[i] = 0.0
-    if excluded_after_fit:
+    for _ in range(1 if VIEW_EXCLUSION == "iou" else VIEW_EXCLUDE_ROUNDS):
+        new = select_view_exclusions(full_scores, views.sil_weight)
+        if not new:
+            break
+        for i, reason in new:
+            excluded_after_fit.append({"frame_position": selected[i], "iou": full_scores[i]["iou"],
+                                       "protrusion_frac": full_scores[i].get("protrusion_frac"), "reason": reason})
+            views.sil_weight[i] = 0.0
         _progress(run, "fit", 0.35, f"Refitting without {len(excluded_after_fit)} unreliable silhouette(s)")
         align, aligned, full = fit_shared_shape(smpl, views, betas_agg, beta_sigma, device, run.get("sex"))
         full_scores = silhouette_scores(smpl, faces, full.betas, full.global_orient, full.body_pose, full.cam_t,
@@ -1419,7 +1598,7 @@ def fit_unified(engine, selected, per_frame, records, view_info, image_wh, run, 
             "betas_median": betas_med, "betas_aggregate": betas_agg, "beta_sigma": beta_sigma,
             "beta_outlier_frames": [selected[i] for i in beta_outliers],
             "init_error_pct_height": init_rel * 100, "heldout": heldout, "mask_list": mask_list,
-            "proportions": proportions, "fit_config": fit_config_record(run.get("sex")),
+            "proportions": proportions, "fit_config": fit_config_record(run.get("sex"), run),
             "scores": {"silhouette_keypoint_shared_shape (new)": full_scores,
                        "keypoint_only_shared_shape (previous method)": kp_scores,
                        "hmr2_aggregate_shape": agg_scores,

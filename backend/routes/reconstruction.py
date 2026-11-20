@@ -17,6 +17,8 @@ class StartRequest(BaseModel):
     height_cm: float | None = None
     # Optional: "male" / "female" selects a sex-specific body-shape prior (fat distribution); empty = unspecified.
     sex: str | None = None
+    # Optional body weight (kg), only with height_cm: checks reconstructed body volume against the real mass.
+    weight_kg: float | None = None
 
 
 class PersonRequest(BaseModel):
@@ -37,7 +39,8 @@ class TapeRequest(BaseModel):
 @router.post("/runs", status_code=status.HTTP_202_ACCEPTED)
 def start(request: StartRequest):
     try:
-        return recon.start_run(request.video_id, request.target_box_norm, request.height_cm, request.sex)
+        return recon.start_run(request.video_id, request.target_box_norm, request.height_cm, request.sex,
+                               request.weight_kg)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except RuntimeError as exc:

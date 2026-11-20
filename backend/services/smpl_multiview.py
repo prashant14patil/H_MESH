@@ -148,6 +148,13 @@ class FitConfig:
     # data/shape_priors/smpl_neutral_male_prior.npz). None = N(0, I), the mixed male/female population.
     beta_pop_mean: np.ndarray | None = None
     beta_pop_precision: np.ndarray | None = None
+    # Optional mass constraint: target rest-body volume / stature^3 (dimensionless), from a known body weight
+    # and height (see volume_ratio_target). Clothing adds outline but no mass, so this bounds clothing inflation.
+    target_volume_ratio: float | None = None
+    volume_rel_sigma: float = 0.03   # +-3%: uncertainty of whole-body effective density
+    w_volume: float = 1.0
+    # Optional population-consistency term on chest / navel-waist / hip girths (anthropometric_check).
+    girth_prior: "GirthPrior | None" = None
     w_beta_init: float = 0.02     # weak pull to the multi-frame median
     w_depth: float = 2.0          # people rotating in place keep ~constant distance
     w_silhouette: float = 0.0
@@ -169,6 +176,43 @@ class FitConfig:
     fit_body_pose: bool = True
     beta_sigma: np.ndarray | None = None  # per-coefficient scale for the pull to betas_init (Mahalanobis)
     seed: int = 0
+
+
+@dataclass
+class GirthPrior:
+    """Each torso girth should be consistent with what people of this sex and stature have GIVEN the other two
+    girths (ANSUR II regression). Conditioning girths are detached, so the term pulls whichever girth is out of
+    line instead of inflating the others to justify it. rings[site] = (edge_a, edge_b, t, calib)."""
+    rings: dict
+    models: dict          # site -> (other sites, coef [mm], residual sd [mm])
+    stature_mm: float
+    weight: float = 0.1
+
+
+def girths_mm(smpl, beta: torch.Tensor, prior: GirthPrior, device) -> dict:
+    """Differentiable tape girths (mm) of the measurement-A-pose body, scaled by stature."""
+    f32 = dict(dtype=torch.float32, device=device)
+    va = posed_vertices(smpl, beta, torch.eye(3, **f32)[None], torch.as_tensor(measurement_pose(), **f32)[None])[0]
+    vs = smpl.v_template + torch.einsum("vck,k->vc", smpl.shapedirs[:, :, :beta.shape[-1]], beta.reshape(-1))
+    height = vs[:, 1].max() - vs[:, 1].min()
+    out = {}
+    for site, (a, b, t, calib) in prior.rings.items():
+        ai = torch.as_tensor(a, device=device); bi = torch.as_tensor(b, device=device)
+        tt = torch.as_tensor(t, **f32)[:, None]
+        pts = va[ai] + tt * (va[bi] - va[ai])
+        length = (pts - torch.roll(pts, -1, 0)).norm(dim=1).sum()
+        out[site] = calib * length / height * prior.stature_mm
+    return out
+
+
+def girth_prior_loss(smpl, beta, prior: GirthPrior, device) -> torch.Tensor:
+    g = girths_mm(smpl, beta, prior, device)
+    terms = []
+    for site, (others, coef, sd) in prior.models.items():
+        x = [g[o].detach() for o in others] + [torch.tensor(prior.stature_mm, device=device), torch.tensor(1.0, device=device)]
+        pred = sum(float(c) * xi for c, xi in zip(coef, x))
+        terms.append(((g[site] - pred) / float(sd)) ** 2)
+    return torch.stack(terms).mean()
 
 
 @dataclass
@@ -317,6 +361,8 @@ def fit_multiview(smpl, views: FitViews, betas_init: np.ndarray, cfg: FitConfig 
                   else torch.ones_like(beta0))
     pop_mean = None if cfg.beta_pop_mean is None else torch.as_tensor(cfg.beta_pop_mean, **f32)
     pop_prec = None if cfg.beta_pop_precision is None else torch.as_tensor(cfg.beta_pop_precision, **f32)
+    faces_t = (torch.as_tensor(np.asarray(smpl.faces, dtype=np.int64), device=device)
+               if cfg.target_volume_ratio is not None else None)
     use_sil = cfg.w_silhouette > 0 and bool(views.contours)
     sil_targets = _SilhouetteTargets(views, device) if use_sil else None
 
@@ -348,6 +394,15 @@ def fit_multiview(smpl, views: FitViews, betas_init: np.ndarray, cfg: FitConfig 
         l_depth = (((cam[:, 2] - cam_z_ref) / cam_z_ref) ** 2).mean()
         loss = (cfg.w_keypoints * l_kp + cfg.w_pose_prior * l_pose + cfg.w_beta_prior * l_beta
                 + cfg.w_beta_init * l_beta_init + cfg.w_depth * l_depth)
+        l_vol = None
+        if cfg.target_volume_ratio is not None:
+            ratio = rest_volume_ratio(smpl, beta, faces_t)
+            l_vol = ((ratio - cfg.target_volume_ratio) / (cfg.volume_rel_sigma * cfg.target_volume_ratio)) ** 2
+            loss = loss + cfg.w_volume * l_vol
+        l_girth = None
+        if cfg.girth_prior is not None:
+            l_girth = girth_prior_loss(smpl, beta, cfg.girth_prior, device)
+            loss = loss + cfg.girth_prior.weight * l_girth
         l_sil = None
         if use_sil:
             l_sil = _silhouette_loss(verts, cam, views, device, cfg.sil_tau_frac, sil_targets,
@@ -361,7 +416,9 @@ def fit_multiview(smpl, views: FitViews, betas_init: np.ndarray, cfg: FitConfig 
             history.append({"iteration": it, "loss": float(loss), "keypoint": float(l_kp),
                             "pose_prior": float(l_pose), "depth": float(l_depth),
                             "beta_prior": float(l_beta_init),
-                            "silhouette": float(l_sil) if l_sil is not None else None})
+                            "silhouette": float(l_sil) if l_sil is not None else None,
+                            "volume": float(l_vol) if l_vol is not None else None,
+                            "girth_prior": float(l_girth) if l_girth is not None else None})
 
     with torch.no_grad():
         go, pose, _, joints = forward()
@@ -550,6 +607,29 @@ def canonical_detailed_mesh(smpl, betas: np.ndarray, offsets: np.ndarray, device
                       body_pose=pose, pose2rot=False).joints[0].cpu().numpy().astype(np.float64)
     shift = np.array([(v[:, 0].min() + v[:, 0].max()) / 2, v[:, 1].min(), (v[:, 2].min() + v[:, 2].max()) / 2])
     return v - shift, joints - shift
+
+
+# ------------------------------------------------------------ mass / volume
+EFFECTIVE_BODY_DENSITY = 1.00   # kg/L, external body volume INCLUDING lung air (tissue density ~1.03-1.07 kg/L
+                                # by body fat; ~2.5-3.5 L of air at normal breathing lowers it to ~0.98-1.02)
+
+
+def rest_volume_ratio(smpl, beta: torch.Tensor, faces_t: torch.Tensor) -> torch.Tensor:
+    """Differentiable volume / height^3 of the SMPL body in its rest pose (feet together, as stature is measured).
+
+    Volume = sum of signed tetrahedra over the closed SMPL surface; height = vertical extent. Both are in SMPL
+    units, so the ratio is unit-free and comparable with weight / (density * stature^3)."""
+    v = smpl.v_template + torch.einsum("vck,k->vc", smpl.shapedirs[:, :, :beta.shape[-1]], beta.reshape(-1))
+    tri = v[faces_t]
+    vol = (tri[:, 0] * torch.cross(tri[:, 1], tri[:, 2], dim=-1)).sum() / 6.0
+    height = v[:, 1].max() - v[:, 1].min()
+    return vol.abs() / height ** 3
+
+
+def volume_ratio_target(weight_kg: float, stature_cm: float, density_kg_per_l: float = EFFECTIVE_BODY_DENSITY):
+    """weight / (density * stature^3), dimensionless: the rest_volume_ratio a body of that mass and height has."""
+    vol_m3 = float(weight_kg) / (density_kg_per_l * 1000.0)
+    return vol_m3 / (float(stature_cm) / 100.0) ** 3
 
 
 # ------------------------------------------------------- shape aggregation

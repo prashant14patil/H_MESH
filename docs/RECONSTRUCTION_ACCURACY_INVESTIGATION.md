@@ -115,7 +115,12 @@ Down-weighting coverage on the outline between hip and ankle keypoints to 0.3 (a
 
 SHAPY is a single-image regressor trained on model-agency photos. It sees neither the 360° outlines nor this subject's profile, and it gives chest 106.1, waist 88.5, abdomen 90.8, hip 105.0 cm. The same measurement code runs on both, so the 8–13 cm differences are body shape, not plane placement. SHAPY's waist of 88.5 cm would need a near-circular ~28 cm body section inside a clothed section 38 × 33 cm. That is possible only under a very loose shirt, so SHAPY is probably low here. Neither model is ground truth.
 
-### 5.4 Best estimate of real tape (reasoned, NOT measured)
+### 5.4 Best estimate of real tape (reasoned, NOT measured) — SUPERSEDED, see §5.8
+
+> **Correction (20 Nov).** Real tape (waist 88–90, abdomen 95–100, hip 98–103 cm) shows these ranges were
+> about 8–10 cm too high: loose clothing adds about 25 cm to the outline at waist and hip, far more than the
+> 6–12 cm ease assumed below. The ANSUR "typical hip ≈ 108 cm" was also too high, because it was conditioned
+> on girths that clothing had already inflated. Kept for the record only.
 
 Body = clothed hull minus clothing allowance (fabric plus ease or drape), cross-checked with the mesh:
 
@@ -159,6 +164,90 @@ End-to-end run `6303a2d5` (same video, cm at 179 cm):
 Offsets: 5th / 50th / 95th percentile −0.4 / +0.1 / +1.0 cm. The added volume sits as a band across the lower back and flanks at waist height (`outputs/accuracy_study/surface_detail/offset_map_6303a2d5.jpg`).
 
 **Caveat.** Against a loose T-shirt the detail follows the outer surface: fat **and** garment drape. The body-model girths therefore stay the primary measurements, and both sets are exported (`measurements.json`, `measurements_detailed.json`, cm versions after height scaling). Tape on one subject, or a tight-clothing recording, decides which to report. Disable with `RECON_SURFACE_DETAIL=0`.
+
+## 5.6 Systematic error sweep (19 Nov): what was tested, what was kept
+
+All tests refit run `6303a2d5` (same video) with the pipeline's stage A+B and the male shape prior, scored with
+4-fold held-out IoU. cm values at 179 cm stature.
+
+| # | Suspected error source | Evidence | Verdict |
+|---|---|---|---|
+| 1 | Camera model: HMR2's fixed 42,857 px focal vs the iPad Pro's ~1,400 px wide lens (subject at 2.2–2.4 m) | Real focal recovers a 2.27 m distance, but girths move ≤ 0.6 cm and held-out IoU is 0.8145 vs 0.8181 | Not a meaningful error; unchanged |
+| 2 | Hip keypoints: detector's "hip" sits ~4.3 cm further out per side than SMPL's hip joint | Hip weight ×0.25 / ×0: held-out IoU 0.8196 / 0.8191 (noise); hip **grows** 116.0 → 116.8 | Not the cause; unchanged |
+| 3 | Shoulder keypoints (1.5–2 cm residual) | Shoulders ×0.5: held-out 0.8199, every girth +1 cm | Unchanged |
+| 4 | Mask edge bias | Image-edge search at 64k boundary points: median offset +0.07–0.08 cm in every region (`scripts/mask_edge_bias.py`). Low contrast on the torso (white shirt, white wall) | Not an error |
+| 5 | Height reference: the A-pose mesh (legs 5° apart) is 0.27% shorter than stature (feet together) | Measured | **Fixed**: `stature_height` / `restate_to_stature` |
+| 6 | Measurement placement | Chest 0.730 / navel 0.604 of stature vs ANSUR II 0.735 / 0.602; hip plane 2.3 cm low. Leg spread 0–5° and plane height change the hip ≤ 0.4 cm | Not an error |
+| 7 | Loose trousers inflate the hip | Visual hull: mesh fills 96% of the clothed hip; ANSUR II: hip +2.5 SD given chest and navel waist | **Main remaining error**, see below |
+| 7a | Body weight as a volume constraint | 105 / 95 / 85 kg: held-out IoU 0.807 / 0.806 / 0.796 (vs 0.818); volume went to or came from where the outline has slack (the trousers): at 105 kg hip 121.8 cm (+4.2 SD) | **Rejected** as a constraint; kept as a **mass check** (`mass_check`) |
+| 10 | Plausibility against 4,082 men / 1,986 women (ANSUR II) | Conditional girth regression; `scripts/ansur_check.py` | **Added** to every height-scaled run (`anthropometric_check.py`, warning `girth_out_of_line_with_population`) |
+
+The hip remains the out-of-line girth: men with this chest (114 cm), navel waist (104 cm) and stature typically have
+a hip of 108 ± 3.4 cm, against 117 cm reconstructed. It cannot be fixed from this recording: the trousers hide the
+pelvis outline in every view, and neither weight nor keypoints carry the missing information. A tape measurement
+or a recording in fitted clothing is required.
+
+## 5.7 Repeatability and multi-recording fusion (`scripts/fuse_recordings.py`)
+
+The same person was filmed in three independent recordings: A = `38895355` (video 35e61e9b), B = `6303a2d5`
+(777541cd), C = `2e0b075f` (f304bffd). Each was refitted with the current stage A+B (male prior), and then ONE
+shape was fitted to all 71 views, with each view keeping its own pose and camera. cm at 179 cm.
+
+| | Chest | Waist | Abdomen | Hip | Thigh | Calf | Upper arm |
+|---|---|---|---|---|---|---|---|
+| A alone | 113.0 | 98.9 | 101.6 | 113.2 | 59.6 | 40.9 | 35.4 |
+| B alone | 115.6 | 102.2 | 104.5 | 115.6 | 60.9 | 41.5 | 36.9 |
+| C alone | 114.4 | 100.6 | 103.0 | 114.0 | 60.0 | 41.1 | 35.9 |
+| **Fused (71 views)** | **114.5** | **100.8** | **103.3** | **114.4** | **60.2** | **41.2** | **36.2** |
+| SD across A/B/C | 1.3 | 1.7 | 1.5 | 1.2 | 0.7 | 0.3 | 0.8 |
+
+- **Repeatability** between recordings is 1.2–1.7 cm SD at the torso and 0.3–0.8 cm on the limbs. Fusing three recordings reduces the random part by about √3 (≈ 0.7–1.0 cm at the torso). Systematic error common to all recordings, such as the same loose trousers, is not reduced.
+- **Leave-one-recording-out** silhouette IoU on the left-out recording (its poses and cameras from keypoints only):
+
+  | Left out | Shape from the other two | Its own shape |
+  |---|---|---|
+  | A | 0.8351 | 0.8329 |
+  | B | 0.8162 | 0.8190 |
+  | C | 0.8399 | 0.8398 |
+
+  The mean difference is ≈ 0: a shape from different recordings explains a new recording as well as its own fit. The shape is a property of the person, not overfitted to one video.
+- **Fused plausibility (ANSUR II, male):** chest +0.1 SD, abdomen −1.1 SD, hip +1.8 SD (114.4 cm vs a typical 108.3 cm). Within the flag limit, but still on the high side, consistent with the trousers.
+- **Population bias check:** the typical hip for this chest, waist and stature is 108.1 / 110.1 / 108.3 / 108.4 cm in ANSUR's White / Black / Hispanic / Asian men. The result does not depend on the reference group (ANSUR has no separate South Asian group).
+- The fused body is exported as `outputs/accuracy_study/fused_recordings/fused_body_mesh_metric.obj` (metres, A-pose, plain face); numbers are in `fused_recordings.json`.
+
+## 5.8 Real tape: configuration chosen by ground truth (`scripts/tape_config_study.py`)
+
+Tape, self-measured by the subject on 20 Nov: waist 88–90, abdomen 95–100, hip 98–103 cm (chest not measured).
+The stature of 179 cm is not yet confirmed barefoot, so it was held fixed for every configuration; a 2 cm error
+moves every girth by about 1.1%. Eleven configurations were refitted on all three recordings (A/B/C). Error is the
+distance to the tape range (0 inside it):
+
+| Configuration | Mean error | Waist / Abdomen / Hip (mean of A, B, C) |
+|---|---|---|
+| D0: HMR2 prior off (the 18–19 Nov default) | **8.3 cm** | 100.6 / 103.0 / 114.3 |
+| IN: outline only as upper limit, no HMR2 prior | 7.3 | 78.9 / 82.2 / 100.4 |
+| C025: coverage ×0.25 | 3.5 | 85.6 / 88.5 / 104.6 |
+| IN_P02: outline as upper limit + HMR2 prior 0.2 | 3.5 | 84.9 / 87.7 / 101.4 |
+| HMR2 shape alone (no silhouette fit) | 3.4 | 85.1 / 87.8 / 100.3 |
+| **P02 / P02m: HMR2 prior 0.2 (± male prior)** | **2.9** | 85.7–85.8 / 88.5–88.6 / 101.5–101.9 |
+| P02(m) + trunk surface detail | 1.6–1.7 | 89.6–89.8 / 91.1–91.3 / 102.6–103.0 |
+| SHAPY (recordings B and A only; not run on C) | 2.1 / 2.2 (B / A) | 88.3 / 90.6 / 105.0 (mean of B, A) |
+
+For a like-for-like comparison with SHAPY on recordings B and A only, P02m scores 1.7 / 3.9 cm (mean 2.8 cm). SHAPY
+is closer at the waist and shares the abdomen shortfall (about 4 cm under); its hip is 2 cm over the range.
+
+Findings:
+1. **The 18–19 Nov default was wrong.** Prior 0 was chosen by held-out silhouette IoU, which is scored against the clothed outline and rewards a body that fills loose clothes. Every girth came out 10–14 cm too large. Silhouette IoU must not be used to select fit settings under clothing.
+2. **Under loose clothing the accuracy comes from HMR2's learned shape.** HMR2 alone is within about 1 cm of the best fit; the silhouettes mostly describe the garment. Restoring the HMR2 prior (0.2) halves the error compared with any silhouette-driven variant.
+3. **Decision rule fixed before the results:** adopt the principled "outline as upper limit + learned prior" (IN_P02) only if it beats the fallback on all recordings. It did not (3.5 vs 2.9 cm), so the fallback was adopted: `RECON_BETA_PRIOR` default 0.2, male/female prior kept (it changes size < 0.5 cm and fixes fat placement).
+4. **Surface detail is not made primary**, although it scores best. It works by filling the garment, which here happens to offset HMR2's undersizing; on the outline-only variants it overshot the hip by 4–7 cm. One subject in one outfit cannot justify it. It stays a secondary display.
+5. **Remaining error:** the abdomen is 4–8 cm under tape in every learned variant (HMR2 underestimates belly projection); the waist is 2–4 cm under on two of three recordings; the hip is inside the range.
+6. **What the ANSUR consistency check cannot see:** clothing inflated all girths together, so their relationships stayed normal (hip only +1.7–1.9 SD). It flags local outliers, not uniform inflation.
+
+7. **Drape-contact coverage (tested, rejected):** the outline pulls only at convex points where fabric rests on the body; straight hanging spans act only as an upper bound. Thresholds were fixed a priori (turn over ~8 cm of outline, full weight at 15°); 36–37% of outline points counted as contact. Mean error 2.88 vs 2.87 cm, and no girth moved more than 0.1 cm. With the HMR2 prior on, the silhouette barely shapes the body, so the abdomen shortfall belongs to HMR2's shape estimate, not to how silhouettes are used.
+8. **Fusion and repeatability with the new default** (`outputs/accuracy_study/fused_recordings_prior02.json`): fused waist 86.1 / abdomen 88.9 / hip 101.8 / chest 103.0 cm. Between-recording SD: chest 1.0, waist 1.7, abdomen 1.7, hip 1.4 cm, about the same as before. Leave-one-recording-out IoU difference (shape from the other recordings minus its own): +0.008 / −0.010 / +0.000. ANSUR consistency z: chest −0.1, abdomen −0.6, hip +0.6.
+
+Caveat: one subject, self-measured ranges, one outfit. This ranks configurations; it does not establish population accuracy.
 
 ## 6. Changes made
 

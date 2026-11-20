@@ -339,3 +339,23 @@ def test_api_file_whitelist_blocks_traversal(client, tmp_path, monkeypatch):
     assert client.get(f"/api/reconstruction/runs/{run_id}/files/..%2Fsecret.txt").status_code in (400, 404)
     assert client.get(f"/api/reconstruction/runs/{run_id}/files/status.json").status_code == 404
     assert br.get_asset(run_id, "diagnostics__../../secret.txt") is None
+
+
+def test_run_owned_by_a_live_process_is_not_marked_interrupted():
+    import os
+    import subprocess
+    import sys
+    import time
+    from backend.services import body_reconstruction as br
+    assert br._owner_alive(br._owner_record())                         # this process
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    try:
+        time.sleep(0.5)
+        owner = {"pid": child.pid, "created": br._process_created(child.pid)}
+        assert br._owner_alive(owner)
+    finally:
+        child.kill(); child.wait()
+    time.sleep(0.3)
+    assert not br._owner_alive(owner)                                  # owner gone -> interrupted
+    assert not br._owner_alive({"pid": os.getpid(), "created": 1.0})   # reused PID, different process
+    assert not br._owner_alive(None)                                   # legacy run without owner

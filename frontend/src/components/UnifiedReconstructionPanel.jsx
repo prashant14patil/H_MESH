@@ -54,6 +54,7 @@ export default function UnifiedReconstructionPanel({ videoId }) {
   const [meshInfo, setMeshInfo] = useState(null)
   const [heightText, setHeightText] = useState('')
   const [sex, setSex] = useState('')
+  const [weightText, setWeightText] = useState('')
   const [tapeText, setTapeText] = useState({})
   const [clothing, setClothing] = useState('unknown')
   const [tapeNote, setTapeNote] = useState('')
@@ -61,6 +62,9 @@ export default function UnifiedReconstructionPanel({ videoId }) {
   const setModelView = (v) => { setModelViewState(v); saveView(v) }
   const timer = useRef(null)
   const height = parseHeightCm(heightText)
+  const weightNum = Number(weightText)
+  const weightKg = weightText.trim() && Number.isFinite(weightNum) && weightNum >= 30 && weightNum <= 250 && height.value
+    ? weightNum : null
   // Previously saved tape values pre-fill the inputs and are resent with any edits.
   const savedTape = Object.fromEntries(Object.entries(run?.result?.tape_validation?.sites || {})
     .filter(([, s]) => s?.tape_cm != null).map(([k, s]) => [k, String(s.tape_cm)]))
@@ -91,7 +95,7 @@ export default function UnifiedReconstructionPanel({ videoId }) {
   const start = async () => {
     setBusy(true); setError(null); setMeshInfo(null)
     try {
-      const r = await startReconstruction(videoId, null, height.value, sex || null)
+      const r = await startReconstruction(videoId, null, height.value, sex || null, weightKg)
       setRun(r)
       poll(r.run_id)
     } catch (e) {
@@ -159,6 +163,14 @@ export default function UnifiedReconstructionPanel({ videoId }) {
         <option value="female">Female</option>
       </select>
       <span className="text-gray-500">Puts body fat where men or women typically carry it (e.g. no breast shape on a man).</span>
+      <span className="ml-3">Body weight (kg, optional)</span>
+      <input type="number" inputMode="decimal" min="30" max="250" step="0.1" value={weightText}
+        onChange={(e) => setWeightText(e.target.value)} aria-label="Subject body weight in kilograms"
+        className="w-20 rounded border border-gray-300 px-2 py-1 text-sm" placeholder="e.g. 82" />
+      <span className="text-gray-500">
+        {weightText.trim() && !height.value ? 'Needs the height too.'
+          : 'Checks the reconstructed body volume against your mass: a much heavier body means clothing inflated it.'}
+      </span>
     </label>
   )
 

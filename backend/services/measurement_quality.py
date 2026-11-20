@@ -10,8 +10,9 @@ produces, plus the girths of the cross-validation fold shapes:
    the value is a boundary reading, not the landmark (fair). The forearm always ends at the elbow-side edge on
    SMPL (no muscle belly in the model; location audit): reported as a model limitation, not penalised per run.
 3. Fold stability: the pipeline's 4 heading-interleaved CV folds each fit a shape from 3/4 of the views. The SD
-   of a girth across those shapes is the fit's own sensitivity to which views it saw. Thresholds are set
-   against the between-recording repeatability measured in docs/MEASUREMENT_RELIABILITY_VALIDATION_REPORT.md.
+   of a girth across those shapes is the fit's own sensitivity to which views it saw. Thresholds are multiples
+   of the typical clean fold SD (docs/MEASUREMENT_RELIABILITY_VALIDATION_REPORT.md section 5). It detects views
+   that disagree with the rest (occlusion), not biases shared by every view (systematic mask-boundary shift).
 4. Silhouette evidence (torso only): model/observed torso width (front) and depth (profile) at the site's level.
    Far below 1 = the clothed outline is much wider than the body there (loose garment): the girth is then
    limited by the shape model, not observed (fair). Above 1.05 = body outside its own outline (poor).
@@ -36,16 +37,21 @@ _RANK = {GOOD: 0, FAIR: 1, POOR: 2, UNAVAILABLE: 3}
 # one subject (reliability study, 19 Nov 2026). n = 3: provisional, to be replaced as recordings accumulate.
 REPEATABILITY_SD_PCT = {"chest": 1.19, "waist": 1.61, "abdomen": 1.55, "hip": 0.85, "upper_arm": 1.62,
                         "forearm": 0.93, "thigh": 1.01, "calf": 0.80}
-TYPICAL_FOLD_SD_PCT = {"chest": 0.5, "waist": 0.6, "abdomen": 0.6, "hip": 0.5, "upper_arm": 0.6,
-                       "forearm": 0.3, "thigh": 0.5, "calf": 0.3}
-# Fold SD above FOLD_FAIR x repeatability SD: this run is less stable than re-recording the person -> fair;
-# above FOLD_POOR x: the girth depends on which views were used -> poor.
-FOLD_FAIR, FOLD_POOR = 1.0, 2.0
+TYPICAL_FOLD_SD_PCT = {"chest": 0.69, "waist": 0.98, "abdomen": 0.97, "hip": 0.53, "upper_arm": 1.00,
+                       "forearm": 0.55, "thigh": 0.65, "calf": 0.48}  # mean over the 3 undegraded recordings
+# Fold SD relative to the typical (clean) fold SD. Evidence (recording B): clean runs <= 1.6x typical; 8 evenly
+# spaced views (girths still within 1% of the 24-view fit) 4-6x, because each fold then has only 6 views; occluded
+# masks left in the fit 10-15x. A systematic mask-boundary shift (dark edges, -6% girths) only reached 1.5x:
+# fold spread detects INCONSISTENT views, not biases shared by all views.
+FOLD_FAIR, FOLD_POOR = 2.5, 5.0
 # Torso evidence: model/observed width or depth at the site's level.
 LOOSE_RATIO, PROTRUDE_RATIO = 0.85, 1.05
 TORSO_LEVEL_INDEX = {"chest": 0, "waist": 1, "abdomen": 2, "hip": 3}  # smpl_multiview.TORSO_LEVELS order
-# Coverage: largest heading gap (deg) between usable silhouettes and their minimum number.
-GAP_FAIR_DEG, GAP_POOR_DEG = 60.0, 100.0
+# Coverage: largest heading gap (deg) between usable silhouettes and their minimum number. Reliability study:
+# 8 views (45 deg apart) and a 90 deg sector with no views (no back / no side) stayed below between-recording SD;
+# 6 views (60 deg) shrank girths 1-2% systematically (within RC). Gaps above 90 deg were not tested -> beyond 120
+# deg is treated as unvalidated.
+GAP_FAIR_DEG, GAP_POOR_DEG = 90.0, 120.0
 MIN_VIEWS_FAIR, MIN_VIEWS_POOR = 8, 6
 EDGE_EXEMPT = {"forearm"}  # structural on SMPL (see module docstring)
 
@@ -123,14 +129,15 @@ def assess(measurements: dict, report: dict, *, fold_girths: list[dict] | None =
                 grade = _worse(grade, FAIR)
                 reasons.append("min/max search ended on the edge of its anatomical zone (boundary value)")
         fsd = folds.get(s)
-        rep = REPEATABILITY_SD_PCT[g]
+        rep, typ = REPEATABILITY_SD_PCT[g], TYPICAL_FOLD_SD_PCT[g]
         if fsd is not None:
-            if fsd > FOLD_POOR * rep:
+            if fsd > FOLD_POOR * typ:
                 grade = POOR
-                reasons.append(f"unstable across view subsets (fold SD {fsd:.1f}% > {FOLD_POOR:g}x repeatability)")
-            elif fsd > FOLD_FAIR * rep:
+                reasons.append(f"girth depends on which views were used (fold SD {fsd:.1f}% > {FOLD_POOR:g}x typical): "
+                               "some silhouettes disagree with the rest (occlusion or mask error?)")
+            elif fsd > FOLD_FAIR * typ:
                 grade = _worse(grade, FAIR)
-                reasons.append(f"less stable across view subsets than between recordings (fold SD {fsd:.1f}%)")
+                reasons.append(f"less stable across view subsets than usual (fold SD {fsd:.1f}%, typical {typ:.1f}%)")
         if s in TORSO_LEVEL_INDEX:
             k = TORSO_LEVEL_INDEX[s]
             ratios = {n: (r[k] if len(r) > k else None) for n, r in (("width", front), ("depth", side))}

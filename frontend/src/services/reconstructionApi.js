@@ -18,12 +18,12 @@ async function request(path, options) {
   return res.json()
 }
 
-export async function startReconstruction(videoId, targetBoxNorm = null, heightCm = null, sex = null) {
+export async function startReconstruction(videoId, targetBoxNorm = null, heightCm = null, sex = null, weightKg = null) {
   try {
     return await request('/api/reconstruction/runs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ video_id: videoId, target_box_norm: targetBoxNorm, height_cm: heightCm, sex }),
+      body: JSON.stringify({ video_id: videoId, target_box_norm: targetBoxNorm, height_cm: heightCm, sex, weight_kg: weightKg }),
     })
   } catch (e) {
     // FastAPI's generic 404 means the route itself is missing: the running backend

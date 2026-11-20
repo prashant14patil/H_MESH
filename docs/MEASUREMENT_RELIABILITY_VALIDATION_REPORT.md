@@ -65,11 +65,86 @@ The waist, upper arm and limbs change by < 0.4 cm across 30–65°. The tape pro
 
 ## 5. Multi-view reliability
 
-MULTIVIEW_SECTION
+**Method.** `scripts/reliability_study.py` refits each recording from its saved fit inputs, with the pipeline's current default settings (including the post-fit IoU view exclusion and refit), after a controlled degradation of what the fit consumes: masks, keypoints, available views and initial pose/camera. It isolates the fitting stage. HMR2 and segmentation are **not** re-run on degraded pixels: "blur" models what a blurred frame does to the outline and keypoint precision, not what HMR2 would predict from it. Three recordings × 17 conditions; random conditions use 2 seeds; 75 fits on CPU (a CPU refit reproduces the GPU run to ≤ 0.3%). Each change is relative to the same recording's undegraded fit and is judged against the **between-recording repeatability** of the undegraded fits: Sw = within-subject SD, RC = 2.77 × Sw.
+
+**Repeatability (current defaults, 3 recordings, one subject; n = 3, provisional)**
+
+| Site | Mean cm @176 | Sw % | RC % | RC cm |
+|---|---|---|---|---|
+| Chest | 111.3 | 1.19 | 3.3 | 3.7 |
+| Waist | 97.3 | 1.61 | 4.5 | 4.3 |
+| Abdomen | 100.9 | 1.55 | 4.3 | 4.3 |
+| Hip | 114.3 | 0.85 | 2.4 | 2.7 |
+| Upper arm | 34.5 | 1.62 | 4.5 | 1.5 |
+| Forearm | 28.6 | 0.93 | 2.6 | 0.7 |
+| Thigh | 58.8 | 1.01 | 2.8 | 1.6 |
+| Calf | 40.5 | 0.80 | 2.2 | 0.9 |
+
+**Condition effects.** Worst |change| % over recordings and seeds; mean signed change in brackets. ▲ = exceeds RC.
+
+| Brief condition | Proxy | Chest | Waist | Hip | Thigh | Upper arm | Verdict |
+|---|---|---|---|---|---|---|---|
+| Rotation speed (fewer distinct views) | 16 views | 0.9 (−0.5) | 1.2 (−0.6) | 0.8 (−0.6) | 0.9 (−0.6) | 1.3 | negligible |
+| | 12 views | 0.7 (+0.4) | 0.9 (+0.5) | 0.6 (+0.3) | 0.7 (+0.4) | 1.0 | negligible |
+| | 8 views (45° apart) | 0.7 (+0.2) | 0.7 (+0.2) | 0.8 (+0.1) | 0.8 (0.0) | 0.9 | negligible |
+| | 6 views (60° apart) | 1.3 (−1.1) | 1.9 (−1.6) | 1.3 (−1.0) | 2.0 (−1.3) | 2.6 | small **systematic shrink**, within RC |
+| Blurry frames | 25% of views smeared 12 px + keypoint noise | 0.5 | 0.6 | 0.8 | 1.0 | 0.8 | negligible |
+| | 50% of views | 2.2 (+1.5) | 3.0 (+2.0) | 1.8 (+0.9) | 2.4 (+1.3) | 3.4 | inflates 1–2%, within RC |
+| Temporary occlusion | hip band hidden in 25% of views | 7.3 (−3.2) ▲ | 11.3 (−4.6) ▲ | 8.1 (−3.9) ▲ | 10.5 (−4.9) ▲ | 13.6 ▲ | **severe shrink** |
+| | chest band hidden in 25% of views | 9.5 (−6.6) ▲ | 15.6 (−10.3) ▲ | 7.1 (−4.2) ▲ | 8.9 (−5.2) ▲ | 13.7 ▲ | **severe shrink** |
+| Insufficient coverage | no back views (90° sector) | 0.4 | 0.8 | 0.6 | 0.7 | 0.3 | negligible |
+| | no left-side views (90° sector) | 0.4 | 0.8 | 0.9 | 1.0 | 0.5 | negligible |
+| Lighting (segmentation boundary) | random ±6 px per view | 3.1 (−2.2) | 4.0 (−3.1) | 2.0 (−1.1) | 2.7 (−1.7) | 4.2 | shrink 1–3%, near RC |
+| | shadow bleed: all masks +4 px | 4.0 (+3.6) ▲ | 5.5 (+4.7) ▲ | 3.2 (+2.8) ▲ | 3.7 (+3.6) ▲ | 5.7 ▲ | **systematic inflation** |
+| | dark edges: all masks −4 px | 5.5 (−4.7) ▲ | 7.3 (−6.5) ▲ | 3.9 (−2.8) ▲ | 5.2 (−4.1) ▲ | 7.8 ▲ | **systematic shrink** |
+| Not rotating in place | ±10% distance + ±15% lateral drift | 0.3 | 0.5 | 0.3 | 0.3 | 0.5 | negligible |
+| Different standing pose | per-view joint init ±10° | 1.1 | 1.7 | 0.8 | 0.8 | 1.4 | small (initialisation only) |
+| Heading (yaw) error | per-view heading init ±15° | 2.4 (−1.2) | 3.0 (−1.5) | 2.5 (−1.2) ▲ | 2.8 (−1.4) ▲ | 3.7 | moderate shrink |
+
+Full table (all 12 sites): `outputs/accuracy_study/reliability/summary.md`.
+
+**What matters, ranked**
+
+1. **Mask boundary accuracy dominates.** A uniform 4 px boundary shift (about 0.4% of the subject's image height) moves girths 3–7%, roughly **1–1.5% of girth per pixel**, in the direction of the shift. Under-segmentation is worse than over-segmentation (−6.5% vs +4.7% at the waist). The non-saturating "stay inside" term pulls hard toward any outline that is too small. The same term is what removed the protrusion bug, so the trade-off is deliberate, but it makes segmentation quality the main accuracy lever.
+2. **Occlusion is severe**, and the current safeguard does not hold (next subsection).
+3. **Heading error** of ±15° in initialisation shrinks girths 1–2.5%.
+4. **Insensitive:** 8 or more views, a missing 90° sector, drift and scale change while turning, rotation speed down to 8 distinct views, and blur in a quarter of the views. The capture protocol can be relaxed on these axes. It can't be relaxed on lighting or segmentation.
+
+**Repeatability of the fit itself (jackknife).** Shapes fitted on 3 of the 4 heading-interleaved folds (the pipeline's CV folds) spread with an SD of 0.48–1.00% (mean ≈ 0.6 × Sw at every site). The delete-a-group jackknife standard error from this (≈ √3 × population SD of the fold estimates ≈ 0.9 × Sw) is about equal to the between-recording SD. That suggests **which views happen to be sampled explains most of the recording-to-recording variation** on this subject.
+
+**Does the fold spread detect degradations?** Fold SD %, recording B:
+
+| Condition | Chest | Waist | Hip | Thigh | × clean |
+|---|---|---|---|---|---|
+| Clean | 0.52 | 0.76 | 0.34 | 0.43 | 1 |
+| Occlusion left in the fit | 6.6 | 11.2 | 4.2 | 5.3 | **10–15** |
+| 8 views only | 2.4 | 3.0 | 2.5 | 2.6 | 4–6 (folds have 6 views) |
+| Dark edges −4 px (girths −6%) | 0.80 | 1.28 | 0.65 | 0.89 | **1.5** |
+| Random ±6 px | 0.39 | 0.53 | 0.38 | 0.50 | < 1 |
+
+Fold spread catches views that **disagree with each other** (occlusion, a few bad masks). It is blind to **errors shared by all views** (a systematic boundary shift). No internal-consistency check can see those; only calibration against tape, or a segmentation accuracy check, can.
+
+EXCLUSION_SECTION
 
 ## 6. Automatic reliability indicators (implemented)
 
-MQ_SECTION
+Code: `backend/services/measurement_quality.py`, called from `body_reconstruction.export_outputs` → `<run>/measurement_quality.json` (also summarised in `reconstruction_report.json` and the run result). Backfill for older runs: `scripts/measurement_quality_report.py RUN [--folds]`. Tests: `backend/tests/test_measurement_quality.py` (10 pass).
+
+Each girth gets a **grade** (good / fair / poor / unavailable), the **reasons**, and a **±1 SD precision** estimate (in % and, when the height is known, in cm). The grade is the worst of the following signals, each of which the evidence above supports:
+
+| Signal | Rule | Evidence |
+|---|---|---|
+| Run-level verdicts | Reconstruction `unreliable` or capture `insufficient` → poor. `usable_with_warnings` / `acceptable_with_warnings` → at most fair. **Missing verdict → at most fair.** | Uses `scan_quality` from the concurrent work. A first version treated missing evidence as a pass and graded an inflated legacy run (hip 127 cm @176) "good"; fixed and tested. |
+| Cross-section | Invalid → unavailable. A min/max search ending on the edge of its zone → fair (forearm exempt, noted as a model limitation). | Location audit, §3. |
+| Fold stability | SD of the girth across the 4 CV-fold shapes: > 2.5 × typical → fair; > 5 × typical → poor. | §5: clean ≤ 1.6×, 8-view captures 4–6×, occlusion left in 10–15×. |
+| Outline evidence (torso) | Model/observed width (frontal) or depth (profile) at the site's level: > 1.05 → poor (body outside its outline); < 0.85 → fair (loose clothing: girth set by the shape model, not observed); no evidence → fair. | Protrusion is physically impossible. A loose outline can't constrain the body. |
+| Coverage | Usable-silhouette views < 8 or largest heading gap > 90° → fair; < 6 views or gap > 120° → poor. | §5: 8 views and a 90° gap are negligible; 6 views gives a −1 to −2% systematic shrink; > 90° untested. |
+
+Precision ±1 SD = √(Sw² + max(0, fold SD² − typical fold SD²)): the measured between-recording SD, inflated when this run is less stable than usual, plus ±1 cm of height (d/H) when centimetres are shown.
+
+**On the existing runs** (backfill without fold data: these runs predate saving the fold shapes): current-default runs `9e126c35` and `268f55fd` → all 12 sites good; ±0.3–1.7 cm (forearm and calf ±0.3–0.5, torso ±1.2–1.7). Legacy-configuration runs `2e0b075f` and `38895355` → all poor (reconstruction verdict unreliable: protrusion not recorded, shape coefficients 2.7–2.8 SD). Original-configuration run `776042ea` → capped at fair (protrusion 3.9%).
+
+**What it can't detect:** errors shared by every view, i.e. a systematic segmentation-boundary bias (§5: −6% girths gave 1.5× fold spread, below threshold), loose clothing that is uniformly loose, and the shape-prior choice. The grades describe precision and internal consistency; **they are not accuracy**, and the files say so.
 
 ## 7. Pipeline vs SHAPY (no ground truth)
 
@@ -117,11 +192,27 @@ Model centimetres are computed as girth ÷ mesh height × **stadiometer** height
 
 ## 9. Remaining limitations
 
-LIMITATIONS
+1. **No ground truth.** Nothing here measures accuracy in centimetres. Every "error" is a change relative to another fit, or a disagreement between models.
+2. **One subject, three recordings, one outfit (loose).** Repeatability (n = 3) and the condition effects may differ on other bodies, other clothing and other cameras. Treat the Sw/RC values and quality thresholds as provisional.
+3. **Degradations are proxies.** Masks, keypoints and views were perturbed. HMR2 and segmentation were not re-run on degraded video, so real blur, low light or occlusion can also corrupt HMR2's pose and heading, which these tests only partly represent (the heading-initialisation test).
+4. **Systematic segmentation bias is undetectable internally** and is the largest measured sensitivity (about 1–1.5% of girth per pixel of boundary shift). Neither fold spread nor protrusion flags a uniform shift.
+5. **Absolute girths depend on the unresolved shape-prior choice:** about 10–14% between `RECON_BETA_PRIOR` 0 and 0.2, larger than any capture effect except occlusion and boundary bias. Pipeline and SHAPY differ by up to 13 cm at the abdomen.
+6. **Clothing.** The silhouette is the clothed outline. Torso and thigh girths under loose garments are an upper bound shaped by the model prior, not a measurement.
+7. **Model capacity and definitions.** 10 SMPL shape coefficients, gender-neutral model (a sex-specific option is being added by the concurrent work), no muscle relief (forearm), LBS compression at the axilla (chest pose-sensitivity 1–3 cm), and a thigh ring about 1 cm above the tape protocol point.
+8. **Camera intrinsics** are HMR2's assumed focal length. Scale comes only from the supplied stature (±1 cm → ±0.57%).
 
 ## 10. Recommended next phase
 
-NEXT_PHASE
+**Phase: ground-truth collection and calibration**, in this order. Each step is gated on the previous one's evidence.
+
+1. **Collect tape data with the workflow in §8.** At least 5 subjects of varied build, 2 recordings each (tight or minimal clothing, and everyday clothing), stadiometer height, two tape readings per site. Freeze run IDs (and SHAPY) before measuring. Also run each recording with `RECON_BETA_PRIOR=0` and `0.2`.
+2. **Decide from tape:** (a) the shape prior, (b) pipeline vs SHAPY per site, and (c) whether a per-site linear bias correction is justified. Apply (c) only if bias is consistent across subjects and larger than measurer TEM, and validate it by leave-one-subject-out.
+3. **Segmentation accuracy, the largest measured lever.** Hand-annotate subject outlines on about 50 frames across lighting conditions and measure the boundary bias in pixels of the current mask stack (Mask R-CNN + GrabCut + MediaPipe). At about 1–1.5% of girth per pixel, a 2 px bias is already a 2–3% girth error. If a bias exists, correct it (boundary refinement, or a fitted boundary offset), or add a capture-side control: lighting check, plain background.
+4. **Resolve the measurement definitions with tape:** the thigh plane at the tape-protocol point (crotch on the mesh → kneecap), a fixed forearm level, and the chest measured at a pose-insensitive level or arm angle. Change a definition only where tape shows it reduces error.
+5. **Clothing.** If tape shows loose-clothing bias dominates, add clothing-aware silhouette weighting (garment segmentation, down-weight coverage on loose regions, keep the inside constraint), or require fitted clothing in the capture protocol.
+6. **Replace the provisional constants** (`measurement_quality.REPEATABILITY_SD_PCT`, typical fold SD, thresholds, and the UI's `REPEATABILITY_SD_PCT`) with values pooled over all subjects, once ≥ 5 subjects × ≥ 3 recordings exist (`scripts/validation_report.py`).
+
+Not recommended before tape data exists: further objective or prior tuning chosen by IoU, held-out IoU or SHAPY agreement. None of these can tell which girths are correct.
 
 ## Appendix: reproduce
 

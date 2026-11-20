@@ -424,3 +424,103 @@ def test_stature_height_is_taller_than_measurement_a_pose():
     v, *_ = smv.canonical_mesh(smpl, np.zeros(10), np.tile(np.eye(3), (1, 23, 1, 1)), None, "cpu", pose="measurement")
     s = stature_height(smpl, np.zeros(10), "cpu")
     assert 1.0 < s / np.ptp(v[:, 1]) < 1.01        # feet together is slightly taller than legs abducted 5 deg
+
+
+def test_rest_volume_ratio_matches_closed_mesh_volume():
+    import trimesh
+    smpl = _smpl_cpu()
+    b = np.linspace(-1, 1, 10)
+    ratio = float(smv.rest_volume_ratio(smpl, torch.as_tensor(b, dtype=torch.float32),
+                                        torch.as_tensor(np.asarray(smpl.faces, dtype=np.int64))))
+    v = (smpl.v_template + torch.einsum("vck,k->vc", smpl.shapedirs[:, :, :10], torch.as_tensor(b, dtype=torch.float32))).numpy()
+    ref = trimesh.Trimesh(v, np.asarray(smpl.faces), process=False).volume / np.ptp(v[:, 1]) ** 3
+    assert ratio == pytest.approx(ref, rel=1e-4)
+
+
+def test_volume_constraint_reaches_target_when_data_is_silent():
+    """No image evidence: the shape must move to the volume a given weight implies (within the 3% sigma)."""
+    smpl = _smpl_cpu()
+    target = smv.volume_ratio_target(110.0, 175.0)          # a heavy body: well above the mean SMPL volume
+    faces_t = torch.as_tensor(np.asarray(smpl.faces, dtype=np.int64))
+    start = float(smv.rest_volume_ratio(smpl, torch.zeros(10), faces_t))
+    V = 3
+    views = smv.FitViews(keypoints=np.zeros((V, 17, 2)), weights=np.zeros((V, 17)),
+                         global_orient=np.tile(np.eye(3), (V, 1, 1)), body_pose=np.tile(np.eye(3), (V, 23, 1, 1)),
+                         cam_t=np.tile([0.0, 0.0, 5.0], (V, 1)), box_height=np.full(V, 500.0),
+                         center=np.tile([250.0, 250.0], (V, 1)), focal=1000.0)
+    cfg = smv.FitConfig(iterations=300, w_keypoints=0.0, w_beta_init=0.0, w_beta_prior=0.002, lr_beta=0.05,
+                        target_volume_ratio=target)
+    r = smv.fit_multiview(smpl, views, np.zeros(10), cfg, device="cpu")
+    end = float(smv.rest_volume_ratio(smpl, torch.as_tensor(r.betas, dtype=torch.float32), faces_t))
+    assert abs(end - target) < 0.05 * target < abs(start - target)
+
+
+def test_validate_weight_needs_height_and_sane_range():
+    from backend.services.body_reconstruction import _validate_weight
+    assert _validate_weight(None, None) is None
+    assert _validate_weight(80, 179) == 80.0
+    with pytest.raises(ValueError):
+        _validate_weight(80, None)          # volume is relative to stature
+    with pytest.raises(ValueError):
+        _validate_weight(10, 179)
+
+
+def test_anthropometric_check_flags_only_the_out_of_line_girth():
+    from backend.services import anthropometric_check as ac
+    if not ac.available("male"):
+        pytest.skip("ANSUR II reference data not downloaded")
+    typical = ac.check({"chest": 106.0, "abdomen": 94.0, "hip": 102.0}, 176.0, "male")
+    assert not any(v["out_of_line"] for v in typical["sites"].values())
+    inflated = ac.check({"chest": 114.0, "abdomen": 103.7, "hip": 116.8}, 179.0, "male")   # run 6303a2d5
+    assert inflated["sites"]["hip"]["out_of_line"] and inflated["sites"]["hip"]["z"] > 2
+    assert not inflated["sites"]["chest"]["out_of_line"]
+    assert ac.check({"chest": 100.0, "abdomen": 90.0, "hip": 100.0}, 170.0, None) is None
+
+
+def test_mass_check_flags_a_body_heavier_than_the_person():
+    from backend.services.body_reconstruction import mass_check
+    smpl = _smpl_cpu()
+    b = np.zeros(10)
+    same = mass_check(smpl, b, 1.0, 172.0, "cpu")                       # find the mean body's implied mass first
+    implied = same["implied_mass_kg"]
+    ok = mass_check(smpl, b, implied, 172.0, "cpu")
+    assert not ok["significant"] and abs(ok["relative_difference"]) < 0.01
+    heavy = mass_check(smpl, b, implied / 1.15, 172.0, "cpu")           # body 15% heavier than the person
+    assert heavy["significant"] and heavy["relative_difference"] == pytest.approx(0.15, abs=0.01)
+    assert heavy["expected_girth_bias_pct"] == pytest.approx(7.2, abs=0.3)
+
+
+def _male_girth_prior(smpl, betas, weight=1.0):
+    from backend.services import anthropometric_check as ac
+    if not ac.available("male"):
+        pytest.skip("ANSUR II reference data not downloaded")
+    return ac.build_girth_prior(smpl, betas, "male", 175.0, weight)
+
+
+def test_differentiable_girths_equal_measurement_girths():
+    smpl = _smpl_cpu()
+    b = np.array([0.5, -0.3, 0.8, 0.2, 0, 0, 0, 0, 0, 0])
+    gp = _male_girth_prior(smpl, b)
+    g = smv.girths_mm(smpl, torch.as_tensor(b, dtype=torch.float32), gp, "cpu")
+    v, *_ = smv.canonical_mesh(smpl, b, np.tile(np.eye(3), (1, 23, 1, 1)), None, "cpu", pose="measurement")
+    m = bm.measure_body(v, np.asarray(smpl.faces), smv.smpl_joints24(smpl, v))["measurements"]
+    rest_h = float(np.ptp((smpl.v_template + torch.einsum("vck,k->vc", smpl.shapedirs[:, :, :10],
+                                                          torch.as_tensor(b, dtype=torch.float32))).numpy()[:, 1]))
+    for site in ("chest", "abdomen", "hip"):
+        assert float(g[site]) == pytest.approx(m[site]["tape_circumference"] / rest_h * 1750.0, rel=1e-4)
+
+
+def test_girth_prior_reduces_inconsistency_when_images_are_silent():
+    smpl = _smpl_cpu()
+    start = np.array([1.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+    gp = _male_girth_prior(smpl, start, weight=1.0)
+    before = float(smv.girth_prior_loss(smpl, torch.as_tensor(start, dtype=torch.float32), gp, "cpu"))
+    V = 3
+    views = smv.FitViews(keypoints=np.zeros((V, 17, 2)), weights=np.zeros((V, 17)),
+                         global_orient=np.tile(np.eye(3), (V, 1, 1)), body_pose=np.tile(np.eye(3), (V, 23, 1, 1)),
+                         cam_t=np.tile([0.0, 0.0, 5.0], (V, 1)), box_height=np.full(V, 500.0),
+                         center=np.tile([250.0, 250.0], (V, 1)), focal=1000.0)
+    cfg = smv.FitConfig(iterations=150, w_keypoints=0.0, w_beta_init=0.0, w_beta_prior=0.0, lr_beta=0.02, girth_prior=gp)
+    r = smv.fit_multiview(smpl, views, start, cfg, device="cpu")
+    after = float(smv.girth_prior_loss(smpl, torch.as_tensor(r.betas, dtype=torch.float32), gp, "cpu"))
+    assert after < 0.5 * before

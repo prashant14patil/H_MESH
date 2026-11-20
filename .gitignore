@@ -28,3 +28,6 @@ frontend/dist/
 
 # Runtime logs (written by local backend/frontend runs; never commit)
 *.log
+
+# Claude Code settings (per-machine permission rules; never commit)
+.claude/

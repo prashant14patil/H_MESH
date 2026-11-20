@@ -86,6 +86,16 @@ def test_api_reports_models_and_uncomputed_state(client, tmp_path):
     assert client.get(f"/api/reconstruction/runs/{RUN_ID}/shapy/mesh").status_code == 404
 
 
+def test_api_serves_shapy_rings_once_computed(client, tmp_path):
+    _status(tmp_path)
+    url = f"/api/reconstruction/runs/{RUN_ID}/shapy/rings"
+    assert client.get(url).status_code == 404
+    (tmp_path / RUN_ID / shapy_shape.RINGS_FILE).write_text("o waist\nv 0 1 0\nv 1 1 0\nl 1 2 1\n")
+    r = client.get(url)
+    assert r.status_code == 200 and r.text.startswith("o waist")
+    assert client.get("/api/reconstruction/runs/bad-id/shapy/rings").status_code == 400
+
+
 def test_api_returns_stored_result_in_cm_of_current_height(client, tmp_path):
     _status(tmp_path, height=176)
     (tmp_path / RUN_ID / shapy_shape.RESULT_FILE).write_text(json.dumps(_record()))

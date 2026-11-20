@@ -137,16 +137,16 @@ def _print_summary(run_dir: Path, run: dict) -> None:
         print(f"\nMeasurements ({'cm' if scaled else 'x height'}):")
         if scaled:
             print(f"  {'height':<16} {h:7.1f}  (supplied, not measured)")
-        print(f"  {'site':<16} {'pipeline':>8} {'SHAPY':>7}" if shapy else f"  {'site':<16} {'pipeline':>8}")
+        print(f"  {'site':<16} {'SHAPY':>7} {'pipeline':>8}" if shapy else f"  {'site':<16} {'pipeline':>8}")
         for k, m in meas["measurements"].items():
             v = (scaled["measurements"].get(k) or {}).get("tape_circumference_cm") if scaled else \
                 m.get("tape_circumference_over_height")
-            print(f"  {k:<16} {cell(v):>8}{' ' + cell(shapy_vals.get(k)) if shapy else ''}")
+            print(f"  {k:<16} {cell(shapy_vals.get(k)) + ' ' if shapy else ''}{cell(v):>8}")
         if shapy:
-            print("  pipeline = one body shape fitted to the outline in every view: specific to this person, but loose\n"
-                  "  clothing reads as body. SHAPY = learned body-shape estimate: repeatable, but it pulls toward an\n"
-                  "  average body. Neither is tape-validated yet:\n"
-                  f"  scripts/shapy_compare.py {run_dir.name} --height-cm H --tape waist=.. hip=.. chest=..")
+            print("  SHAPY (shown first) = learned body-shape estimate. pipeline = one body shape fitted to the outline in\n"
+                  "  every view; loose clothing reads as body. First tape check (loose clothing): SHAPY within a few cm,\n"
+                  "  pipeline 4-14 cm too large. Check against tape:\n"
+                  f"  scripts/shapy_compare.py {run_dir.name} --height-cm H --tape waist=88-90 hip=98-103 ..")
         if not scaled:
             print("  (relative units: no height/calibration supplied; use --height-cm for centimetres)")
     t = (load("reconstruction_report.json") or {}).get("timings_sec", {})
@@ -164,7 +164,7 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--height-cm", type=float, help="subject's barefoot height; the only source of absolute scale")
     ap.add_argument("--person", type=int, help="candidate id when several people are visible")
     ap.add_argument("--no-shapy", action="store_true",
-                    help="skip the SHAPY second measurement model (it runs by default, about 10-30 s)")
+                    help="skip SHAPY, the default measurement model (it runs by default, about 10-30 s)")
     ap.add_argument("--shapy", action="store_true", help=argparse.SUPPRESS)  # pre-default flag, still accepted
     ap.add_argument("--baseline-run", help="earlier run id to compare against in the HTML report")
     return ap

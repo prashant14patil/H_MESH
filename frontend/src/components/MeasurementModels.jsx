@@ -117,7 +117,8 @@ export function ShapyView({ runId, view, pipeline, pipelineMeshUrl, heightCm, la
         estimates shape from each frame and its mirror image and takes the robust median, which made repeated
         recordings of the same person agree within about 0.5 cm, but like any learned estimate it pulls toward an
         average body. The pipeline fits one shape to the person’s outline in every view: specific to this person,
-        but loose clothing reads as body, so it measures larger. Neither has been checked against a tape measure yet.
+        but loose clothing reads as body. In the first tape check (loose clothing) SHAPY was within a few cm and the
+        pipeline 4–14 cm too large, so SHAPY is shown first.
       </p>
     </div>
   )

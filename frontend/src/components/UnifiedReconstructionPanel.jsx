@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import MeshViewer from './MeshViewer.jsx'
 import BodyAvatarPanel from './BodyAvatarPanel.jsx'
+import SizeRecommendation from './SizeRecommendation.jsx'
 import { RunBcmSection } from './BcmSection.jsx'
 import {
   startReconstruction, getReconstruction, confirmPerson, reconstructionFileUrl, applyHeightScale,
@@ -354,6 +355,7 @@ export default function UnifiedReconstructionPanel({ videoId }) {
                     The fitted shape follows the clothed outline, so loose clothing can make girths read larger.
                   </p>
                 )}
+                {metric?.measurements_cm && <SizeRecommendation measurementsCm={metric.measurements_cm} />}
                 {metric && (
                   <details className="rounded border border-gray-200 p-2" aria-label="Tape-measure accuracy check">
                     <summary className="cursor-pointer text-gray-700">Accuracy check against a tape measure (optional, for validation only)</summary>

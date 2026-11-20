@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import BodyAvatarPanel from './BodyAvatarPanel.jsx'
+import SizeRecommendation, { SizeChangeLine } from './SizeRecommendation.jsx'
 import BcmSection, { Card, DeviceIntegrationCard, SourceTag } from './BcmSection.jsx'
 import { SITE_FULL_LABELS, uncertaintyCm } from './bodyAvatarModel.js'
 import { segmentRows, hasSegmental, formatChange, formatWhen, sourceBadge } from './bcmModel.js'
@@ -120,6 +121,9 @@ function AssessmentDetail({ id, onChanged, all }) {
         <CameraMeasurements camera={a.camera} />
         <BcmSection assessmentId={a.assessment_id} record={a.bcm} onChange={onBcm} />
       </div>
+      {a.camera.unit === 'cm' && a.camera.measurements_cm && (
+        <div className="text-xs"><SizeRecommendation measurementsCm={a.camera.measurements_cm} /></div>
+      )}
       <SideBySide camera={a.camera} bcm={a.bcm} />
       <HistoryCompare a={a} all={all} />
     </div>
@@ -357,6 +361,11 @@ function HistoryCompare({ a, all }) {
                 <div className="flex items-center gap-2 text-xs font-semibold text-slate-600"><SourceTag kind="camera" />
                   {formatWhen(cmp.before.assessed_at)} → {formatWhen(cmp.after.assessed_at)} ({cmp.camera.unit === 'cm' ? 'cm' : '× height'})</div>
                 {!cmp.same_person && <p className="mt-1 text-xs text-orange-700">Different or unassigned person codes: differences are not a change in one person.</p>}
+                {cmp.camera.unit === 'cm' && (
+                  <SizeChangeLine
+                    beforeCm={Object.fromEntries(cmp.camera.rows.map((r) => [r.site, r.before]))}
+                    afterCm={Object.fromEntries(cmp.camera.rows.map((r) => [r.site, r.after]))} />
+                )}
                 <table className="mt-2 w-full text-sm">
                   <CompareHead />
                   <tbody>

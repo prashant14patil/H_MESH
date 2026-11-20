@@ -1,4 +1,4 @@
-"""Multi-view reliability study: how much do girths move when the capture is degraded?
+r"""Multi-view reliability study: how much do girths move when the capture is degraded?
 
 Each completed run saved everything its shape fit consumed (diagnostics/fit_inputs.npz). This script refits the
 shape with the pipeline's CURRENT default settings (same FitConfig values as body_reconstruction._cfg_silhouette,
@@ -52,14 +52,27 @@ COCO_HIPS_KNEES = [11, 12, 13, 14]
 
 
 # ------------------------------------------------------------------ fitting (pipeline defaults)
+BETA_PRIOR = 0.0      # HMR2 shape prior weight (--beta-prior); pipeline default 0.2 since 20 Nov 2026 (tape)
+EXCLUSION = "iou"     # post-fit view exclusion (--exclusion): "iou" (19 Nov default) or "protrusion" (current)
+
+
 def cfg_silhouette(beta_sigma):
-    return smv.FitConfig(iterations=300, w_silhouette=1.0, w_beta_init=0.0, w_beta_prior=0.05,
+    return smv.FitConfig(iterations=300, w_silhouette=1.0, w_beta_init=BETA_PRIOR, w_beta_prior=0.05,
                          sil_coverage_weight=1.0, sil_outside_form="charbonnier", fit_body_pose=True,
                          beta_sigma=beta_sigma, sil_tau_frac=0.01)
 
 
 def fit_pipeline(smpl, faces, views, masks, betas_each, quality, device):
-    """Stage A (pose/camera, shape frozen) + stage B (shared shape), then the pipeline's IoU-based view exclusion."""
+    """Stage A (pose/camera, shape frozen) + stage B (shared shape), then the IoU-based view exclusion that was the
+    pipeline default when this study ran (19 Nov 2026; now RECON_VIEW_EXCLUSION=iou). The protrusion rule that
+    replaced it is compared in scripts/view_exclusion_study.py."""
+    if EXCLUSION == "protrusion":
+        import view_exclusion_study as ve  # the pipeline's iterated protrusion rule
+        # ve imports this file as a separate module ("reliability_study", not "__main__"): give that copy the same
+        # settings, or its cfg_silhouette silently uses the defaults (this once ran a "prior 0.2" study at prior 0).
+        ve.rs.BETA_PRIOR, ve.rs.EXCLUSION = BETA_PRIOR, EXCLUSION
+        res, excl, _ = ve.fit_with_rule(smpl, faces, views, masks, betas_each, quality, device, "protrusion_iter")
+        return res, len(excl)
     q = quality / quality.max()
     agg, std, _ = smv.robust_beta_aggregate(betas_each, q)
     sigma = np.maximum(std, BETA_SIGMA_FLOOR)
@@ -275,15 +288,19 @@ def main():
     ap.add_argument("--device", default="cpu")
     ap.add_argument("--threads", type=int, default=6)
     ap.add_argument("--no-jackknife", action="store_true")
+    ap.add_argument("--beta-prior", type=float, default=0.0, help="HMR2 shape prior weight (pipeline default 0.2)")
+    ap.add_argument("--exclusion", choices=["iou", "protrusion"], default="iou")
     ap.add_argument("--output", type=Path, required=True)
     a = ap.parse_args()
+    global BETA_PRIOR, EXCLUSION
+    BETA_PRIOR, EXCLUSION = a.beta_prior, a.exclusion
     import torch
     torch.set_num_threads(a.threads)
     smpl = load_smpl(a.device)
     faces = np.asarray(smpl.faces, dtype=np.int64)
     report = {"created_at": time.strftime("%Y-%m-%d %H:%M:%S"), "device": a.device, "height_cm": a.height_cm,
-              "fit": "pipeline defaults: charbonnier outside term, population prior 0.05, HMR2 prior 0, per-view pose, "
-                     "post-fit IoU exclusion + refit", "conditions": {k: str(CONDITIONS[k]) for k in a.conditions},
+              "fit": f"charbonnier outside term, population prior 0.05, HMR2 prior {a.beta_prior:g}, per-view pose, "
+                     f"post-fit {a.exclusion} exclusion + refit", "conditions": {k: str(CONDITIONS[k]) for k in a.conditions},
               "runs": {}}
     if a.output.is_file():  # resume
         report = json.loads(a.output.read_text(encoding="utf-8"))

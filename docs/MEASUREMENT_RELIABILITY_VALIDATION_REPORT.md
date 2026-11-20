@@ -1,224 +1,250 @@
 # Measurement reliability validation report
 
-Date: 19 Nov 2026 · Scope: body circumferences from the unified 360° reconstruction (current defaults: Charbonnier outside term, population prior 0.05, HMR2 prior 0, per-view pose) · Status: **precision and robustness measured on one subject (3 recordings); accuracy against tape NOT established: no real tape data exists**
+Date: 19–20 Nov 2026 · Scope: body circumferences from the unified 360° reconstruction · Current defaults (since 20 Nov): Charbonnier outside term, **HMR2 shape prior 0.2**, population prior 0.05, per-view pose, **protrusion-based view exclusion** · Status: **precision and robustness measured (one subject, 3 recordings, 2 configurations). Preliminary tape exists for one subject at 3 sites (self-measured ranges, loose clothing). Population accuracy is NOT established.**
 
 ## 1. Summary
 
 | Question | Answer |
 |---|---|
-| Is accuracy in cm known? | **No.** No real tape measurements exist; the only tape records on disk are test entries (excluded). No accuracy figure in this report is a tape result. |
-| Is the result repeatable? | Yes, on one subject. Between three independent recordings: within-subject SD 0.8–1.6% per site, repeatability coefficient (RC, 95%) 0.7–4.3 cm. |
-| Do the two measurement models agree? | **No.** At the same height the pipeline is 5–12% larger than SHAPY at every site (waist +9–12 cm, hip +10–12 cm). Both are repeatable, so they can't both be accurate. Only tape can decide. |
-| Are rings at anatomically meaningful places? | Mostly. Torso levels fall in plausible bands. Three definitional problems were found: the **forearm** maximum always lands on its search edge; the **thigh** ring sits 0.5–1.1% of stature above the tape protocol (+1.4–2.3%, about +1 cm); and the **chest** depends on the arm angle of the measurement pose (0.3–1.6 cm per 10°). |
-| Which capture conditions matter? | MULTIVIEW_SUMMARY |
-| Can bad measurements be flagged automatically? | Yes, for internal consistency. A new per-measurement grade (good/fair/poor/unavailable) with reasons and a ±1 SD precision estimate is computed from the run's own evidence (§6). It describes precision, not accuracy. |
+| Is accuracy in cm known? | **Only preliminarily.** One subject self-measured waist 88–90, abdomen 95–100 and hip 98–103 cm, in loose clothing (`RECONSTRUCTION_ACCURACY_INVESTIGATION.md` §5.8). Against the range midpoints, the current-default run `ff1c226a` is waist −1.4, abdomen −7.1 and hip +2.5 cm (§8). The setting this study started on (HMR2 prior 0) was 11–17 cm too large and has been replaced. One subject in one outfit ranks configurations; it doesn't establish accuracy. |
+| Is the result repeatable? | Yes, on one subject. Current default, three independent recordings: within-subject SD 0.9–2.3% per site, repeatability coefficient (RC, 95%) 0.7 cm (forearm) to 4.9 cm (abdomen). |
+| Which capture conditions matter? | **Under the current default, essentially none of those tested.** Fewer views, blur, occlusion, lighting/boundary shifts, drift, missing coverage and heading error all move girths ≤ 1.3% (most ≤ 0.5%), below the between-recording SD. With the HMR2 prior on, the silhouettes barely shape the body. The recording-to-recording spread comes from **HMR2's shape estimate per recording**, and the remaining accuracy error (abdomen −4 to −8 cm) is HMR2's too. Under the previous prior-0 setting, segmentation boundary bias (1–1.5% per pixel) and occlusion (−3 to −16%) dominated (§5.3). |
+| Do the two models agree? | **Now closely at the torso; not on the limbs.** Pipeline vs SHAPY at 179 cm: waist −0.7 / −3.7, abdomen −0.2 / −3.3, hip −2.0 / −5.0 cm (recordings B / A). Pipeline limbs are 1–5 cm smaller than SHAPY's (§7). Neither is ground truth. Images: `outputs/model_comparison/`. |
+| Are rings at anatomically meaningful places? | Mostly. Three definitional issues: the **forearm** maximum always lands on its search edge (≈ 0.5 cm effect); the **thigh** ring sits ≈ 1 cm above the tape-protocol point (+1.4–2.3%); the **chest** depends on the measurement-pose arm angle (1–3 cm) (§3). |
+| Can unreliable measurements be flagged automatically? | Yes, for internal consistency. Each run now writes `measurement_quality.json` with a per-girth grade, reasons and a ±1 SD precision, calibrated per configuration (§6). It is live in the pipeline. **Demonstrated blind spot:** the old prior-0 run that was 11–17 cm too large against tape graded *good*, because uniform clothing inflation is consistent across views. |
+| What changed in the code? | (1) View exclusion by protrusion outliers instead of IoU (§5.2; adopted as the default). (2) Per-measurement quality and precision from the CV-fold shapes (§6). (3) A search-edge flag on every girth. (4) A tape vs pipeline vs SHAPY ground-truth workflow (§8). (5) Study and figure tools (appendix). |
 
 ## 2. Audit of the latest changes
 
 | Item | Finding |
 |---|---|
-| Silhouette fix (Charbonnier outside term) | In place and default. Protrusion is 1.6–1.8% on all three recordings under the study harness (was 3.4–7.8% with the legacy term). |
-| Default shape prior | HMR2 prior 0, population prior 0.05. This **raises girths about 10–14%** relative to the prior-0.2 numbers in `MEASUREMENT_ACCURACY_REPEATABILITY_REPORT.md` §8.2 (e.g. hip 114 vs 100 cm at 176 cm). The prior choice is still unresolved and is the largest single source of uncertainty in absolute girths. |
-| Repeatability figures used in the UI | `REPEATABILITY_SD_PCT` was measured under prior 0.2. Under the current defaults Sw is similar (0.8–1.6% vs 0.9–2.4%), so the UI's ± is still of the right order, but it is not from the current configuration. |
-| `docs/RECONSTRUCTION_ACCURACY_INVESTIGATION.md` | Untracked, and §5 still contains a literal `PENDING_RUNS` placeholder. |
-| Determinism | A CPU refit reproduces the saved GPU run (`9e126c35`) to ≤ 0.002 × height (≤ 0.3%) at every site. Runs `268f55fd` and `9e126c35` (same video and config) give identical girths. |
-| Concurrent work | Another session is adding capture-quality checks (`scan_quality.py`: lighting, background motion, rotation trajectory, coverage) to `body_reconstruction.py`. This work reuses its verdicts rather than duplicating them. |
+| Silhouette fix (Charbonnier outside term) | In place. Protrusion 1.5–1.8% on all recordings (was 3.4–7.8% with the legacy term). |
+| Shape prior | Changed during this work by the concurrent session, from 0 to **0.2**, on the basis of the first real tape. This study independently reproduces that setting's girths: waist / abdomen / hip at 179 cm, mean of 3 recordings, 86.0 / 88.8 / 101.8 cm vs their 85.7 / 88.5 / 101.5 cm. |
+| View exclusion | Replaced by the protrusion rule from this study (§5.2), committed by the concurrent session together with this report's draft. |
+| Stature scaling | The 0.27% A-pose shortening found here (§4) is now corrected in the pipeline (`stature_height`). |
+| UI repeatability (`bodyAvatarModel.REPEATABILITY_SD_PCT`) | Measured earlier under prior 0.2 (legacy term). It matches this study's current-default Sw closely (e.g. waist 2.0 vs 1.98%, hip 1.5 vs 1.56%, thigh 1.8–1.9 vs 1.89%). No change needed. |
+| Determinism | A CPU refit reproduces the saved GPU run to ≤ 0.3% at every site. Same video and config gives identical girths. |
+| Concurrent work | Capture-quality checks (`scan_quality.py`), sex-specific shape prior, volume/weight check, SHAPY as the default measurement view. This work consumes `scan_quality`'s verdicts rather than duplicating them. |
 
 ## 3. Measurement locations (anatomical audit)
 
-Tool: `scripts/measurement_location_audit.py` (CPU). Output: `outputs/accuracy_study/location_audit.json`. Bodies audited: 5 fitted shapes (3 recordings, several configurations) and 5 synthetic SMPL shapes (mean, ±2 SD on β1 and β2). Ring height is the ring centre ÷ stature (floor = 0).
+Tool: `scripts/measurement_location_audit.py` (CPU). Output: `outputs/accuracy_study/location_audit.json`. Bodies: 5 fitted shapes (3 recordings, several configurations) and 5 synthetic SMPL shapes (mean, ±2 SD on β1 and β2). Ring height = ring centre ÷ stature.
 
-| Site | Ring height ÷ stature (fitted bodies) | Search position | Finding |
+| Site | Ring height ÷ stature | Search position | Finding |
 |---|---|---|---|
-| Chest | 0.732–0.744 | interior (0.37–0.46 of range) | Plausible (nipple level ≈ 0.72–0.73 H in adult males). **Pose-sensitive:** the ring is in the armpit region that the A-pose compresses (edge lengths down to 0.78 of upright). See below. |
-| Waist | 0.647–0.660 | interior | Narrowest torso girth. Sits about 2–4% H above a typical natural-waist height (≈ 0.62–0.63 H). Plausible, but slightly high. |
+| Chest | 0.732–0.744 | interior | Plausible (nipple level ≈ 0.72–0.73 H). **Pose-sensitive** (below). |
+| Waist | 0.647–0.660 | interior | Narrowest torso girth. About 2–4% H above a typical natural-waist height (≈ 0.62–0.63 H): plausible, slightly high. |
 | Abdomen | 0.605–0.615 (spine1 joint) | fixed | Close to navel height (≈ 0.60 H). |
-| Hip | 0.491–0.497 | interior (0.50–0.58) | Plausible (buttock level ≈ 0.50 H). On the synthetic β2 −2 SD shape the maximum hits the **pelvis-joint edge** (0.533 H), so for some shapes "hip" can read the lower belly. Now flagged automatically. |
-| Upper arm | 0.744–0.752, bone midpoint | fixed | The SMPL shoulder joint is about 3–4 cm below the acromion the tape protocol uses, so the ring sits about 1.5–2 cm distal of the protocol point. The arm is nearly cylindrical there (major/minor 1.04), so the effect is small. |
-| **Forearm** | 0.688–0.694 | **edge (12%) in 10/10 bodies** | SMPL's forearm narrows steadily from elbow to wrist. There is no muscle-belly maximum, so "fullest girth" is always the first plane. The value moves only 0.5 cm between 12% and 25% of the forearm length (28.7 → 28.2 cm), so the bias is small. This is a model limitation, noted on every result. |
-| **Thigh** | 0.376–0.381 (hip–knee joint midpoint) | fixed | The tape protocol is halfway from the groin crease to the top of the kneecap. Crotch found on the mesh at 0.446–0.450 H; kneecap top approximated at knee joint + 0.025 H. The ring is 0.5–1.1% H **above** the protocol point, so the girth reads **+1.4 to +2.3%** (about +0.8 to +1.4 cm) on realistic fits. Girth changes about 3% per 1% H along the thigh, so ±1 cm of tape placement is itself worth about ±1.7%. |
-| Calf | 0.211–0.214 | interior (0.36) | Plausible (calf max ≈ 0.20–0.22 H). |
+| Hip | 0.491–0.497 | interior | Plausible (≈ 0.50 H). On β2 −2 SD the maximum hits the **pelvis-joint edge**, so for some shapes "hip" can read the lower belly. Now flagged. |
+| Upper arm | 0.744–0.752 | fixed | The SMPL shoulder joint is ≈ 3–4 cm below the acromion, so the ring sits ≈ 1.5–2 cm distal of the protocol point. Small effect (near-cylindrical). |
+| **Forearm** | 0.688–0.694 | **edge in 10/10 bodies** | SMPL has no forearm muscle belly, so "fullest girth" is always the plane nearest the elbow. 12% → 25% of forearm length changes it by only 0.5 cm. Model limitation, noted on every result. |
+| **Thigh** | 0.376–0.381 | fixed | Protocol: halfway from the groin crease (crotch found on the mesh at 0.446–0.450 H) to the top of the kneecap (≈ knee joint + 0.025 H). The ring is 0.5–1.1% H above that point, so it reads **+1.4 to +2.3%** (≈ +1 cm). Girth changes ≈ 3% per 1% H along the thigh, so tape placement itself matters as much. |
+| Calf | 0.211–0.214 | interior | Plausible (≈ 0.20–0.22 H). |
 
-Reference heights are approximate adult population proportions, used only to catch gross mislocation, not as accuracy evidence.
+Reference heights are approximate adult proportions, used only to catch gross mislocation.
 
-**Cross-section geometry.** Hull ÷ contour (concavity) is 1.000–1.006 on every realistic fit: the SMPL torso has no buttock cleft or chest concavity deep enough for the tape-versus-contour distinction to matter (≤ 0.6%). Depth ÷ width is chest 0.79–0.84, waist 0.85–0.88, hip 0.74–0.77: elliptical, plausible values. Limb sections are close to round (upper arm 1.04, calf 1.01), except the forearm (1.39, flattened as expected).
+**Cross-sections.** Hull ÷ contour is 1.000–1.006, so the tape-vs-contour distinction is negligible on SMPL. Depth ÷ width: chest 0.79–0.84, waist 0.85–0.88, hip 0.74–0.77. Limbs near-round, except the forearm (1.39).
 
-**Measurement pose (chest).** The same fitted body, arms lowered from horizontal:
+**Measurement pose (chest).** Same fitted body, arms lowered from horizontal (cm @176):
 
 | Arm angle below horizontal | 0° (T) | 30° | 45° (used) | 55° | 65° |
 |---|---|---|---|---|---|
-| Chest, fitted body `9e126c35` (cm @176) | 118.4 (edge) | 113.1 | 112.3 | 112.2 | 112.0 |
-| Chest, SMPL mean body | 111.7 (edge) | 106.1 | 104.4 | 103.3 | 102.8 |
+| Fitted body (prior 0) | 118.4 (edge) | 113.1 | 112.3 | 112.2 | 112.0 |
+| SMPL mean body | 111.7 (edge) | 106.1 | 104.4 | 103.3 | 102.8 |
 
-The waist, upper arm and limbs change by < 0.4 cm across 30–65°. The tape protocol measures with the arms relaxed at the sides, which SMPL can't represent without the arm merging into the torso. The chest therefore carries an unquantified pose-definition bias of the order of 1–3 cm, to be resolved with tape.
+Other sites change < 0.4 cm across 30–65°. The tape is taken with the arms at the sides, which SMPL can't represent without the arm merging into the torso. The chest therefore carries a pose-definition uncertainty of ≈ 1–3 cm.
 
 ## 4. Geometric validation
 
 | Check | Result |
 |---|---|
-| Mesh topology | Watertight, one component, Euler number 2, no degenerate faces, upright, facing +z (existing `validate_mesh`, all runs). |
-| Height normalisation | The A-pose measurement mesh is 0.12–0.27% shorter than the same body upright (legs abducted 5°). Scaling to a supplied barefoot height therefore inflates girths by the same 0.1–0.3% (≤ 0.4 cm at the hip). Negligible next to the other terms. A ±1 cm stature error moves every girth by ±0.57%. |
-| Surface distortion from posing | Lowering the arms to 45° compresses edges near the chest ring (5th percentile 0.78) and the upper-arm ring (median 0.976). Waist, hip, thigh, forearm and calf rings are undistorted (median 1.000–1.004, 5–95% within 0.94–1.05). Only the chest, and to a small degree the upper arm, are sensitive to skinning artefacts. |
-| Shape plausibility | Current-default fits stay within \|β\| ≤ 1.0 SD. Older configurations on disk reach 2.8 SD (legacy term, no prior). |
-| Proportions vs observed outline | Side depth model/observed 0.96–0.99, front width ≤ 1: the body is inside its outline at every level (no protrusion). Loose garments mean the outline is not the body, so this can't confirm girths. |
-| Consistency across views | Per-view silhouette agreement is exact-rasterised on all 24 views (fit IoU 0.885). Held-out views (shape fitted without them) give IoU 0.815 and protrusion 5–6%, from keypoint-only pose on unseen views. |
+| Mesh topology | Watertight, one component, Euler number 2, no degenerate faces, upright, facing +z (all runs). |
+| Height normalisation | The A-pose mesh is 0.12–0.27% shorter than the same body upright. Scaling by it inflated girths by the same fraction; now corrected in the pipeline. ±1 cm of stature = ±0.56% on every girth. |
+| Posing distortion | Arms at 45° compress edges near the chest ring (5th percentile 0.78) and slightly at the upper arm (median 0.976). Waist, hip, thigh, forearm and calf rings are undistorted (median 1.000–1.004). |
+| Shape plausibility | Current-default fits stay well inside the population (\|β\| ≤ 1 SD). Legacy configurations reached 2.8 SD. |
+| Proportions vs outline | No protrusion at any torso level. Under loose clothing the model is 0.79–0.88 of the outline width/depth at the waist/abdomen (current default), i.e. inside the garment, as expected. |
+| Views | Fit IoU 0.80–0.89 against the clothed outline, held-out 0.75–0.82. IoU is not an accuracy measure under clothing (it selected the wrong prior once). |
 
 ## 5. Multi-view reliability
 
-**Method.** `scripts/reliability_study.py` refits each recording from its saved fit inputs, with the pipeline's current default settings (including the post-fit IoU view exclusion and refit), after a controlled degradation of what the fit consumes: masks, keypoints, available views and initial pose/camera. It isolates the fitting stage. HMR2 and segmentation are **not** re-run on degraded pixels: "blur" models what a blurred frame does to the outline and keypoint precision, not what HMR2 would predict from it. Three recordings × 17 conditions; random conditions use 2 seeds; 75 fits on CPU (a CPU refit reproduces the GPU run to ≤ 0.3%). Each change is relative to the same recording's undegraded fit and is judged against the **between-recording repeatability** of the undegraded fits: Sw = within-subject SD, RC = 2.77 × Sw.
+**Method.** `scripts/reliability_study.py` refits each recording from its saved fit inputs after a controlled degradation of what the fit consumes: masks, keypoints, available views, initial pose/camera. HMR2 and segmentation are **not** re-run on degraded video, so the degradations are proxies (e.g. "blur" = smeared outline plus keypoint noise). Each change is relative to the same recording's undegraded fit, judged against between-recording repeatability (Sw = within-subject SD, RC = 2.77 Sw). Run twice:
 
-**Repeatability (current defaults, 3 recordings, one subject; n = 3, provisional)**
+- **(a) current default:** prior 0.2, protrusion exclusion. 3 recordings × 12 conditions (2 seeds where random) + jackknife. `outputs/accuracy_study/reliability_p02/`.
+- **(b) previous default:** prior 0, IoU exclusion. 3 × 17 conditions. `outputs/accuracy_study/reliability/`.
 
-| Site | Mean cm @176 | Sw % | RC % | RC cm |
+### 5.1 Current default (prior 0.2)
+
+**Repeatability, 3 recordings, cm @179 (n = 3, provisional)**
+
+| Site | Mean | Sw % | RC % | RC cm |
 |---|---|---|---|---|
-| Chest | 111.3 | 1.19 | 3.3 | 3.7 |
-| Waist | 97.3 | 1.61 | 4.5 | 4.3 |
-| Abdomen | 100.9 | 1.55 | 4.3 | 4.3 |
-| Hip | 114.3 | 0.85 | 2.4 | 2.7 |
-| Upper arm | 34.5 | 1.62 | 4.5 | 1.5 |
-| Forearm | 28.6 | 0.93 | 2.6 | 0.7 |
-| Thigh | 58.8 | 1.01 | 2.8 | 1.6 |
-| Calf | 40.5 | 0.80 | 2.2 | 0.9 |
+| Chest | 102.9 | 1.02 | 2.8 | 2.9 |
+| Waist | 86.0 | 1.98 | 5.5 | 4.7 |
+| Abdomen | 88.8 | 2.00 | 5.6 | 4.9 |
+| Hip | 101.8 | 1.56 | 4.3 | 4.4 |
+| Upper arm | 29.2 | 2.33 | 6.5 | 1.9 |
+| Forearm | 27.0 | 0.91 | 2.5 | 0.7 |
+| Thigh | 51.0 | 1.89 | 5.2 | 2.7 |
+| Calf | 37.3 | 1.12 | 3.1 | 1.2 |
 
-**Condition effects.** Worst |change| % over recordings and seeds; mean signed change in brackets. ▲ = exceeds RC.
+**Condition effects: worst |change| % over recordings and seeds**
 
 | Brief condition | Proxy | Chest | Waist | Hip | Thigh | Upper arm | Verdict |
 |---|---|---|---|---|---|---|---|
-| Rotation speed (fewer distinct views) | 16 views | 0.9 (−0.5) | 1.2 (−0.6) | 0.8 (−0.6) | 0.9 (−0.6) | 1.3 | negligible |
-| | 12 views | 0.7 (+0.4) | 0.9 (+0.5) | 0.6 (+0.3) | 0.7 (+0.4) | 1.0 | negligible |
-| | 8 views (45° apart) | 0.7 (+0.2) | 0.7 (+0.2) | 0.8 (+0.1) | 0.8 (0.0) | 0.9 | negligible |
-| | 6 views (60° apart) | 1.3 (−1.1) | 1.9 (−1.6) | 1.3 (−1.0) | 2.0 (−1.3) | 2.6 | small **systematic shrink**, within RC |
-| Blurry frames | 25% of views smeared 12 px + keypoint noise | 0.5 | 0.6 | 0.8 | 1.0 | 0.8 | negligible |
-| | 50% of views | 2.2 (+1.5) | 3.0 (+2.0) | 1.8 (+0.9) | 2.4 (+1.3) | 3.4 | inflates 1–2%, within RC |
-| Temporary occlusion | hip band hidden in 25% of views | 7.3 (−3.2) ▲ | 11.3 (−4.6) ▲ | 8.1 (−3.9) ▲ | 10.5 (−4.9) ▲ | 13.6 ▲ | **severe shrink** |
-| | chest band hidden in 25% of views | 9.5 (−6.6) ▲ | 15.6 (−10.3) ▲ | 7.1 (−4.2) ▲ | 8.9 (−5.2) ▲ | 13.7 ▲ | **severe shrink** |
-| Insufficient coverage | no back views (90° sector) | 0.4 | 0.8 | 0.6 | 0.7 | 0.3 | negligible |
-| | no left-side views (90° sector) | 0.4 | 0.8 | 0.9 | 1.0 | 0.5 | negligible |
-| Lighting (segmentation boundary) | random ±6 px per view | 3.1 (−2.2) | 4.0 (−3.1) | 2.0 (−1.1) | 2.7 (−1.7) | 4.2 | shrink 1–3%, near RC |
-| | shadow bleed: all masks +4 px | 4.0 (+3.6) ▲ | 5.5 (+4.7) ▲ | 3.2 (+2.8) ▲ | 3.7 (+3.6) ▲ | 5.7 ▲ | **systematic inflation** |
-| | dark edges: all masks −4 px | 5.5 (−4.7) ▲ | 7.3 (−6.5) ▲ | 3.9 (−2.8) ▲ | 5.2 (−4.1) ▲ | 7.8 ▲ | **systematic shrink** |
-| Not rotating in place | ±10% distance + ±15% lateral drift | 0.3 | 0.5 | 0.3 | 0.3 | 0.5 | negligible |
-| Different standing pose | per-view joint init ±10° | 1.1 | 1.7 | 0.8 | 0.8 | 1.4 | small (initialisation only) |
-| Heading (yaw) error | per-view heading init ±15° | 2.4 (−1.2) | 3.0 (−1.5) | 2.5 (−1.2) ▲ | 2.8 (−1.4) ▲ | 3.7 | moderate shrink |
+| Rotation speed | 8 views | 0.3 | 0.4 | 0.6 | 0.6 | 0.6 | negligible |
+| | 6 views | 0.1 | 0.1 | 0.4 | 0.4 | 0.1 | negligible |
+| Blurry frames | 50% of views | 0.0 | 0.1 | 0.3 | 0.3 | 0.2 | negligible |
+| Occlusion | hip band, 25% of views | 0.0 | 0.1 | 0.1 | 0.1 | 0.1 | negligible (occluded views excluded) |
+| | chest band, 25% of views | 0.3 | 0.5 | 0.4 | 0.5 | 0.6 | negligible |
+| Coverage | no back views | 0.7 | 1.2 | 0.7 | 0.9 | 1.3 | small, below Sw |
+| Lighting | random ±6 px | 0.1 | 0.2 | 0.1 | 0.1 | 0.2 | negligible |
+| | shadow bleed +4 px | 0.0 | 0.1 | 0.1 | 0.1 | 0.0 | negligible |
+| | dark edges −4 px | 0.2 | 0.3 | 0.1 | 0.1 | 0.3 | negligible |
+| Not rotating in place | ±10% distance, ±15% drift | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | negligible |
+| Heading error | init ±15° | 0.0 | 0.1 | 0.1 | 0.1 | 0.1 | negligible |
 
-Full table (all 12 sites): `outputs/accuracy_study/reliability/summary.md`.
+All 12 sites: `outputs/accuracy_study/reliability_p02/summary.md`. The fold jackknife spread is 0.08–0.31%, about 0.1 × Sw.
 
-**What matters, ranked**
+**Interpretation.** With the HMR2 prior at 0.2 the shape is held near HMR2's multi-frame estimate, and the silhouettes add little. That makes the fit **robust to capture quality**. It also means repeatability (Sw 1–2.3%) and the remaining tape error (abdomen 4–8 cm under) are set by HMR2's per-recording shape estimate, which no capture-side measure tested here changes. The silhouettes still matter in one place: they cap the body inside the outline (no protrusion).
 
-1. **Mask boundary accuracy dominates.** A uniform 4 px boundary shift (about 0.4% of the subject's image height) moves girths 3–7%, roughly **1–1.5% of girth per pixel**, in the direction of the shift. Under-segmentation is worse than over-segmentation (−6.5% vs +4.7% at the waist). The non-saturating "stay inside" term pulls hard toward any outline that is too small. The same term is what removed the protrusion bug, so the trade-off is deliberate, but it makes segmentation quality the main accuracy lever.
-2. **Occlusion is severe**, and the current safeguard does not hold (next subsection).
-3. **Heading error** of ±15° in initialisation shrinks girths 1–2.5%.
-4. **Insensitive:** 8 or more views, a missing 90° sector, drift and scale change while turning, rotation speed down to 8 distinct views, and blur in a quarter of the views. The capture protocol can be relaxed on these axes. It can't be relaxed on lighting or segmentation.
+Not tested: real changes in standing pose between recordings (only pose *initialisation* was perturbed). Re-run HMR2 on degraded frames was also not tested, and that is where blur, low light or occlusion would act under this default.
 
-**Repeatability of the fit itself (jackknife).** Shapes fitted on 3 of the 4 heading-interleaved folds (the pipeline's CV folds) spread with an SD of 0.48–1.00% (mean ≈ 0.6 × Sw at every site). The delete-a-group jackknife standard error from this (≈ √3 × population SD of the fold estimates ≈ 0.9 × Sw) is about equal to the between-recording SD. That suggests **which views happen to be sampled explains most of the recording-to-recording variation** on this subject.
+### 5.2 View exclusion: why the old rule failed, and the fix (implemented, default)
 
-**Does the fold spread detect degradations?** Fold SD %, recording B:
+After the first fit the pipeline drops unreliable views and refits. The old rule (IoU < max(0.75, median − 0.10)) failed under occlusion. Occluded masks shrink the whole body, so the clean views become the ones with low IoU (down to 0.69), while occluded views span 0.46–0.83. The rule dropped clean views and kept occluded ones.
 
-| Condition | Chest | Waist | Hip | Thigh | × clean |
+**Protrusion separates them**, because clothing only ever enlarges an outline. New rule (`body_reconstruction.select_view_exclusions`): exclude views whose per-view protrusion exceeds max(4%, median + 3 MAD), refit, repeat up to 3 rounds. An IoU floor of 0.60 is kept for unusable masks (no clean view fell below 0.69), and at least 6 silhouettes are always kept. The old rule is still available as `RECON_VIEW_EXCLUSION=iou`.
+
+Evidence under the prior-0 fit, where occlusion is most damaging (12 cases = 3 recordings × hip/chest band × 2 seeds; `outputs/accuracy_study/view_exclusion_iter*.json`):
+
+| | Old IoU rule | Iterated protrusion rule |
+|---|---|---|
+| Cases with worst-site change ≤ 1.5% | 0 / 12 | **10 / 12** |
+| Median / max worst-site change | 7.7% / 15.6% | **0.7%** / 8.9% |
+| Occluded views found / clean views wrongly excluded | partial / up to 7 per case | 70 of 72 / **0** |
+
+- No view was excluded on clean data, under ±6 px or ±4 px boundary shifts, or under 50% blur.
+- One case (C, chest band) missed 2 occluded views and was worse than the old rule (−8.9% vs −5.3%). **The quality indicator flags it:** fold spread 5–10× typical, so 6 sites grade *poor*.
+- Under the current default (prior 0.2) occlusion with this rule moves girths ≤ 0.6% (§5.1).
+
+### 5.3 Previous default (prior 0): what a silhouette-driven fit is sensitive to
+
+Kept because any future change that gives silhouettes more weight (tight-clothing mode, clothing-aware weighting) would bring these sensitivities back. Worst |change| %, with the old IoU exclusion:
+
+| Condition | Chest | Waist | Hip | Thigh | Verdict |
 |---|---|---|---|---|---|
-| Clean | 0.52 | 0.76 | 0.34 | 0.43 | 1 |
-| Occlusion left in the fit | 6.6 | 11.2 | 4.2 | 5.3 | **10–15** |
-| 8 views only | 2.4 | 3.0 | 2.5 | 2.6 | 4–6 (folds have 6 views) |
-| Dark edges −4 px (girths −6%) | 0.80 | 1.28 | 0.65 | 0.89 | **1.5** |
-| Random ±6 px | 0.39 | 0.53 | 0.38 | 0.50 | < 1 |
+| 6 views | 1.3 | 1.9 | 1.3 | 2.0 | −1 to −2% systematic |
+| 50% blur | 2.2 | 3.0 | 1.8 | 2.4 | +1 to +2% |
+| Occlusion (hip / chest band) | 7.3 / 9.5 | 11.3 / 15.6 | 8.1 / 7.1 | 10.5 / 8.9 | **severe** (fixed by §5.2) |
+| Random ±6 px boundary | 3.1 | 4.0 | 2.0 | 2.7 | −1 to −3% |
+| Shadow bleed +4 px | 4.0 | 5.5 | 3.2 | 3.7 | **+3 to +5%** |
+| Dark edges −4 px | 5.5 | 7.3 | 3.9 | 5.2 | **−3 to −7%** |
+| Heading init ±15° | 2.4 | 3.0 | 2.5 | 2.8 | −1 to −2.5% |
+| ≥ 8 views, missing 90° sector, drift, pose init | ≤ 1.7 | | | | negligible |
 
-Fold spread catches views that **disagree with each other** (occlusion, a few bad masks). It is blind to **errors shared by all views** (a systematic boundary shift). No internal-consistency check can see those; only calibration against tape, or a segmentation accuracy check, can.
+At prior 0, a systematic segmentation boundary shift moves girths ≈ 1–1.5% per pixel. Fold spread can't see it (1.5× typical for a −6% shift), because every view shifts together.
 
-EXCLUSION_SECTION
+## 6. Automatic reliability indicators (implemented, live)
 
-## 6. Automatic reliability indicators (implemented)
+Code: `backend/services/measurement_quality.py`, called from `body_reconstruction.export_outputs` → `<run>/measurement_quality.json` (summarised in the report and run result). Backfill: `scripts/measurement_quality_report.py RUN [--folds]`. Tests: `backend/tests/test_measurement_quality.py` (11 pass).
 
-Code: `backend/services/measurement_quality.py`, called from `body_reconstruction.export_outputs` → `<run>/measurement_quality.json` (also summarised in `reconstruction_report.json` and the run result). Backfill for older runs: `scripts/measurement_quality_report.py RUN [--folds]`. Tests: `backend/tests/test_measurement_quality.py` (10 pass).
-
-Each girth gets a **grade** (good / fair / poor / unavailable), the **reasons**, and a **±1 SD precision** estimate (in % and, when the height is known, in cm). The grade is the worst of the following signals, each of which the evidence above supports:
+Each girth gets a **grade** (good / fair / poor / unavailable), **reasons**, and a **±1 SD precision**. The grade is the worst of:
 
 | Signal | Rule | Evidence |
 |---|---|---|
-| Run-level verdicts | Reconstruction `unreliable` or capture `insufficient` → poor. `usable_with_warnings` / `acceptable_with_warnings` → at most fair. **Missing verdict → at most fair.** | Uses `scan_quality` from the concurrent work. A first version treated missing evidence as a pass and graded an inflated legacy run (hip 127 cm @176) "good"; fixed and tested. |
-| Cross-section | Invalid → unavailable. A min/max search ending on the edge of its zone → fair (forearm exempt, noted as a model limitation). | Location audit, §3. |
-| Fold stability | SD of the girth across the 4 CV-fold shapes: > 2.5 × typical → fair; > 5 × typical → poor. | §5: clean ≤ 1.6×, 8-view captures 4–6×, occlusion left in 10–15×. |
-| Outline evidence (torso) | Model/observed width (frontal) or depth (profile) at the site's level: > 1.05 → poor (body outside its outline); < 0.85 → fair (loose clothing: girth set by the shape model, not observed); no evidence → fair. | Protrusion is physically impossible. A loose outline can't constrain the body. |
-| Coverage | Usable-silhouette views < 8 or largest heading gap > 90° → fair; < 6 views or gap > 120° → poor. | §5: 8 views and a 90° gap are negligible; 6 views gives a −1 to −2% systematic shrink; > 90° untested. |
+| Run-level verdicts | `scan_quality` reconstruction `unreliable` / capture `insufficient` → poor. Warnings → at most fair. **Missing verdict → at most fair.** | A first version treated missing evidence as a pass and graded an inflated legacy run "good"; fixed and tested. |
+| Cross-section | Invalid → unavailable. Search ended on its zone edge → fair (forearm exempt, noted). | §3 |
+| Fold stability | SD of the girth across the 4 CV-fold shapes (each fitted on 3/4 of the views, already computed by the pipeline): > 2.5 × typical → fair; > 5 × → poor. | Clean ≤ 1.8× typical. Occlusion left in the fit 10–15×. Residual-miss case 5–10×. |
+| Outline evidence (torso) | Model/observed width or depth at the site's level: > 1.05 → poor (protrusion); < 0.85 → fair ("girth set by the shape model, not observed"); missing → fair. | Physical constraint; loose outlines can't measure the body. |
+| Coverage | < 8 usable silhouettes or a heading gap > 90° → fair; < 6 or > 120° → poor. | §5: 8 views and a 90° gap negligible; wider gaps untested. |
 
-Precision ±1 SD = √(Sw² + max(0, fold SD² − typical fold SD²)): the measured between-recording SD, inflated when this run is less stable than usual, plus ±1 cm of height (d/H) when centimetres are shown.
+**Calibration per configuration.** Typical fold SD and Sw depend strongly on the shape prior: the fold SD is ≈ 10× smaller at prior 0.2. The constants are therefore tabulated per HMR2 prior weight (0.2 and 0) and chosen from the run's recorded `fit_config`. Other configurations fall back to the default values and are flagged `calibrated: false`. Precision ±1 SD = √(Sw² + max(0, fold SD² − typical²)), plus ±1 cm of stature when shown in cm.
 
-**On the existing runs** (backfill without fold data: these runs predate saving the fold shapes): current-default runs `9e126c35` and `268f55fd` → all 12 sites good; ±0.3–1.7 cm (forearm and calf ±0.3–0.5, torso ±1.2–1.7). Legacy-configuration runs `2e0b075f` and `38895355` → all poor (reconstruction verdict unreliable: protrusion not recorded, shape coefficients 2.7–2.8 SD). Original-configuration run `776042ea` → capped at fair (protrusion 3.9%).
+**On real runs.** Current-default run `ff1c226a`: 10 sites *good*; **waist and abdomen *fair*** ("outline much wider than the body: girth set by the shape model"). That is consistent with the tape: those girths come from HMR2's prior, not from the image. Legacy-configuration runs → *poor*.
 
-**What it can't detect:** errors shared by every view, i.e. a systematic segmentation-boundary bias (§5: −6% girths gave 1.5× fold spread, below threshold), loose clothing that is uniformly loose, and the shape-prior choice. The grades describe precision and internal consistency; **they are not accuracy**, and the files say so.
+**What it can't detect (demonstrated).** Errors shared by every view: uniform clothing inflation, systematic segmentation bias, a biased shape prior. The prior-0 run `9d237499`, 11–17 cm above the tape, graded *good*. The grades describe precision and internal consistency; **they are not accuracy**, and the files say so.
 
-## 7. Pipeline vs SHAPY (no ground truth)
+## 7. Pipeline vs SHAPY (current default; same stature, 179 cm)
 
-Same height (176 cm); pipeline = current defaults (study baselines); SHAPY = stored results (v2, 23–24 frames, flip test-time augmentation).
+Figure: `outputs/model_comparison/pipeline_vs_shapy_A_B.png` (front / side / back of both bodies with the measured rings; `scripts/render_model_comparison.py`). Pipeline = current default (prior 0.2) refit; SHAPY = stored result for the same video.
 
-| Site | Pipeline A | SHAPY A | Pipeline B | SHAPY B | Pipeline C | Pipeline − SHAPY |
+| Site | A: Pipeline | A: SHAPY | B: Pipeline | B: SHAPY | C: Pipeline | Tape (self, ranges) |
 |---|---|---|---|---|---|---|
-| Chest | 109.9 | 104.3 | 112.5 | 104.3 | 111.5 | +5.6 … +8.2 |
-| Waist | 95.6 | 86.6 | 98.8 | 87.0 | 97.5 | +9.0 … +11.8 |
-| Abdomen | 99.3 | 88.9 | 102.5 | 89.3 | 101.0 | +10.4 … +13.2 |
-| Hip | 113.7 | 103.3 | 115.4 | 103.2 | 113.7 | +10.4 … +12.2 |
-| Upper arm L | 34.1 | 32.2 | 35.2 | 32.3 | 34.5 | +1.9 … +2.9 |
-| Forearm L | 28.3 | 27.9 | 28.8 | 27.9 | 28.5 | +0.4 … +0.9 |
-| Thigh L | 58.6 | 53.9 | 59.6 | 54.0 | 58.6 | +4.7 … +5.6 |
-| Calf L | 40.4 | 37.9 | 41.0 | 37.9 | 40.5 | +2.5 … +3.1 |
+| Chest | 101.9 | 106.0 | 104.0 | 106.1 | 102.9 | — |
+| Waist | 84.4 | 88.1 | 87.8 | 88.5 | 85.8 | 88–90 |
+| Abdomen | 87.1 | 90.4 | 90.6 | 90.8 | 88.6 | 95–100 |
+| Hip | 100.0 | 105.0 | 103.0 | 105.0 | 102.4 | 98–103 |
+| Upper arm L | 28.5 | 32.8 | 29.9 | 32.8 | 29.2 | — |
+| Forearm L | 26.6 | 28.4 | 27.1 | 28.4 | 26.8 | — |
+| Thigh L | 50.3 | 54.9 | 52.1 | 54.9 | 51.5 | — |
+| Calf L | 36.9 | 38.6 | 37.8 | 38.6 | 37.4 | — |
 
-- SHAPY is extremely repeatable here (A vs B within 0.4 cm). Repeatability is not accuracy: SHAPY regresses from single crops and is known to pull toward average bodies.
-- The pipeline follows the clothed outline. The gap is largest at the waist, abdomen and hip, which are under a loose T-shirt and cargo trousers, and smallest at the forearm, which is bare. That pattern fits clothing inflation in the pipeline, SHAPY shrinkage toward the mean, or both. **It does not tell which.**
-- The pipeline under the older prior-0.2 setting (chest about 101, waist 85, hip 100 cm) is close to SHAPY. Tape on this subject would therefore discriminate between the settings as well as between the models.
-- SHAPY has not been computed for recording C (needs the GPU, which was busy).
+- At the torso the two models now differ by 0.2–5 cm (they differed by 6–13 cm under prior 0). **Both fall short at the abdomen** (≈ 5–10 cm under the tape range), so that error is shared, likely a learned-shape limitation for belly projection.
+- At the waist SHAPY is inside or at the edge of the range; the pipeline is 0.2–3.6 cm under. At the hip the pipeline is inside the range; SHAPY is 2 cm over.
+- Pipeline limbs are 1.3–4.6 cm smaller than SHAPY's (upper arm 3–4 cm, thigh 3–5 cm). There is no limb tape yet, so it isn't known which is right.
+- SHAPY is very repeatable (A vs B ≤ 0.4 cm). The pipeline varies 2–3.5 cm between recordings. Repeatability is not accuracy.
+- SHAPY has not been computed for recording C (needs the GPU).
 
-## 8. Ground-truth validation workflow (implemented; no data yet)
+## 8. Ground-truth validation workflow (implemented; first data entered)
 
-Code: `backend/services/ground_truth_validation.py`, CLI `scripts/ground_truth_report.py`, templates `docs/validation/sessions_template.csv` and `tape_template.csv`, tests `backend/tests/test_ground_truth_validation.py` (7 pass).
+Code: `backend/services/ground_truth_validation.py`, CLI `scripts/ground_truth_report.py`, templates `docs/validation/*_template.csv`, tests `backend/tests/test_ground_truth_validation.py` (7 pass).
 
 **Protocol per subject**
 
-1. Record the 360° video. Run the reconstruction and compute SHAPY (`POST /runs/{id}/shapy`). Write the run IDs into the sessions sheet **before** any tape is taken, so the model values can't be adjusted toward the tape.
-2. Measure barefoot height with a stadiometer.
-3. Take tape measurements at the 12 sites (protocol in `body_measurements.TAPE_PROTOCOL`, minimal or tight clothing for the primary analysis): one trained measurer, inelastic tape, **two readings per site**, and a third when they differ by > 1.0 cm (torso) or > 0.5 cm (limbs). The report flags missing thirds.
+1. Record. Run the reconstruction and SHAPY, and write the run IDs into the sessions sheet **before** taping, so model values can't be tuned to the tape.
+2. Measure stadiometer height, barefoot.
+3. Tape the 12 sites (`body_measurements.TAPE_PROTOCOL`): one trained measurer, inelastic tape, **two readings per site**, and a third if they differ > 1.0 cm (torso) / 0.5 cm (limbs).
 4. Run `scripts/ground_truth_report.py --sessions … --tape …`.
 
 **What it reports**
 
 - Per subject and site: tape, pipeline, SHAPY, error (model − tape) in cm and %, absolute errors, and the pipeline quality grade.
-- Per site and method: n, bias, SD, MAE, MAPE, 95% limits of agreement, worst error, and target met / not met / n too small.
-- The measurer's technical error of measurement (TEM, from the duplicate readings), which is the floor below which no method can be shown to be accurate.
-- A paired comparison: which model is closer to the tape per subject.
+- Per site and method: n, bias, SD, MAE, MAPE, 95% limits of agreement, worst error, and target met / not met / n too small (claimable from n ≥ 5).
+- Measurer TEM from the duplicate readings.
+- Paired pipeline-vs-SHAPY absolute error.
 
-Model centimetres are computed as girth ÷ mesh height × **stadiometer** height, straight from each run's files, so a mistyped height in the app can't leak in. Statistics are marked claimable only from n ≥ 5 subjects.
+Model cm = girth ÷ mesh height × stadiometer height, read from each run's files. Tape is the only reference; with no tape it states "no accuracy can be stated". Targets (±2 cm torso, ±1 cm limbs) are proposals.
 
-**Rules it enforces:** tape is the only reference. Pipeline and SHAPY are never compared as truth against each other. With no tape rows the report states "no accuracy can be stated" and prints nothing else. The acceptance targets (±2 cm torso, ±1 cm limbs, applied to |bias| and MAE) are proposals to be agreed, not derived from data.
+**First data (S01, 20 Nov).** Self-measured ranges, loose clothing, stature 179 cm (not confirmed barefoot). The range ends were entered as the two readings (`data/validation/S01_*.csv`, output `outputs/validation/ground_truth_S01.md`):
 
-**Minimum dataset to answer the open questions:** ≥ 5 subjects of varied build. At least 2 recordings each, one in tight or minimal clothing and one in everyday loose clothing. Run with both `RECON_BETA_PRIOR=0` and `0.2` on the same recordings, so the prior is chosen by tape error.
+| Site | Tape (midpoint) | Pipeline, current default (`ff1c226a`) | Error | Old prior-0 run (`9d237499`) | SHAPY (`9d237499`) |
+|---|---|---|---|---|---|
+| Waist | 89.0 | 87.6 | −1.4 cm | 100.3 (+11.3) | 88.5 (−0.5) |
+| Abdomen | 97.5 | 90.4 | −7.1 cm | 104.0 (+6.5) | 90.8 (−6.7) |
+| Hip | 100.5 | 103.0 | +2.5 cm | 117.1 (+16.6) | 105.0 (+4.5) |
+
+The report flags that **every reading pair exceeds the re-measure tolerance**: the implied measurer TEM is 1.4–3.5 cm, as large as the errors being judged. The next tape session must follow the protocol (two independent readings, trained measurer) before any per-cm conclusion is drawn.
 
 ## 9. Remaining limitations
 
-1. **No ground truth.** Nothing here measures accuracy in centimetres. Every "error" is a change relative to another fit, or a disagreement between models.
-2. **One subject, three recordings, one outfit (loose).** Repeatability (n = 3) and the condition effects may differ on other bodies, other clothing and other cameras. Treat the Sw/RC values and quality thresholds as provisional.
-3. **Degradations are proxies.** Masks, keypoints and views were perturbed. HMR2 and segmentation were not re-run on degraded video, so real blur, low light or occlusion can also corrupt HMR2's pose and heading, which these tests only partly represent (the heading-initialisation test).
-4. **Systematic segmentation bias is undetectable internally** and is the largest measured sensitivity (about 1–1.5% of girth per pixel of boundary shift). Neither fold spread nor protrusion flags a uniform shift.
-5. **Absolute girths depend on the unresolved shape-prior choice:** about 10–14% between `RECON_BETA_PRIOR` 0 and 0.2, larger than any capture effect except occlusion and boundary bias. Pipeline and SHAPY differ by up to 13 cm at the abdomen.
-6. **Clothing.** The silhouette is the clothed outline. Torso and thigh girths under loose garments are an upper bound shaped by the model prior, not a measurement.
-7. **Model capacity and definitions.** 10 SMPL shape coefficients, gender-neutral model (a sex-specific option is being added by the concurrent work), no muscle relief (forearm), LBS compression at the axilla (chest pose-sensitivity 1–3 cm), and a thigh ring about 1 cm above the tape protocol point.
-8. **Camera intrinsics** are HMR2's assumed focal length. Scale comes only from the supplied stature (±1 cm → ±0.57%).
+1. **Accuracy rests on one subject, three sites, self-measured ranges, loose clothing.** It is enough to reject the prior-0 setting (10–17 cm off), not to state accuracy.
+2. **Repeatability and all thresholds come from one subject (n = 3 recordings)** and are provisional.
+3. **Under the current default, accuracy is set by HMR2's learned shape:** abdomen 4–8 cm under on every recording, waist 0–4 cm under. No capture-side measure tested here changes that.
+4. **Degradations are proxies.** HMR2 and segmentation were not re-run on degraded video, and that is where blur, low light and occlusion act under the current default.
+5. **Internal checks can't see shared errors:** uniform clothing inflation, systematic segmentation bias, prior bias. Demonstrated in §6.
+6. **Limbs:** pipeline and SHAPY differ by 1–5 cm, with no limb tape.
+7. **Definitions:** forearm edge (≈ 0.5 cm), thigh ≈ 1 cm above protocol, chest pose-sensitivity 1–3 cm.
+8. **Scale** comes only from the supplied stature (±1 cm → ±0.56%). Camera intrinsics are HMR2's assumption.
 
-## 10. Recommended next phase
+## 10. Recommended next phase: ground truth at protocol quality
 
-**Phase: ground-truth collection and calibration**, in this order. Each step is gated on the previous one's evidence.
+1. **Tape properly:** ≥ 5 subjects of varied build, trained measurer, two readings per site at all 12 sites, stadiometer height. Each subject recorded **twice: tight/minimal and everyday clothing.** Freeze run IDs and SHAPY first. This is the single most valuable step: today's measurer error (1.4–3.5 cm) is as large as the model error.
+2. **Tight-clothing recordings are the key experiment.** With an honest outline the silhouettes could correct HMR2's abdomen shortfall, but that brings back the prior-0 sensitivities (§5.3), which are then governed by segmentation quality. Compare prior 0.2 vs a lower prior on tight clothing by tape error.
+3. **Decide per site between pipeline, SHAPY or their average** by tape, including the limbs, where they differ by 1–5 cm. Consider a per-site bias correction only if it is consistent across subjects and larger than measurer TEM (validate leave-one-subject-out).
+4. **Re-run HMR2 on degraded frames** (real blur, low light, partial occlusion) to measure capture sensitivity where it now lives.
+5. **Measurement definitions:** move the thigh plane to the protocol point (crotch on the mesh → kneecap) and fix the forearm level, only if tape shows less error.
+6. **Pool the calibration constants** (`measurement_quality.CALIBRATION`) over all subjects once ≥ 5 × 3 recordings exist (`scripts/validation_report.py`).
 
-1. **Collect tape data with the workflow in §8.** At least 5 subjects of varied build, 2 recordings each (tight or minimal clothing, and everyday clothing), stadiometer height, two tape readings per site. Freeze run IDs (and SHAPY) before measuring. Also run each recording with `RECON_BETA_PRIOR=0` and `0.2`.
-2. **Decide from tape:** (a) the shape prior, (b) pipeline vs SHAPY per site, and (c) whether a per-site linear bias correction is justified. Apply (c) only if bias is consistent across subjects and larger than measurer TEM, and validate it by leave-one-subject-out.
-3. **Segmentation accuracy, the largest measured lever.** Hand-annotate subject outlines on about 50 frames across lighting conditions and measure the boundary bias in pixels of the current mask stack (Mask R-CNN + GrabCut + MediaPipe). At about 1–1.5% of girth per pixel, a 2 px bias is already a 2–3% girth error. If a bias exists, correct it (boundary refinement, or a fitted boundary offset), or add a capture-side control: lighting check, plain background.
-4. **Resolve the measurement definitions with tape:** the thigh plane at the tape-protocol point (crotch on the mesh → kneecap), a fixed forearm level, and the chest measured at a pose-insensitive level or arm angle. Change a definition only where tape shows it reduces error.
-5. **Clothing.** If tape shows loose-clothing bias dominates, add clothing-aware silhouette weighting (garment segmentation, down-weight coverage on loose regions, keep the inside constraint), or require fitted clothing in the capture protocol.
-6. **Replace the provisional constants** (`measurement_quality.REPEATABILITY_SD_PCT`, typical fold SD, thresholds, and the UI's `REPEATABILITY_SD_PCT`) with values pooled over all subjects, once ≥ 5 subjects × ≥ 3 recordings exist (`scripts/validation_report.py`).
-
-Not recommended before tape data exists: further objective or prior tuning chosen by IoU, held-out IoU or SHAPY agreement. None of these can tell which girths are correct.
+Not recommended: choosing fit settings by IoU, held-out IoU or model agreement. None of them can tell which girths are correct (they chose prior 0 once).
 
 ## Appendix: reproduce
 
 ```
 .venv\Scripts\python.exe scripts/measurement_location_audit.py 9e126c35 268f55fd 38895355 2e0b075f 4fe46ed4 --synthetic --output outputs/accuracy_study/location_audit.json
-set CUDA_VISIBLE_DEVICES= & .venv\Scripts\python.exe scripts/reliability_study.py 38895355 --output outputs/accuracy_study/reliability/38895355.json   (and 9e126c35, 2e0b075f)
-.venv\Scripts\python.exe scripts/summarize_reliability.py outputs/accuracy_study/reliability/*.json --markdown outputs/accuracy_study/reliability/summary.md --json outputs/accuracy_study/reliability/summary.json
-.venv\Scripts\python.exe scripts/ground_truth_report.py --sessions <sessions.csv> --tape <tape.csv> --markdown outputs/validation/ground_truth.md
+set CUDA_VISIBLE_DEVICES= & .venv\Scripts\python.exe scripts/reliability_study.py 9e126c35 --beta-prior 0.2 --exclusion protrusion --output outputs/accuracy_study/reliability_p02/9e126c35.json   (also 38895355, 2e0b075f; omit both flags for the prior-0 study)
+.venv\Scripts\python.exe scripts/summarize_reliability.py outputs/accuracy_study/reliability_p02/*.json --height-cm 179 --markdown outputs/accuracy_study/reliability_p02/summary.md
+set CUDA_VISIBLE_DEVICES= & .venv\Scripts\python.exe scripts/view_exclusion_study.py 9e126c35 38895355 2e0b075f --device cpu --rules iou protrusion_iter none --output outputs/accuracy_study/view_exclusion_iter.json
+.venv\Scripts\python.exe scripts/measurement_quality_report.py RUN_ID --height-cm 179 [--folds]
+.venv\Scripts\python.exe scripts/ground_truth_report.py --sessions data/validation/S01_sessions.csv --tape data/validation/S01_tape.csv --markdown outputs/validation/ground_truth_S01.md
+.venv\Scripts\python.exe scripts/render_model_comparison.py --height-cm 179 --case "Recording B=study:outputs/accuracy_study/reliability_p02/9e126c35.json,shapy:9d237499" --tape waist=88-90 abdomen=95-100 hip=98-103 --output outputs/model_comparison/pipeline_vs_shapy.png
 ```

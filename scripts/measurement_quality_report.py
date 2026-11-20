@@ -1,4 +1,4 @@
-"""Per-measurement quality grades for existing runs (backend/services/measurement_quality.py).
+r"""Per-measurement quality grades for existing runs (backend/services/measurement_quality.py).
 
 Runs made before the pipeline saved its cross-validation fold shapes have no fold girths; --folds refits the 4
 heading folds offline from diagnostics/fit_inputs.npz (pipeline defaults; ~4 fits per run). Writes

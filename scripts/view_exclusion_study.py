@@ -1,4 +1,4 @@
-"""Which post-fit view-exclusion rule protects girths when some masks are missing body (occlusion, dark edges)?
+r"""Which post-fit view-exclusion rule protects girths when some masks are missing body (occlusion, dark edges)?
 
 Rules (applied after a first full fit, then the shape is refitted without the excluded views' silhouettes):
   iou         current pipeline: IoU < max(0.75, median IoU - 0.10)

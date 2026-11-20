@@ -38,8 +38,24 @@ def test_clean_run_is_good_with_repeatability_precision():
     assert all(s["grade"] == mq.GOOD for s in r["sites"].values())
     w = r["sites"]["waist"]
     assert w["precision_sd_pct"] == pytest.approx(mq.REPEATABILITY_SD_PCT["waist"])
-    assert w["value_cm"] == 88.0 and w["precision_sd_cm"] == pytest.approx(1.5, abs=0.1)
+    expected_cm = 88.0 * np.hypot(mq.REPEATABILITY_SD_PCT["waist"] / 100, 1.0 / 176)  # repeatability + 1 cm height
+    assert w["value_cm"] == 88.0 and w["precision_sd_cm"] == pytest.approx(expected_cm, abs=0.06)
     assert "They are not accuracy" in r["statement"]
+    assert r["calibration"]["calibrated"] is False  # no fit_config in this report -> default values, flagged
+
+
+def test_calibration_follows_the_runs_shape_prior():
+    rep = {**_report(), "multiview_optimisation": {"fit_config": {"hmr2_shape_prior_weight": 0.0}}}
+    r = _assess(_meas(), rep, usable_yaws=EVEN)
+    assert r["calibration"] == {"hmr2_shape_prior_weight": 0.0, "calibrated": True, "note": None}
+    assert r["sites"]["hip"]["precision_sd_pct"] == pytest.approx(mq.CALIBRATION[0.0]["repeatability"]["hip"])
+    # A fold SD of 1% is typical at prior 0 but > 3x typical at prior 0.2 for the chest.
+    folds = [{s: 0.5 for s in mq.SITES} for _ in range(4)]
+    for f, v in zip(folds, (0.495, 0.500, 0.505, 0.510)):
+        f["chest"] = v
+    assert _assess(_meas(), rep, fold_girths=folds, usable_yaws=EVEN)["sites"]["chest"]["grade"] == mq.GOOD
+    rep02 = {**_report(), "multiview_optimisation": {"fit_config": {"hmr2_shape_prior_weight": 0.2}}}
+    assert _assess(_meas(), rep02, fold_girths=folds, usable_yaws=EVEN)["sites"]["chest"]["grade"] == mq.POOR
 
 
 def test_invalid_section_and_edge_hits():

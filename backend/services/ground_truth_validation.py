@@ -190,8 +190,8 @@ def build(sessions: dict, tape: dict, runs_root: Path, targets: dict | None = No
                 q = ((mc["meta"]["quality"] or {}).get("sites") or {}).get(site) or {}
                 row["pipeline_quality_grade"] = q.get("grade")
                 rows.append(row)
-            if tr_flags := [s for s, tr in t.items() if tr["needs_third"]]:
-                problems.append(f"{sid}: readings differ beyond tolerance at {', '.join(tr_flags)}: take a third")
+        if tr_flags := [s for s, tr in t.items() if tr["needs_third"]]:
+            problems.append(f"{sid}: readings differ beyond tolerance at {', '.join(tr_flags)}: take a third")
     # One run per subject for accuracy statistics (the first listed), so re-runs do not weight a subject twice.
     primary = {s["subject_id"]: s["run_ids"][0] for s in sessions.values()}
     prim = [r for r in rows if r["run_id"].startswith(primary[r["subject_id"]])]

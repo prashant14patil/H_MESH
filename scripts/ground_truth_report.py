@@ -1,4 +1,4 @@
-"""Tape vs pipeline vs SHAPY for every measured subject (see backend/services/ground_truth_validation.py).
+r"""Tape vs pipeline vs SHAPY for every measured subject (see backend/services/ground_truth_validation.py).
 
 Usage:
   .venv\Scripts\python.exe scripts/ground_truth_report.py --sessions data/validation/sessions.csv \

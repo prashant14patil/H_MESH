@@ -33,12 +33,33 @@ SITES = ("chest", "waist", "abdomen", "hip", "upper_arm_left", "upper_arm_right"
 GOOD, FAIR, POOR, UNAVAILABLE = "good", "fair", "poor", "unavailable"
 _RANK = {GOOD: 0, FAIR: 1, POOR: 2, UNAVAILABLE: 3}
 
-# Between-recording within-subject SD (% of girth) and typical fold SD (%), current default fit, 3 recordings of
-# one subject (reliability study, 19 Nov 2026). n = 3: provisional, to be replaced as recordings accumulate.
-REPEATABILITY_SD_PCT = {"chest": 1.19, "waist": 1.61, "abdomen": 1.55, "hip": 0.85, "upper_arm": 1.62,
-                        "forearm": 0.93, "thigh": 1.01, "calf": 0.80}
-TYPICAL_FOLD_SD_PCT = {"chest": 0.69, "waist": 0.98, "abdomen": 0.97, "hip": 0.53, "upper_arm": 1.00,
-                       "forearm": 0.55, "thigh": 0.65, "calf": 0.48}  # mean over the 3 undegraded recordings
+# Between-recording within-subject SD (% of girth) and typical (clean) fold SD (%), per HMR2 shape-prior weight,
+# 3 recordings of one subject (reliability studies 19-20 Nov 2026). n = 3: provisional. The prior changes both a
+# lot: at 0.2 (default since 20 Nov, chosen against tape) silhouettes barely move the shape, so fold spread is ~10x
+# smaller and the between-recording SD comes from HMR2's per-recording shape estimate.
+CALIBRATION = {
+    0.2: {"repeatability": {"chest": 1.02, "waist": 1.98, "abdomen": 2.00, "hip": 1.56, "upper_arm": 2.33,
+                            "forearm": 0.91, "thigh": 1.89, "calf": 1.12},
+          "typical_fold": {"chest": 0.09, "waist": 0.20, "abdomen": 0.22, "hip": 0.31, "upper_arm": 0.28,
+                           "forearm": 0.08, "thigh": 0.31, "calf": 0.14}},
+    0.0: {"repeatability": {"chest": 1.19, "waist": 1.61, "abdomen": 1.55, "hip": 0.85, "upper_arm": 1.62,
+                            "forearm": 0.93, "thigh": 1.01, "calf": 0.80},
+          "typical_fold": {"chest": 0.69, "waist": 0.98, "abdomen": 0.97, "hip": 0.53, "upper_arm": 1.00,
+                           "forearm": 0.55, "thigh": 0.65, "calf": 0.48}},
+}
+DEFAULT_PRIOR = 0.2
+REPEATABILITY_SD_PCT = CALIBRATION[DEFAULT_PRIOR]["repeatability"]
+TYPICAL_FOLD_SD_PCT = CALIBRATION[DEFAULT_PRIOR]["typical_fold"]
+
+
+def calibration_for(report: dict) -> tuple[dict, dict, float | None, bool]:
+    """(repeatability, typical fold SD, prior weight, calibrated?) for the run's recorded HMR2 prior weight."""
+    w = ((report.get("multiview_optimisation") or {}).get("fit_config") or {}).get("hmr2_shape_prior_weight")
+    if isinstance(w, (int, float)):
+        for k, c in CALIBRATION.items():
+            if abs(float(w) - k) < 1e-6:
+                return c["repeatability"], c["typical_fold"], float(w), True
+    return REPEATABILITY_SD_PCT, TYPICAL_FOLD_SD_PCT, w, False
 # Fold SD relative to the typical (clean) fold SD. Evidence (recording B): clean runs <= 1.6x typical; 8 evenly
 # spaced views (girths still within 1% of the 24-view fit) 4-6x, because each fold then has only 6 views; occluded
 # masks left in the fit 10-15x. A systematic mask-boundary shift (dark edges, -6% girths) only reached 1.5x:
@@ -89,6 +110,7 @@ def assess(measurements: dict, report: dict, *, fold_girths: list[dict] | None =
     front = (pc.get("front_back_width") or {}).get("median_ratio") or []
     side = (pc.get("side_depth") or {}).get("median_ratio") or []
     folds = fold_spread(fold_girths)
+    rep_tab, typ_tab, prior_w, calibrated = calibration_for(report)
     cov = heading_coverage(usable_yaws) if usable_yaws is not None else None
 
     run_grade, run_reasons = GOOD, []
@@ -129,7 +151,7 @@ def assess(measurements: dict, report: dict, *, fold_girths: list[dict] | None =
                 grade = _worse(grade, FAIR)
                 reasons.append("min/max search ended on the edge of its anatomical zone (boundary value)")
         fsd = folds.get(s)
-        rep, typ = REPEATABILITY_SD_PCT[g], TYPICAL_FOLD_SD_PCT[g]
+        rep, typ = rep_tab[g], typ_tab[g]
         if fsd is not None:
             if fsd > FOLD_POOR * typ:
                 grade = POOR
@@ -155,7 +177,7 @@ def assess(measurements: dict, report: dict, *, fold_girths: list[dict] | None =
                 reasons.append("no frontal/profile outline evidence at this level")
         else:
             notes.append("limb girths have no direct per-level outline check")
-        excess = max(0.0, (fsd or 0.0) ** 2 - TYPICAL_FOLD_SD_PCT[g] ** 2)
+        excess = max(0.0, (fsd or 0.0) ** 2 - typ ** 2)
         sd_pct = math.sqrt(rep ** 2 + excess)
         entry = {"grade": grade, "reasons": reasons, "notes": notes, "fold_sd_pct": fsd,
                  "precision_sd_pct": round(sd_pct, 2)}
@@ -166,7 +188,10 @@ def assess(measurements: dict, report: dict, *, fold_girths: list[dict] | None =
             entry["precision_sd_cm"] = round(cm * math.sqrt((sd_pct / 100) ** 2 + rel_height ** 2), 1)
         sites[s] = entry
     counts = {k: sum(1 for v in sites.values() if v["grade"] == k) for k in _RANK}
-    return {"sites": sites, "run_grade": run_grade, "run_reasons": run_reasons, "coverage": cov,
+    calib = {"hmr2_shape_prior_weight": prior_w, "calibrated": calibrated,
+             "note": None if calibrated else "no repeatability calibration for this fit configuration: precision uses "
+                                             f"the default (prior {DEFAULT_PRIOR:g}) values and is indicative only"}
+    return {"sites": sites, "run_grade": run_grade, "run_reasons": run_reasons, "coverage": cov, "calibration": calib,
             "fold_spread_pct": folds, "counts": counts,
             "statement": "Grades and ±SD describe internal consistency and repeatability (precision). They are not "
                          "accuracy: no tape or 3D-scan ground truth is involved."}

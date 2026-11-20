@@ -1,4 +1,4 @@
-"""Where do the measurement rings land on the body? (anatomical-location audit, CPU only)
+r"""Where do the measurement rings land on the body? (anatomical-location audit, CPU only)
 
 For each run (its fitted shared shape, re-posed in the measurement A-pose) or a synthetic SMPL shape, report per site:
 

@@ -1,4 +1,4 @@
-"""Summarise scripts/reliability_study.py outputs (one JSON per recording) into condition-effect tables.
+r"""Summarise scripts/reliability_study.py outputs (one JSON per recording) into condition-effect tables.
 
 Reference noise = between-recording repeatability of the UNDEGRADED fits of the same subject (current defaults):
 Sw = SD of girth/height across recordings, RC = 2.77 x Sw (95% of repeat differences of an unchanged body).

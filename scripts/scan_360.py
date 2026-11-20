@@ -144,8 +144,8 @@ def _print_summary(run_dir: Path, run: dict) -> None:
             print(f"  {k:<16} {cell(shapy_vals.get(k)) + ' ' if shapy else ''}{cell(v):>8}")
         if shapy:
             print("  SHAPY (shown first) = learned body-shape estimate. pipeline = one body shape fitted to the outline in\n"
-                  "  every view; loose clothing reads as body. First tape check (loose clothing): SHAPY within a few cm,\n"
-                  "  pipeline 4-14 cm too large. Check against tape:\n"
+                  "  every view. Tape check (loose clothing): SHAPY ~2 cm outside the tape ranges; pipeline 4-14 cm too\n"
+                  "  large with the old prior 0, ~3 cm with the HMR2 prior 0.2 (default from 20 Nov). Check against tape:\n"
                   f"  scripts/shapy_compare.py {run_dir.name} --height-cm H --tape waist=88-90 hip=98-103 ..")
         if not scaled:
             print("  (relative units: no height/calibration supplied; use --height-cm for centimetres)")

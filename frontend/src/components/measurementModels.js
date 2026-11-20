@@ -2,8 +2,9 @@
  * measurementModels.js
  * --------------------
  * Pure helpers for choosing and comparing measurement models (Compare both / SHAPY / Pipeline).
- * The default view shows both models as Body Avatars side by side, SHAPY first: in the first tape check SHAPY was
- * within a few cm, while the pipeline was 4-14 cm too large in loose clothing (docs/SHAPY_VS_PIPELINE_MEASUREMENTS.md).
+ * The default view shows both models as Body Avatars side by side, SHAPY first. In the first tape check SHAPY was
+ * about 2 cm outside the tape ranges; the pipeline 4-14 cm too large with its old prior 0 and about 3 cm with the
+ * HMR2 prior 0.2 that is the default from 20 Nov (docs/SHAPY_VS_PIPELINE_MEASUREMENTS.md).
  */
 export const VIEWS = [
   ['compare', 'Compare both'],

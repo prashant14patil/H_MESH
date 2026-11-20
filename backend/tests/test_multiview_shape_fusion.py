@@ -524,3 +524,18 @@ def test_girth_prior_reduces_inconsistency_when_images_are_silent():
     r = smv.fit_multiview(smpl, views, start, cfg, device="cpu")
     after = float(smv.girth_prior_loss(smpl, torch.as_tensor(r.betas, dtype=torch.float32), gp, "cpu"))
     assert after < 0.5 * before
+
+
+def test_clothing_fit_ratio_uses_waist_to_hip_levels_of_both_view_groups():
+    from backend.services.body_reconstruction import clothing_fit_ratio, LOOSE_CLOTHING_RATIO
+    loose = {"levels_shoulder0_hip1": [0.15, 0.55, 0.75, 0.95],      # run ff1c226a (loose T-shirt, cargo trousers)
+             "front_back_width": {"median_ratio": [0.95, 0.791, 0.845, 0.852]},
+             "side_depth": {"median_ratio": [0.932, 0.875, 0.878, 0.863]}}
+    r = clothing_fit_ratio(loose)
+    assert r == pytest.approx(np.mean([0.791, 0.845, 0.852, 0.875, 0.878, 0.863]), abs=1e-3)
+    assert r < LOOSE_CLOTHING_RATIO
+    fitted = {"levels_shoulder0_hip1": [0.15, 0.55, 0.75, 0.95],
+              "front_back_width": {"median_ratio": [0.98, 0.96, 0.97, 0.95]},
+              "side_depth": {"median_ratio": [0.99, 0.97, 0.96, 0.96]}}
+    assert clothing_fit_ratio(fitted) > LOOSE_CLOTHING_RATIO
+    assert clothing_fit_ratio({}) is None

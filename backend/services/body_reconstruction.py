@@ -1200,6 +1200,23 @@ def select_view_exclusions(scores, sil_weight, rule: str | None = None) -> list[
     return out
 
 
+# Fitted-body / outline torso width (waist-to-hip levels, front and side views). Fitted clothing leaves the outline
+# within ~1-2 cm of the body (ratio >~0.95). Loose T-shirt + cargo trousers measured 0.79-0.88 with the tape-validated
+# fit (run ff1c226a; tape confirmed the body ~20% inside the outline). 0.90 = >10% free space: a physical heuristic,
+# not yet calibrated on fitted-clothing scans; the measured ratio is reported for that calibration.
+LOOSE_CLOTHING_RATIO = 0.90
+
+
+def clothing_fit_ratio(proportions: dict) -> float | None:
+    """Mean fitted-body / outline width over the waist-to-hip levels (0.55-0.95), front and side views."""
+    levels = proportions.get("levels_shoulder0_hip1") or []
+    vals = []
+    for grp in ("front_back_width", "side_depth"):
+        med = (proportions.get(grp) or {}).get("median_ratio") or []
+        vals += [v for lv, v in zip(levels, med) if lv >= 0.5 and v is not None]
+    return round(float(np.mean(vals)), 3) if vals else None
+
+
 def proportion_check(scores, yaws) -> dict:
     """Median model/observed torso width per torso level, separately for frontal and profile views.
 
@@ -1572,6 +1589,13 @@ def fit_unified(engine, selected, per_frame, records, view_info, image_wh, run, 
     # --- consistency / proportion checks that IoU cannot make ---------------------------------
     yaws = [view_info[p]["yaw_deg"] for p in selected]
     proportions = proportion_check(full_scores, yaws)
+    proportions["clothing_fit_ratio"] = clothing_fit_ratio(proportions)
+    cfr = proportions["clothing_fit_ratio"]
+    if cfr is not None and cfr < LOOSE_CLOTHING_RATIO:
+        _warn(run, "loose_clothing_likely",
+              f"The clothed outline is much wider than the fitted body at waist and hips (fitted body / outline width "
+              f"{cfr:.2f}). Girths there come mainly from the learned body shape: in a tape-checked loose-clothing test "
+              "waist and hip were within about 3 cm, the belly 4-8 cm under. Re-scan in fitted clothing for best accuracy.")
     fit_summary = _summary(full_scores)
     prot = fit_summary.get("protrusion_frac_mean")
     if prot is not None and prot > PROTRUSION_WARN:

@@ -399,10 +399,12 @@ export default function VideoCapture({ onFileSelected, disabled = false }) {
         <ul className="space-y-1 text-xs text-teal-700 list-disc list-inside">
           <li>
             <span className="font-medium">Wear tight-fitting clothing</span> (e.g. a fitted top and leggings or shorts) and remove
-            jackets, bags and belts. Loose clothing is the largest error source: the model sees the clothed outline, and
-            baggy clothes can add several centimetres to waist, hip and thigh.
+            jackets, bags and belts. Loose clothing is the largest error source: the camera sees the clothed outline. In a
+            tape-checked test a loose T-shirt and cargo trousers made the outline about 25 cm larger than the body at
+            waist and hip, and the belly under a loose shirt was underestimated by 4–8 cm.
           </li>
-          <li>Hold the arms slightly away from the body (about 30–45°) and keep the feet hip-width apart, so the arms and legs do not merge with the torso.</li>
+          <li>Hold the arms slightly away from the body (about 30–45°), hands to the sides rather than in front, and keep the feet hip-width apart. In the side views the hands must not cover the belly, or its outline is lost.</li>
+          <li>Choose clothing that contrasts with the background (not a white top against a white wall), so the outline is sharp.</li>
           <li>Place the camera at about waist height, 2–3 m away, in portrait orientation, with a little space above the head and below the feet.</li>
           <li>Turn slowly and steadily for one full turn (about 20–30 seconds) and keep the same pose while turning.</li>
           <li>Tie back long hair if possible, and note the person’s barefoot height — it sets the scale for every measurement.</li>
